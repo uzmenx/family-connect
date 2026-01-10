@@ -1,90 +1,107 @@
-import { Link } from 'react-router-dom';
-import { AppLayout } from '@/components/layout/AppLayout';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
-import { Card } from '@/components/ui/card';
-import { Settings, Instagram } from 'lucide-react';
+import { Card, CardContent } from '@/components/ui/card';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Settings, Edit } from 'lucide-react';
 
 const Profile = () => {
-  const { user } = useAuth();
+  const { profile, user } = useAuth();
+  const navigate = useNavigate();
 
-  if (!user) return null;
+  const getInitials = (name: string | null | undefined) => {
+    if (!name) return 'U';
+    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+  };
 
   return (
     <AppLayout>
-      <div className="max-w-lg mx-auto">
+      <div className="min-h-screen bg-background">
         {/* Cover Image */}
-        <div className="relative h-32 bg-gradient-to-r from-primary/30 to-accent/30">
-          {user.cover_url && (
-            <img src={user.cover_url} alt="Cover" className="w-full h-full object-cover" />
-          )}
-          <Link to="/settings" className="absolute top-4 right-4">
-            <Button variant="secondary" size="icon" className="rounded-full">
-              <Settings className="h-5 w-5" />
-            </Button>
-          </Link>
-        </div>
-
+        <div className="h-32 bg-gradient-to-r from-primary to-accent" />
+        
         {/* Profile Info */}
-        <div className="relative px-4 pb-4">
-          <Avatar className="h-24 w-24 border-4 border-background -mt-12 relative z-10">
-            <AvatarImage src={user.avatar_url} />
-            <AvatarFallback className="text-2xl bg-primary/10 text-primary">
-              {user.full_name.charAt(0)}
-            </AvatarFallback>
-          </Avatar>
+        <div className="px-4 pb-20">
+          <div className="relative -mt-16 mb-4">
+            <Avatar className="h-24 w-24 border-4 border-background">
+              <AvatarImage src={profile?.avatar_url || undefined} />
+              <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
+                {getInitials(profile?.name)}
+              </AvatarFallback>
+            </Avatar>
+          </div>
 
-          <div className="mt-3 space-y-2">
+          <div className="flex items-start justify-between mb-4">
             <div>
-              <h1 className="text-xl font-bold">{user.full_name}</h1>
-              <p className="text-muted-foreground">@{user.username}</p>
+              <h1 className="text-2xl font-bold">{profile?.name || 'Foydalanuvchi'}</h1>
+              <p className="text-muted-foreground">
+                @{profile?.username || user?.email?.split('@')[0] || 'username'}
+              </p>
             </div>
-            
-            {user.bio && <p className="text-sm">{user.bio}</p>}
-            
             <div className="flex gap-2">
-              {user.instagram && (
-                <a href={`https://instagram.com/${user.instagram}`} target="_blank" rel="noopener noreferrer">
-                  <Button variant="outline" size="sm" className="gap-2">
-                    <Instagram className="h-4 w-4" />
-                    Instagram
-                  </Button>
-                </a>
-              )}
-              {user.telegram && (
-                <a href={`https://t.me/${user.telegram}`} target="_blank" rel="noopener noreferrer">
-                  <Button variant="outline" size="sm">
-                    Telegram
-                  </Button>
-                </a>
-              )}
+              <Button 
+                variant="outline" 
+                size="icon"
+                onClick={() => navigate('/settings')}
+              >
+                <Settings className="h-4 w-4" />
+              </Button>
+              <Button 
+                variant="outline" 
+                size="icon"
+                onClick={() => navigate('/edit-profile')}
+              >
+                <Edit className="h-4 w-4" />
+              </Button>
             </div>
           </div>
 
+          {profile?.bio && (
+            <p className="text-sm mb-4">{profile.bio}</p>
+          )}
+
           {/* Stats */}
-          <Card className="mt-4 p-4">
-            <div className="flex justify-around text-center">
-              <div>
-                <p className="text-2xl font-bold">{user.followers_count}</p>
-                <p className="text-xs text-muted-foreground">Followers</p>
+          <Card className="mb-6">
+            <CardContent className="py-4">
+              <div className="grid grid-cols-3 gap-4 text-center">
+                <div>
+                  <p className="text-2xl font-bold">0</p>
+                  <p className="text-sm text-muted-foreground">Postlar</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">0</p>
+                  <p className="text-sm text-muted-foreground">Qarindoshlar</p>
+                </div>
+                <div>
+                  <p className="text-2xl font-bold">0</p>
+                  <p className="text-sm text-muted-foreground">Kuzatuvchilar</p>
+                </div>
               </div>
-              <div>
-                <p className="text-2xl font-bold">{user.following_count}</p>
-                <p className="text-xs text-muted-foreground">Following</p>
-              </div>
-              <div>
-                <p className="text-2xl font-bold">{user.relatives_count}</p>
-                <p className="text-xs text-muted-foreground">Qarindoshlar</p>
-              </div>
-            </div>
+            </CardContent>
           </Card>
 
-          <Link to="/edit-profile" className="block mt-4">
-            <Button variant="outline" className="w-full">
-              Profilni tahrirlash
-            </Button>
-          </Link>
+          {/* Account Info */}
+          <Card>
+            <CardContent className="py-4">
+              <h3 className="font-semibold mb-3">Akkount ma'lumotlari</h3>
+              <div className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Email</span>
+                  <span>{user?.email || profile?.email}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Ro'yxatdan o'tgan</span>
+                  <span>
+                    {profile?.created_at 
+                      ? new Date(profile.created_at).toLocaleDateString('uz-UZ')
+                      : '-'
+                    }
+                  </span>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
       </div>
     </AppLayout>
