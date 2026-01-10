@@ -1,26 +1,30 @@
 import { useNavigate } from 'react-router-dom';
-import { AppLayout } from '@/components/layout/AppLayout';
 import { useAuth } from '@/contexts/AuthContext';
+import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
-import { ArrowLeft, Moon, Mail, Shield, LogOut } from 'lucide-react';
+import { useToast } from '@/hooks/use-toast';
+import { ArrowLeft, LogOut, Moon, Shield, Mail } from 'lucide-react';
 import { useState, useEffect } from 'react';
 
 const Settings = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
-  const [darkMode, setDarkMode] = useState(false);
+  const { toast } = useToast();
+  const [isDarkMode, setIsDarkMode] = useState(false);
 
   useEffect(() => {
     const isDark = document.documentElement.classList.contains('dark');
-    setDarkMode(isDark);
+    setIsDarkMode(isDark);
   }, []);
 
-  const toggleDarkMode = (enabled: boolean) => {
-    setDarkMode(enabled);
-    if (enabled) {
+  const toggleDarkMode = () => {
+    const newMode = !isDarkMode;
+    setIsDarkMode(newMode);
+    
+    if (newMode) {
       document.documentElement.classList.add('dark');
       localStorage.setItem('theme', 'dark');
     } else {
@@ -29,22 +33,24 @@ const Settings = () => {
     }
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    await logout();
+    toast({ title: "Chiqildi", description: "Muvaffaqiyatli chiqdingiz" });
+    navigate('/auth');
   };
 
   return (
-    <AppLayout showNav={false}>
-      <div className="max-w-lg mx-auto">
-        <header className="sticky top-0 bg-background/80 backdrop-blur-sm border-b border-border p-4 z-40 flex items-center gap-4">
+    <AppLayout showBottomNav={false}>
+      <div className="min-h-screen bg-background p-4">
+        <div className="flex items-center gap-4 mb-6">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="text-xl font-bold">Sozlamalar</h1>
-        </header>
-        
-        <div className="p-4 space-y-4">
+        </div>
+
+        <div className="space-y-4">
+          {/* Account */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
@@ -52,14 +58,15 @@ const Settings = () => {
                 Akkount
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
+            <CardContent>
+              <div className="space-y-2">
                 <Label className="text-muted-foreground">Email</Label>
                 <p className="font-medium">{user?.email}</p>
               </div>
             </CardContent>
           </Card>
 
+          {/* Appearance */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
@@ -72,13 +79,14 @@ const Settings = () => {
                 <Label htmlFor="dark-mode">Qorong'u rejim</Label>
                 <Switch
                   id="dark-mode"
-                  checked={darkMode}
+                  checked={isDarkMode}
                   onCheckedChange={toggleDarkMode}
                 />
               </div>
             </CardContent>
           </Card>
 
+          {/* Security */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
@@ -87,18 +95,19 @@ const Settings = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <Button variant="outline" className="w-full">
-                Parolni o'zgartirish
-              </Button>
+              <p className="text-sm text-muted-foreground">
+                Akkountingiz elektron pochta orqali himoyalangan
+              </p>
             </CardContent>
           </Card>
 
+          {/* Logout */}
           <Button 
             variant="destructive" 
-            className="w-full gap-2"
+            className="w-full"
             onClick={handleLogout}
           >
-            <LogOut className="h-5 w-5" />
+            <LogOut className="mr-2 h-4 w-4" />
             Chiqish
           </Button>
         </div>
