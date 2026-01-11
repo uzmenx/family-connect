@@ -76,7 +76,7 @@ const EditProfile = () => {
   };
 
   return (
-    <AppLayout showBottomNav={false}>
+    <AppLayout showNav={false}>
       <div className="min-h-screen bg-background p-4">
         <div className="flex items-center gap-4 mb-6">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>

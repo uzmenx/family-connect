@@ -8,7 +8,7 @@ import { Plus } from 'lucide-react';
 import { Relative } from '@/types';
 
 const Relatives = () => {
-  const { user, updateUser } = useAuth();
+  const { user, profile } = useAuth();
   const [relatives, setRelatives] = useState<Relative[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
 
@@ -35,9 +35,25 @@ const Relatives = () => {
     localStorage.setItem('family_app_relatives', JSON.stringify(allRelatives));
     
     setRelatives(prev => [...prev, relative]);
-    updateUser({ relatives_count: (user.relatives_count || 0) + 1 });
     setDialogOpen(false);
   };
+
+  // Create a user object compatible with FamilyTree component
+  const currentUserForTree = profile ? {
+    id: user?.id || '',
+    email: profile.email || '',
+    full_name: profile.name || '',
+    username: profile.username || '',
+    bio: profile.bio || '',
+    avatar_url: profile.avatar_url || '',
+    cover_url: '',
+    instagram: '',
+    telegram: '',
+    followers_count: 0,
+    following_count: 0,
+    relatives_count: relatives.length,
+    created_at: profile.created_at
+  } : null;
 
   return (
     <AppLayout>
@@ -57,7 +73,7 @@ const Relatives = () => {
               <p className="text-sm text-muted-foreground mt-2">Birinchi qarindoshni qo'shing!</p>
             </div>
           ) : (
-            <FamilyTree relatives={relatives} currentUser={user} />
+            <FamilyTree relatives={relatives} currentUser={currentUserForTree} />
           )}
         </div>
 
