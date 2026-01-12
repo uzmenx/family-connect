@@ -8,6 +8,7 @@ import { useEffect } from "react";
 
 import Home from "./pages/Home";
 import AuthLogin from "./pages/AuthLogin";
+import Signup from "./pages/Signup";
 import VerifyOtp from "./pages/VerifyOtp";
 import Profile from "./pages/Profile";
 import EditProfile from "./pages/EditProfile";
@@ -76,6 +77,7 @@ const App = () => (
           <BrowserRouter>
             <Routes>
               <Route path="/auth" element={<PublicRoute><AuthLogin /></PublicRoute>} />
+              <Route path="/signup" element={<PublicRoute><Signup /></PublicRoute>} />
               <Route path="/verify-otp" element={<PublicRoute><VerifyOtp /></PublicRoute>} />
               <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
