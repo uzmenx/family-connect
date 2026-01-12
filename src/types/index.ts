@@ -28,10 +28,12 @@ export interface Post {
   id: string;
   user_id: string;
   content: string;
-  image_url: string;
+  image_url?: string; // deprecated, use media_urls
+  media_urls: string[];
   likes_count: number;
   comments_count: number;
   created_at: string;
+  updated_at?: string;
   author?: User;
 }
 
