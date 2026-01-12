@@ -61,17 +61,54 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     let isMounted = true;
 
-    // Get initial session first
-    const initializeAuth = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        
+    // Set up auth state listener FIRST
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
         if (!isMounted) return;
+
+        console.log('Auth state changed:', event, session?.user?.email);
         
         setSession(session);
         setUser(session?.user ?? null);
 
         if (session?.user) {
+          // Use setTimeout to avoid potential deadlock with Supabase client
+          setTimeout(async () => {
+            if (isMounted) {
+              const profileData = await fetchProfile(session.user.id);
+              if (isMounted) {
+                setProfile(profileData);
+              }
+            }
+          }, 0);
+        } else {
+          setProfile(null);
+        }
+        
+        setIsLoading(false);
+      }
+    );
+
+    // Then check for existing session
+    const initializeAuth = async () => {
+      try {
+        // Check if we have OAuth tokens in the URL hash (from redirect)
+        const hashParams = new URLSearchParams(window.location.hash.substring(1));
+        const accessToken = hashParams.get('access_token');
+        
+        if (accessToken) {
+          // Let onAuthStateChange handle the OAuth callback
+          console.log('OAuth callback detected, waiting for auth state change...');
+          return;
+        }
+
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!isMounted) return;
+        
+        if (session) {
+          setSession(session);
+          setUser(session.user);
           const profileData = await fetchProfile(session.user.id);
           if (isMounted) {
             setProfile(profileData);
@@ -87,29 +124,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     initializeAuth();
-
-    // Set up auth state listener for changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (!isMounted) return;
-
-        console.log('Auth state changed:', event, session?.user?.email);
-        
-        setSession(session);
-        setUser(session?.user ?? null);
-
-        if (session?.user) {
-          const profileData = await fetchProfile(session.user.id);
-          if (isMounted) {
-            setProfile(profileData);
-          }
-        } else {
-          setProfile(null);
-        }
-        
-        setIsLoading(false);
-      }
-    );
 
     return () => {
       isMounted = false;
