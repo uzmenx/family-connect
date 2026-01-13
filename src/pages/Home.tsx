@@ -142,7 +142,7 @@ const Home = () => {
   );
 };
 
-// Masonry item with constrained aspect ratio
+// Masonry item - natural aspect ratio, no cropping
 const MasonryItem = ({ post }: { post: Post }) => {
   const mediaUrl = post.media_urls?.[0] || post.image_url;
   const isVideo = mediaUrl && (mediaUrl.includes('.mp4') || mediaUrl.includes('.mov') || mediaUrl.includes('.webm'));
@@ -150,19 +150,19 @@ const MasonryItem = ({ post }: { post: Post }) => {
   return (
     <div className="relative overflow-hidden rounded-sm bg-muted">
       {mediaUrl ? (
-        <div className="relative w-full max-h-[70vh] min-h-[120px] overflow-hidden">
+        <>
           {isVideo ? (
             <video 
               src={mediaUrl} 
-              className="w-full h-full object-cover"
-              style={{ maxHeight: '70vh' }}
+              className="w-full h-auto block"
+              style={{ maxHeight: '80vh' }}
             />
           ) : (
             <img 
               src={mediaUrl} 
               alt="Post"
-              className="w-full h-auto object-cover"
-              style={{ maxHeight: '70vh' }}
+              className="w-full h-auto block"
+              style={{ maxHeight: '80vh' }}
             />
           )}
           {post.media_urls && post.media_urls.length > 1 && (
@@ -170,7 +170,7 @@ const MasonryItem = ({ post }: { post: Post }) => {
               +{post.media_urls.length - 1}
             </div>
           )}
-        </div>
+        </>
       ) : (
         <div className="w-full aspect-square flex items-center justify-center text-muted-foreground text-xs p-2 text-center">
           {post.content?.substring(0, 50)}
