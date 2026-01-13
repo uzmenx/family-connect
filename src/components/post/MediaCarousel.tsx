@@ -30,18 +30,21 @@ export const MediaCarousel = ({ mediaUrls, className }: MediaCarouselProps) => {
 
   return (
     <div className={cn("relative", className)}>
-      <div className="relative aspect-square overflow-hidden bg-muted">
+      {/* Max height constrained to phone viewport, min aspect ratio to prevent too wide */}
+      <div className="relative w-full overflow-hidden bg-muted flex items-center justify-center" style={{ maxHeight: '80vh', minHeight: '200px' }}>
         {isVideo(mediaUrls[currentIndex]) ? (
           <video
             src={mediaUrls[currentIndex]}
             controls
-            className="w-full h-full object-cover"
+            className="w-full h-auto object-contain"
+            style={{ maxHeight: '80vh', maxWidth: '100%' }}
           />
         ) : (
           <img
             src={mediaUrls[currentIndex]}
             alt={`Media ${currentIndex + 1}`}
-            className="w-full h-full object-cover"
+            className="w-full h-auto object-contain"
+            style={{ maxHeight: '80vh', maxWidth: '100%' }}
           />
         )}
       </div>
