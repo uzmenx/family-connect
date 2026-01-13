@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PostCard } from '@/components/feed/PostCard';
+import { FullScreenViewer } from '@/components/feed/FullScreenViewer';
 import { useAuth } from '@/contexts/AuthContext';
 import { Post } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
@@ -15,6 +16,13 @@ const Home = () => {
   const [posts, setPosts] = useState<Post[]>([]);
   const [gridLayout, setGridLayout] = useState<GridLayout>(1);
   const [isLoading, setIsLoading] = useState(true);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
+
+  const openViewer = (index: number) => {
+    setViewerInitialIndex(index);
+    setViewerOpen(true);
+  };
 
   useEffect(() => {
     fetchPosts();
@@ -118,24 +126,46 @@ const Home = () => {
           </div>
         ) : gridLayout === 1 ? (
           <div className="space-y-4">
-            {posts.map((post) => (
-              <PostCard key={post.id} post={post} onLike={handleLike} />
+            {posts.map((post, index) => (
+              <div key={post.id} onClick={() => openViewer(index)} className="cursor-pointer">
+                <PostCard post={post} onLike={handleLike} />
+              </div>
             ))}
           </div>
         ) : (
           // Pinterest-style masonry layout
           <div className="flex gap-1 p-1">
             <div className="flex-1 flex flex-col gap-1">
-              {posts.filter((_, i) => i % 2 === 0).map((post) => (
-                <MasonryItem key={post.id} post={post} />
-              ))}
+              {posts.filter((_, i) => i % 2 === 0).map((post) => {
+                const originalIndex = posts.findIndex(p => p.id === post.id);
+                return (
+                  <div key={post.id} onClick={() => openViewer(originalIndex)} className="cursor-pointer">
+                    <MasonryItem post={post} />
+                  </div>
+                );
+              })}
             </div>
             <div className="flex-1 flex flex-col gap-1">
-              {posts.filter((_, i) => i % 2 === 1).map((post) => (
-                <MasonryItem key={post.id} post={post} />
-              ))}
+              {posts.filter((_, i) => i % 2 === 1).map((post) => {
+                const originalIndex = posts.findIndex(p => p.id === post.id);
+                return (
+                  <div key={post.id} onClick={() => openViewer(originalIndex)} className="cursor-pointer">
+                    <MasonryItem post={post} />
+                  </div>
+                );
+              })}
             </div>
           </div>
+        )}
+
+        {/* Full screen viewer */}
+        {viewerOpen && (
+          <FullScreenViewer
+            posts={posts}
+            initialIndex={viewerInitialIndex}
+            onClose={() => setViewerOpen(false)}
+            onLike={handleLike}
+          />
         )}
       </div>
     </AppLayout>
