@@ -3,6 +3,7 @@ import { X, Play, Pause, Volume2, VolumeX, ChevronLeft, ChevronRight, Heart, Mes
 import { Post } from '@/types';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { useColorExtractor } from '@/hooks/useColorExtractor';
 
 interface FullScreenViewerProps {
   posts: Post[];
@@ -28,6 +29,12 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose, onLike }: FullS
   const isVideo = (url: string) => {
     return url?.includes('.mp4') || url?.includes('.mov') || url?.includes('.webm');
   };
+
+  // Extract dominant colors from current media
+  const { dominantColor, secondaryColor } = useColorExtractor(
+    currentMediaUrl,
+    isVideo(currentMediaUrl || '')
+  );
 
   useEffect(() => {
     setCurrentMediaIndex(0);
@@ -150,25 +157,36 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose, onLike }: FullS
   return (
     <div 
       ref={containerRef}
-      className="fixed inset-0 bg-background z-50 flex flex-col"
+      className="fixed inset-0 z-50 flex flex-col overflow-hidden"
+      style={{
+        background: `linear-gradient(135deg, ${dominantColor} 0%, ${secondaryColor} 50%, ${dominantColor} 100%)`
+      }}
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
+      {/* Blurred background overlay for extra depth */}
+      <div 
+        className="absolute inset-0 z-0"
+        style={{
+          background: `radial-gradient(ellipse at center, transparent 0%, ${dominantColor} 70%)`,
+          backdropFilter: 'blur(20px)'
+        }}
+      />
       {/* Header */}
-      <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between p-4 bg-gradient-to-b from-background/80 to-transparent">
-        <button onClick={onClose} className="p-2 rounded-full bg-background/50 backdrop-blur-sm">
-          <X className="h-5 w-5" />
+      <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between p-4 bg-gradient-to-b from-black/50 to-transparent">
+        <button onClick={onClose} className="p-2 rounded-full bg-black/30 backdrop-blur-sm">
+          <X className="h-5 w-5 text-white" />
         </button>
         
         {/* Post counter */}
-        <div className="text-sm font-medium bg-background/50 backdrop-blur-sm px-3 py-1 rounded-full">
+        <div className="text-sm font-medium bg-black/30 backdrop-blur-sm px-3 py-1 rounded-full text-white">
           {currentPostIndex + 1} / {posts.length}
         </div>
       </div>
 
       {/* Media area */}
       <div 
-        className="flex-1 flex items-center justify-center relative overflow-hidden"
+        className="flex-1 flex items-center justify-center relative overflow-hidden z-[1]"
         onClick={handleMediaClick}
       >
         {isVideo(currentMediaUrl) ? (
@@ -189,13 +207,13 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose, onLike }: FullS
               className="absolute inset-0 flex items-center justify-center"
             >
               <div className={cn(
-                "p-4 rounded-full bg-background/30 backdrop-blur-sm transition-opacity",
+                "p-4 rounded-full bg-black/30 backdrop-blur-sm transition-opacity",
                 isPlaying ? "opacity-0" : "opacity-100"
               )}>
                 {isPlaying ? (
-                  <Pause className="h-8 w-8 text-foreground" />
+                  <Pause className="h-8 w-8 text-white" />
                 ) : (
-                  <Play className="h-8 w-8 text-foreground" />
+                  <Play className="h-8 w-8 text-white" />
                 )}
               </div>
             </button>
@@ -203,12 +221,12 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose, onLike }: FullS
             {/* Mute button */}
             <button 
               onClick={toggleMute}
-              className="absolute bottom-24 right-4 p-3 rounded-full bg-background/50 backdrop-blur-sm"
+              className="absolute bottom-24 right-4 p-3 rounded-full bg-black/30 backdrop-blur-sm"
             >
               {isMuted ? (
-                <VolumeX className="h-5 w-5" />
+                <VolumeX className="h-5 w-5 text-white" />
               ) : (
-                <Volume2 className="h-5 w-5" />
+                <Volume2 className="h-5 w-5 text-white" />
               )}
             </button>
           </>
@@ -231,7 +249,7 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose, onLike }: FullS
                   onClick={(e) => { e.stopPropagation(); setCurrentMediaIndex(index); }}
                   className={cn(
                     "w-2 h-2 rounded-full transition-colors",
-                    currentMediaIndex === index ? "bg-primary" : "bg-foreground/40"
+                    currentMediaIndex === index ? "bg-white" : "bg-white/40"
                   )}
                 />
               ))}
@@ -241,17 +259,17 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose, onLike }: FullS
             {currentMediaIndex > 0 && (
               <button 
                 onClick={(e) => { e.stopPropagation(); goToPrevMedia(); }}
-                className="absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-background/50 backdrop-blur-sm"
+                className="absolute left-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/30 backdrop-blur-sm"
               >
-                <ChevronLeft className="h-5 w-5" />
+                <ChevronLeft className="h-5 w-5 text-white" />
               </button>
             )}
             {currentMediaIndex < mediaUrls.length - 1 && (
               <button 
                 onClick={(e) => { e.stopPropagation(); goToNextMedia(); }}
-                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-background/50 backdrop-blur-sm"
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/30 backdrop-blur-sm"
               >
-                <ChevronRight className="h-5 w-5" />
+                <ChevronRight className="h-5 w-5 text-white" />
               </button>
             )}
           </>
@@ -259,26 +277,26 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose, onLike }: FullS
       </div>
 
       {/* Bottom section - Author info and actions */}
-      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-background via-background/80 to-transparent p-4 pt-12">
+      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 via-black/50 to-transparent p-4 pt-12 z-[1]">
         {/* Author */}
         <div className="flex items-center gap-3 mb-3">
-          <Avatar className="h-10 w-10 border-2 border-primary">
+          <Avatar className="h-10 w-10 border-2 border-white/30">
             <AvatarImage src={currentPost.author?.avatar_url} />
-            <AvatarFallback>{currentPost.author?.full_name?.charAt(0) || 'U'}</AvatarFallback>
+            <AvatarFallback className="bg-white/20 text-white">{currentPost.author?.full_name?.charAt(0) || 'U'}</AvatarFallback>
           </Avatar>
           <div className="flex-1">
-            <p className="font-semibold text-sm">{currentPost.author?.full_name || 'Foydalanuvchi'}</p>
-            <p className="text-xs text-muted-foreground">@{currentPost.author?.username || 'user'}</p>
+            <p className="font-semibold text-sm text-white">{currentPost.author?.full_name || 'Foydalanuvchi'}</p>
+            <p className="text-xs text-white/70">@{currentPost.author?.username || 'user'}</p>
           </div>
         </div>
 
         {/* Content */}
         {currentPost.content && (
-          <p className="text-sm mb-3 line-clamp-2">{currentPost.content}</p>
+          <p className="text-sm mb-3 line-clamp-2 text-white/90">{currentPost.content}</p>
         )}
 
         {/* Actions */}
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-6 text-white">
           <button 
             onClick={() => onLike(currentPost.id)} 
             className="flex items-center gap-1.5"
@@ -301,12 +319,12 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose, onLike }: FullS
 
       {/* Swipe indicators */}
       {currentPostIndex > 0 && (
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[120%] text-muted-foreground/50 text-xs">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[120%] text-white/40 text-xs z-[1]">
           ↑ Oldingi
         </div>
       )}
       {currentPostIndex < posts.length - 1 && (
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 translate-y-[100%] text-muted-foreground/50 text-xs">
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 translate-y-[100%] text-white/40 text-xs z-[1]">
           ↓ Keyingi
         </div>
       )}
