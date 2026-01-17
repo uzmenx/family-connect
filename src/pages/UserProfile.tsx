@@ -13,6 +13,7 @@ import { FullScreenViewer } from '@/components/feed/FullScreenViewer';
 import { PullToRefresh } from '@/components/feed/PullToRefresh';
 import { EndOfFeed } from '@/components/feed/EndOfFeed';
 import { FollowButton } from '@/components/user/FollowButton';
+import { MessageButton } from '@/components/chat/MessageButton';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { formatCount } from '@/lib/formatCount';
@@ -129,7 +130,12 @@ const UserProfilePage = () => {
               </AvatarFallback>
             </Avatar>
             
-            {userId && <FollowButton targetUserId={userId} />}
+            {userId && (
+              <div className="flex gap-2">
+                <FollowButton targetUserId={userId} />
+                <MessageButton userId={userId} />
+              </div>
+            )}
           </div>
 
           <div className="mb-4">
