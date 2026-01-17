@@ -1,13 +1,14 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PostCard } from '@/components/feed/PostCard';
 import { FullScreenViewer } from '@/components/feed/FullScreenViewer';
+import { PullToRefresh } from '@/components/feed/PullToRefresh';
+import { EndOfFeed } from '@/components/feed/EndOfFeed';
 import { useAuth } from '@/contexts/AuthContext';
 import { Post } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { Grid2X2, LayoutList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
 
 type GridLayout = 1 | 2;
 
@@ -28,7 +29,7 @@ const Home = () => {
     fetchPosts();
   }, []);
 
-  const fetchPosts = async () => {
+  const fetchPosts = useCallback(async () => {
     setIsLoading(true);
     try {
       const { data: postsData, error } = await supabase
@@ -38,7 +39,6 @@ const Home = () => {
 
       if (error) throw error;
 
-      // Fetch profiles for authors
       if (postsData && postsData.length > 0) {
         const userIds = [...new Set(postsData.map(p => p.user_id))];
         const { data: profiles } = await supabase
@@ -75,8 +75,11 @@ const Home = () => {
     } finally {
       setIsLoading(false);
     }
-  };
+  }, []);
 
+  const handleRefresh = async () => {
+    await fetchPosts();
+  };
 
   const toggleGridLayout = () => {
     setGridLayout(prev => prev === 1 ? 2 : 1);
@@ -90,7 +93,7 @@ const Home = () => {
 
   return (
     <AppLayout>
-      <div className="max-w-lg mx-auto">
+      <div className="max-w-lg mx-auto h-[calc(100vh-4rem)]">
         <header className="sticky top-0 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3 z-40 flex items-center justify-between">
           <h1 className="text-xl font-bold">Oilaviy</h1>
           <Button 
@@ -103,50 +106,54 @@ const Home = () => {
           </Button>
         </header>
         
-        {isLoading ? (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">Yuklanmoqda...</p>
-          </div>
-        ) : posts.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-muted-foreground">Hozircha postlar yo'q</p>
-            <p className="text-sm text-muted-foreground mt-2">Birinchi postni yarating!</p>
-          </div>
-        ) : gridLayout === 1 ? (
-          <div className="space-y-4">
-            {posts.map((post, index) => (
-              <div key={post.id} onClick={() => openViewer(index)} className="cursor-pointer">
-                <PostCard post={post} />
+        <PullToRefresh onRefresh={handleRefresh}>
+          {isLoading ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">Yuklanmoqda...</p>
+            </div>
+          ) : posts.length === 0 ? (
+            <div className="text-center py-12">
+              <p className="text-muted-foreground">Hozircha postlar yo'q</p>
+              <p className="text-sm text-muted-foreground mt-2">Birinchi postni yarating!</p>
+            </div>
+          ) : gridLayout === 1 ? (
+            <div className="space-y-4 pb-20">
+              {posts.map((post, index) => (
+                <div key={post.id} onClick={() => openViewer(index)} className="cursor-pointer">
+                  <PostCard post={post} />
+                </div>
+              ))}
+              <EndOfFeed />
+            </div>
+          ) : (
+            <div className="pb-20">
+              <div className="flex gap-1 p-1">
+                <div className="flex-1 flex flex-col gap-1">
+                  {posts.filter((_, i) => i % 2 === 0).map((post) => {
+                    const originalIndex = posts.findIndex(p => p.id === post.id);
+                    return (
+                      <div key={post.id} onClick={() => openViewer(originalIndex)} className="cursor-pointer">
+                        <MasonryItem post={post} />
+                      </div>
+                    );
+                  })}
+                </div>
+                <div className="flex-1 flex flex-col gap-1">
+                  {posts.filter((_, i) => i % 2 === 1).map((post) => {
+                    const originalIndex = posts.findIndex(p => p.id === post.id);
+                    return (
+                      <div key={post.id} onClick={() => openViewer(originalIndex)} className="cursor-pointer">
+                        <MasonryItem post={post} />
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
-            ))}
-          </div>
-        ) : (
-          // Pinterest-style masonry layout
-          <div className="flex gap-1 p-1">
-            <div className="flex-1 flex flex-col gap-1">
-              {posts.filter((_, i) => i % 2 === 0).map((post) => {
-                const originalIndex = posts.findIndex(p => p.id === post.id);
-                return (
-                  <div key={post.id} onClick={() => openViewer(originalIndex)} className="cursor-pointer">
-                    <MasonryItem post={post} />
-                  </div>
-                );
-              })}
+              <EndOfFeed />
             </div>
-            <div className="flex-1 flex flex-col gap-1">
-              {posts.filter((_, i) => i % 2 === 1).map((post) => {
-                const originalIndex = posts.findIndex(p => p.id === post.id);
-                return (
-                  <div key={post.id} onClick={() => openViewer(originalIndex)} className="cursor-pointer">
-                    <MasonryItem post={post} />
-                  </div>
-                );
-              })}
-            </div>
-          </div>
-        )}
+          )}
+        </PullToRefresh>
 
-        {/* Full screen viewer */}
         {viewerOpen && (
           <FullScreenViewer
             posts={posts}
@@ -159,7 +166,6 @@ const Home = () => {
   );
 };
 
-// Masonry item - natural aspect ratio, no cropping
 const MasonryItem = ({ post }: { post: Post }) => {
   const mediaUrl = post.media_urls?.[0] || post.image_url;
   const isVideo = mediaUrl && (mediaUrl.includes('.mp4') || mediaUrl.includes('.mov') || mediaUrl.includes('.webm'));
