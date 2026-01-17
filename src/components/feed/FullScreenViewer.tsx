@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { X, Play, Pause, Volume2, VolumeX, ChevronLeft, ChevronRight, Heart, MessageCircle, Share2, Bookmark } from 'lucide-react';
+import { X, Play, Pause, ChevronLeft, ChevronRight, Heart, MessageCircle, Share2, Bookmark } from 'lucide-react';
 import { Post } from '@/types';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -16,7 +16,6 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose, onLike }: FullS
   const [currentPostIndex, setCurrentPostIndex] = useState(initialIndex);
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
-  const [isMuted, setIsMuted] = useState(true);
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const touchStartY = useRef(0);
@@ -43,14 +42,33 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose, onLike }: FullS
 
   useEffect(() => {
     if (videoRef.current) {
-      videoRef.current.muted = isMuted;
       if (isPlaying) {
         videoRef.current.play().catch(() => {});
       } else {
         videoRef.current.pause();
       }
     }
-  }, [isPlaying, isMuted, currentMediaIndex, currentPostIndex]);
+  }, [isPlaying, currentMediaIndex, currentPostIndex]);
+
+  // Mouse wheel scroll for post navigation
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      if (Math.abs(e.deltaY) > 30) {
+        if (e.deltaY > 0) {
+          goToNextPost();
+        } else {
+          goToPrevPost();
+        }
+      }
+    };
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    return () => container.removeEventListener('wheel', handleWheel);
+  }, [currentPostIndex]);
 
   // Handle keyboard navigation
   useEffect(() => {
@@ -102,10 +120,6 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose, onLike }: FullS
     setIsPlaying(prev => !prev);
   };
 
-  const toggleMute = (e: React.MouseEvent) => {
-    e.stopPropagation();
-    setIsMuted(prev => !prev);
-  };
 
   // Touch handlers for swipe
   const handleTouchStart = (e: React.TouchEvent) => {
@@ -198,7 +212,6 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose, onLike }: FullS
               loop
               playsInline
               autoPlay
-              muted={isMuted}
             />
             
             {/* Play/Pause overlay */}
@@ -216,18 +229,6 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose, onLike }: FullS
                   <Play className="h-8 w-8 text-white" />
                 )}
               </div>
-            </button>
-
-            {/* Mute button */}
-            <button 
-              onClick={toggleMute}
-              className="absolute bottom-24 right-4 p-3 rounded-full bg-black/30 backdrop-blur-sm"
-            >
-              {isMuted ? (
-                <VolumeX className="h-5 w-5 text-white" />
-              ) : (
-                <Volume2 className="h-5 w-5 text-white" />
-              )}
             </button>
           </>
         ) : (
