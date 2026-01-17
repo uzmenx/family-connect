@@ -77,18 +77,6 @@ const Home = () => {
     }
   };
 
-  const handleLike = async (postId: string) => {
-    setPosts(prev => prev.map(post => 
-      post.id === postId 
-        ? { ...post, likes_count: post.likes_count + 1 }
-        : post
-    ));
-    
-    await supabase
-      .from('posts')
-      .update({ likes_count: posts.find(p => p.id === postId)!.likes_count + 1 })
-      .eq('id', postId);
-  };
 
   const toggleGridLayout = () => {
     setGridLayout(prev => prev === 1 ? 2 : 1);
@@ -128,7 +116,7 @@ const Home = () => {
           <div className="space-y-4">
             {posts.map((post, index) => (
               <div key={post.id} onClick={() => openViewer(index)} className="cursor-pointer">
-                <PostCard post={post} onLike={handleLike} />
+                <PostCard post={post} />
               </div>
             ))}
           </div>
@@ -164,7 +152,6 @@ const Home = () => {
             posts={posts}
             initialIndex={viewerInitialIndex}
             onClose={() => setViewerOpen(false)}
-            onLike={handleLike}
           />
         )}
       </div>
