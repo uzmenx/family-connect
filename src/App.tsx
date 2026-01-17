@@ -16,6 +16,7 @@ import Settings from "./pages/Settings";
 import Relatives from "./pages/Relatives";
 import CreatePost from "./pages/CreatePost";
 import Notifications from "./pages/Notifications";
+import UserProfile from "./pages/UserProfile";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -86,6 +87,7 @@ const App = () => (
               <Route path="/relatives" element={<ProtectedRoute><Relatives /></ProtectedRoute>} />
               <Route path="/create-post" element={<ProtectedRoute><CreatePost /></ProtectedRoute>} />
               <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
+              <Route path="/user/:userId" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>

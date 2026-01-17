@@ -1,11 +1,13 @@
 import { Card, CardContent } from '@/components/ui/card';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Post } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
 import { MediaCarousel } from '@/components/post/MediaCarousel';
 import { PostActions } from '@/components/post/PostActions';
 import { PostCaption } from '@/components/post/PostCaption';
 import { PostMenu } from '@/components/post/PostMenu';
+import { UserAvatar } from '@/components/user/UserAvatar';
+import { UserInfo } from '@/components/user/UserInfo';
+import { FollowButton } from '@/components/user/FollowButton';
 
 interface PostCardProps {
   post: Post;
@@ -27,21 +29,25 @@ export const PostCard = ({ post, onDelete }: PostCardProps) => {
         {/* Header */}
         <div className="flex items-center justify-between p-3">
           <div className="flex items-center gap-3">
-            <Avatar className="h-9 w-9 ring-2 ring-primary/20">
-              <AvatarImage src={post.author?.avatar_url} />
-              <AvatarFallback className="bg-primary/10 text-primary text-sm">
-                {post.author?.full_name?.charAt(0) || 'U'}
-              </AvatarFallback>
-            </Avatar>
-            <div>
-              <p className="font-semibold text-sm">{post.author?.full_name || 'Foydalanuvchi'}</p>
-            </div>
+            <UserAvatar 
+              userId={post.user_id}
+              avatarUrl={post.author?.avatar_url}
+              name={post.author?.full_name}
+            />
+            <UserInfo 
+              userId={post.user_id}
+              name={post.author?.full_name}
+              username={post.author?.username}
+            />
           </div>
-          <PostMenu 
-            postId={post.id} 
-            authorId={post.user_id} 
-            onDelete={onDelete}
-          />
+          <div className="flex items-center gap-2">
+            <FollowButton targetUserId={post.user_id} size="sm" />
+            <PostMenu 
+              postId={post.id} 
+              authorId={post.user_id} 
+              onDelete={onDelete}
+            />
+          </div>
         </div>
         
         {/* Media */}

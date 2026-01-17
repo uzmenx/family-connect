@@ -2,11 +2,13 @@ import { useState, useRef, useEffect } from 'react';
 import { X, Play, Pause, ChevronLeft, ChevronRight, Heart } from 'lucide-react';
 import { Post } from '@/types';
 import { cn } from '@/lib/utils';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useColorExtractor } from '@/hooks/useColorExtractor';
 import { FullscreenActions } from '@/components/post/FullscreenActions';
 import { PostCaption } from '@/components/post/PostCaption';
 import { usePostLikes } from '@/hooks/usePostLikes';
+import { UserAvatar } from '@/components/user/UserAvatar';
+import { UserInfo } from '@/components/user/UserInfo';
+import { FollowButton } from '@/components/user/FollowButton';
 
 interface FullScreenViewerProps {
   posts: Post[];
@@ -374,14 +376,20 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose }: FullScreenVie
       <div className="absolute bottom-0 left-0 right-16 bg-gradient-to-t from-black/70 via-black/50 to-transparent p-4 pt-12 z-[1]">
         {/* Author */}
         <div className="flex items-center gap-3 mb-3">
-          <Avatar className="h-10 w-10 border-2 border-white/30">
-            <AvatarImage src={currentPost.author?.avatar_url} />
-            <AvatarFallback className="bg-white/20 text-white">{currentPost.author?.full_name?.charAt(0) || 'U'}</AvatarFallback>
-          </Avatar>
-          <div className="flex-1">
-            <p className="font-semibold text-sm text-white">{currentPost.author?.full_name || 'Foydalanuvchi'}</p>
-            <p className="text-xs text-white/70">@{currentPost.author?.username || 'user'}</p>
-          </div>
+          <UserAvatar 
+            userId={currentPost.user_id}
+            avatarUrl={currentPost.author?.avatar_url}
+            name={currentPost.author?.full_name}
+            size="lg"
+            className="border-2 border-white/30 ring-0"
+          />
+          <UserInfo 
+            userId={currentPost.user_id}
+            name={currentPost.author?.full_name}
+            username={currentPost.author?.username}
+            variant="fullscreen"
+          />
+          <FollowButton targetUserId={currentPost.user_id} size="sm" />
         </div>
 
         {/* Content with hashtags and "more" button */}
