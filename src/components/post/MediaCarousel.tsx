@@ -89,7 +89,6 @@ export const MediaCarousel = ({ mediaUrls, className }: MediaCarouselProps) => {
             className="w-full h-auto object-contain cursor-pointer"
             style={{ maxHeight: '80vh', maxWidth: '100%' }}
             loop
-            muted
             playsInline
             onClick={handleVideoClick}
           />
