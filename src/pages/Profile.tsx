@@ -5,13 +5,15 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Settings, Edit, Grid3X3, Bookmark } from 'lucide-react';
+import { Settings, Edit, Grid3X3, Bookmark, MessageCircle } from 'lucide-react';
 import { useUserPosts } from '@/hooks/useUserPosts';
 import { useFollow } from '@/hooks/useFollow';
+import { useConversations } from '@/hooks/useConversations';
 import { PostCard } from '@/components/feed/PostCard';
 import { FullScreenViewer } from '@/components/feed/FullScreenViewer';
 import { PullToRefresh } from '@/components/feed/PullToRefresh';
 import { EndOfFeed } from '@/components/feed/EndOfFeed';
+import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { formatCount } from '@/lib/formatCount';
 
@@ -20,6 +22,7 @@ const Profile = () => {
   const navigate = useNavigate();
   const { posts, isLoading, postsCount, refetch, removePost } = useUserPosts(user?.id);
   const { followersCount, followingCount } = useFollow(user?.id);
+  const { totalUnread } = useConversations();
   const [activeTab, setActiveTab] = useState<'posts' | 'saved'>('posts');
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
@@ -59,6 +62,22 @@ const Profile = () => {
               </p>
             </div>
             <div className="flex gap-2">
+              <Button 
+                variant="outline" 
+                size="icon"
+                onClick={() => navigate('/messages')}
+                className="relative"
+              >
+                <MessageCircle className="h-4 w-4" />
+                {totalUnread > 0 && (
+                  <Badge 
+                    variant="destructive" 
+                    className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs"
+                  >
+                    {totalUnread > 9 ? '9+' : totalUnread}
+                  </Badge>
+                )}
+              </Button>
               <Button 
                 variant="outline" 
                 size="icon"
