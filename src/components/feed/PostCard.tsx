@@ -1,21 +1,20 @@
-import { MoreHorizontal } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
 import { Post } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
 import { MediaCarousel } from '@/components/post/MediaCarousel';
 import { PostActions } from '@/components/post/PostActions';
 import { PostCaption } from '@/components/post/PostCaption';
+import { PostMenu } from '@/components/post/PostMenu';
 
 interface PostCardProps {
   post: Post;
+  onDelete?: () => void;
 }
 
-export const PostCard = ({ post }: PostCardProps) => {
+export const PostCard = ({ post, onDelete }: PostCardProps) => {
   const timeAgo = formatDistanceToNow(new Date(post.created_at), { addSuffix: true });
   
-  // Support both old image_url and new media_urls
   const mediaUrls = post.media_urls?.length > 0 
     ? post.media_urls 
     : post.image_url 
@@ -38,9 +37,11 @@ export const PostCard = ({ post }: PostCardProps) => {
               <p className="font-semibold text-sm">{post.author?.full_name || 'Foydalanuvchi'}</p>
             </div>
           </div>
-          <Button variant="ghost" size="icon" className="h-8 w-8">
-            <MoreHorizontal className="h-5 w-5" />
-          </Button>
+          <PostMenu 
+            postId={post.id} 
+            authorId={post.user_id} 
+            onDelete={onDelete}
+          />
         </div>
         
         {/* Media */}

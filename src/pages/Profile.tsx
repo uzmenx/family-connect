@@ -1,28 +1,44 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Settings, Edit } from 'lucide-react';
+import { Settings, Edit, Grid3X3, Bookmark } from 'lucide-react';
+import { useUserPosts } from '@/hooks/useUserPosts';
+import { PostCard } from '@/components/feed/PostCard';
+import { FullScreenViewer } from '@/components/feed/FullScreenViewer';
+import { PullToRefresh } from '@/components/feed/PullToRefresh';
+import { EndOfFeed } from '@/components/feed/EndOfFeed';
+import { cn } from '@/lib/utils';
 
 const Profile = () => {
   const { profile, user } = useAuth();
   const navigate = useNavigate();
+  const { posts, isLoading, postsCount, refetch, removePost } = useUserPosts(user?.id);
+  const [activeTab, setActiveTab] = useState<'posts' | 'saved'>('posts');
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
 
   const getInitials = (name: string | null | undefined) => {
     if (!name) return 'U';
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
+  const openViewer = (index: number) => {
+    setViewerInitialIndex(index);
+    setViewerOpen(true);
+  };
+
   return (
     <AppLayout>
-      <div className="min-h-screen bg-background">
+      <div className="min-h-screen bg-background pb-20">
         {/* Cover Image */}
         <div className="h-32 bg-gradient-to-r from-primary to-accent" />
         
         {/* Profile Info */}
-        <div className="px-4 pb-20">
+        <div className="px-4">
           <div className="relative -mt-16 mb-4">
             <Avatar className="h-24 w-24 border-4 border-background">
               <AvatarImage src={profile?.avatar_url || undefined} />
@@ -66,7 +82,7 @@ const Profile = () => {
             <CardContent className="py-4">
               <div className="grid grid-cols-3 gap-4 text-center">
                 <div>
-                  <p className="text-2xl font-bold">0</p>
+                  <p className="text-2xl font-bold">{postsCount}</p>
                   <p className="text-sm text-muted-foreground">Postlar</p>
                 </div>
                 <div>
@@ -81,28 +97,77 @@ const Profile = () => {
             </CardContent>
           </Card>
 
-          {/* Account Info */}
-          <Card>
-            <CardContent className="py-4">
-              <h3 className="font-semibold mb-3">Akkount ma'lumotlari</h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Email</span>
-                  <span>{user?.email || profile?.email}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Ro'yxatdan o'tgan</span>
-                  <span>
-                    {profile?.created_at 
-                      ? new Date(profile.created_at).toLocaleDateString('uz-UZ')
-                      : '-'
-                    }
-                  </span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          {/* Tabs */}
+          <div className="flex border-b border-border mb-4">
+            <button
+              onClick={() => setActiveTab('posts')}
+              className={cn(
+                "flex-1 py-3 flex items-center justify-center gap-2 border-b-2 transition-colors",
+                activeTab === 'posts' 
+                  ? "border-primary text-primary" 
+                  : "border-transparent text-muted-foreground"
+              )}
+            >
+              <Grid3X3 className="h-5 w-5" />
+            </button>
+            <button
+              onClick={() => setActiveTab('saved')}
+              className={cn(
+                "flex-1 py-3 flex items-center justify-center gap-2 border-b-2 transition-colors",
+                activeTab === 'saved' 
+                  ? "border-primary text-primary" 
+                  : "border-transparent text-muted-foreground"
+              )}
+            >
+              <Bookmark className="h-5 w-5" />
+            </button>
+          </div>
         </div>
+
+        {/* Posts Grid / List */}
+        {activeTab === 'posts' && (
+          <PullToRefresh onRefresh={refetch}>
+            {isLoading ? (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">Yuklanmoqda...</p>
+              </div>
+            ) : posts.length === 0 ? (
+              <div className="text-center py-12 px-4">
+                <Grid3X3 className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
+                <p className="text-muted-foreground">Hozircha postlar yo'q</p>
+                <p className="text-sm text-muted-foreground mt-1">Birinchi postingizni yarating!</p>
+              </div>
+            ) : (
+              <div className="space-y-4 px-0 md:px-4">
+                {posts.map((post, index) => (
+                  <div key={post.id} onClick={() => openViewer(index)} className="cursor-pointer">
+                    <PostCard 
+                      post={post} 
+                      onDelete={() => removePost(post.id)}
+                    />
+                  </div>
+                ))}
+                <EndOfFeed />
+              </div>
+            )}
+          </PullToRefresh>
+        )}
+
+        {activeTab === 'saved' && (
+          <div className="text-center py-12 px-4">
+            <Bookmark className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
+            <p className="text-muted-foreground">Saqlangan postlar yo'q</p>
+          </div>
+        )}
+
+        {/* Full screen viewer */}
+        {viewerOpen && (
+          <FullScreenViewer
+            posts={posts}
+            initialIndex={viewerInitialIndex}
+            onClose={() => setViewerOpen(false)}
+          />
+        )}
       </div>
     </AppLayout>
   );
