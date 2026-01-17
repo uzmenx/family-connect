@@ -1,28 +1,72 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useState, useEffect, useCallback } from 'react';
+import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Settings, Edit, Grid3X3, Bookmark } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft, Grid3X3, Bookmark } from 'lucide-react';
 import { useUserPosts } from '@/hooks/useUserPosts';
 import { useFollow } from '@/hooks/useFollow';
 import { PostCard } from '@/components/feed/PostCard';
 import { FullScreenViewer } from '@/components/feed/FullScreenViewer';
 import { PullToRefresh } from '@/components/feed/PullToRefresh';
 import { EndOfFeed } from '@/components/feed/EndOfFeed';
+import { FollowButton } from '@/components/user/FollowButton';
 import { cn } from '@/lib/utils';
+import { supabase } from '@/integrations/supabase/client';
 import { formatCount } from '@/lib/formatCount';
 
-const Profile = () => {
-  const { profile, user } = useAuth();
+interface UserProfile {
+  id: string;
+  name: string | null;
+  username: string | null;
+  avatar_url: string | null;
+  bio: string | null;
+}
+
+const UserProfilePage = () => {
+  const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
-  const { posts, isLoading, postsCount, refetch, removePost } = useUserPosts(user?.id);
-  const { followersCount, followingCount } = useFollow(user?.id);
+  const { user: currentUser } = useAuth();
+  const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
+  const { posts, isLoading: postsLoading, postsCount, refetch } = useUserPosts(userId);
+  const { followersCount, followingCount } = useFollow(userId);
   const [activeTab, setActiveTab] = useState<'posts' | 'saved'>('posts');
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
+
+  // Redirect to own profile if viewing self
+  useEffect(() => {
+    if (currentUser?.id && userId === currentUser.id) {
+      navigate('/profile', { replace: true });
+    }
+  }, [currentUser?.id, userId, navigate]);
+
+  const fetchProfile = useCallback(async () => {
+    if (!userId) return;
+
+    setIsLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', userId)
+        .maybeSingle();
+
+      if (error) throw error;
+      setProfile(data);
+    } catch (error) {
+      console.error('Error fetching profile:', error);
+    } finally {
+      setIsLoading(false);
+    }
+  }, [userId]);
+
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
 
   const getInitials = (name: string | null | undefined) => {
     if (!name) return 'U';
@@ -34,49 +78,68 @@ const Profile = () => {
     setViewerOpen(true);
   };
 
+  if (isLoading) {
+    return (
+      <AppLayout>
+        <div className="min-h-screen bg-background flex items-center justify-center">
+          <p className="text-muted-foreground">Yuklanmoqda...</p>
+        </div>
+      </AppLayout>
+    );
+  }
+
+  if (!profile) {
+    return (
+      <AppLayout>
+        <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
+          <p className="text-muted-foreground">Foydalanuvchi topilmadi</p>
+          <Button variant="outline" onClick={() => navigate(-1)}>
+            <ArrowLeft className="h-4 w-4 mr-2" />
+            Orqaga
+          </Button>
+        </div>
+      </AppLayout>
+    );
+  }
+
   return (
     <AppLayout>
       <div className="min-h-screen bg-background pb-20">
+        {/* Header with back button */}
+        <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3 flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+            <ArrowLeft className="h-5 w-5" />
+          </Button>
+          <div>
+            <h1 className="font-semibold">{profile.name || 'Foydalanuvchi'}</h1>
+            <p className="text-xs text-muted-foreground">{postsCount} ta post</p>
+          </div>
+        </div>
+
         {/* Cover Image */}
         <div className="h-32 bg-gradient-to-r from-primary to-accent" />
         
         {/* Profile Info */}
         <div className="px-4">
-          <div className="relative -mt-16 mb-4">
+          <div className="relative -mt-16 mb-4 flex items-end justify-between">
             <Avatar className="h-24 w-24 border-4 border-background">
-              <AvatarImage src={profile?.avatar_url || undefined} />
+              <AvatarImage src={profile.avatar_url || undefined} />
               <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
-                {getInitials(profile?.name)}
+                {getInitials(profile.name)}
               </AvatarFallback>
             </Avatar>
+            
+            {userId && <FollowButton targetUserId={userId} />}
           </div>
 
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <h1 className="text-2xl font-bold">{profile?.name || 'Foydalanuvchi'}</h1>
-              <p className="text-muted-foreground">
-                @{profile?.username || user?.email?.split('@')[0] || 'username'}
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <Button 
-                variant="outline" 
-                size="icon"
-                onClick={() => navigate('/settings')}
-              >
-                <Settings className="h-4 w-4" />
-              </Button>
-              <Button 
-                variant="outline" 
-                size="icon"
-                onClick={() => navigate('/edit-profile')}
-              >
-                <Edit className="h-4 w-4" />
-              </Button>
-            </div>
+          <div className="mb-4">
+            <h1 className="text-2xl font-bold">{profile.name || 'Foydalanuvchi'}</h1>
+            <p className="text-muted-foreground">
+              @{profile.username || 'username'}
+            </p>
           </div>
 
-          {profile?.bio && (
+          {profile.bio && (
             <p className="text-sm mb-4">{profile.bio}</p>
           )}
 
@@ -130,7 +193,7 @@ const Profile = () => {
         {/* Posts Grid / List */}
         {activeTab === 'posts' && (
           <PullToRefresh onRefresh={refetch}>
-            {isLoading ? (
+            {postsLoading ? (
               <div className="text-center py-12">
                 <p className="text-muted-foreground">Yuklanmoqda...</p>
               </div>
@@ -138,16 +201,12 @@ const Profile = () => {
               <div className="text-center py-12 px-4">
                 <Grid3X3 className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
                 <p className="text-muted-foreground">Hozircha postlar yo'q</p>
-                <p className="text-sm text-muted-foreground mt-1">Birinchi postingizni yarating!</p>
               </div>
             ) : (
               <div className="space-y-4 px-0 md:px-4">
                 {posts.map((post, index) => (
                   <div key={post.id} onClick={() => openViewer(index)} className="cursor-pointer">
-                    <PostCard 
-                      post={post} 
-                      onDelete={() => removePost(post.id)}
-                    />
+                    <PostCard post={post} />
                   </div>
                 ))}
                 <EndOfFeed />
@@ -176,4 +235,4 @@ const Profile = () => {
   );
 };
 
-export default Profile;
+export default UserProfilePage;
