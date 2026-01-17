@@ -16,6 +16,8 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose, onLike }: FullS
   const [currentPostIndex, setCurrentPostIndex] = useState(initialIndex);
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [slideDirection, setSlideDirection] = useState<'up' | 'down' | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const touchStartY = useRef(0);
@@ -50,6 +52,34 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose, onLike }: FullS
     }
   }, [isPlaying, currentMediaIndex, currentPostIndex]);
 
+  // Smooth transition to next/prev post
+  const smoothNavigate = (direction: 'up' | 'down') => {
+    if (isTransitioning) return;
+    
+    const canGoNext = direction === 'down' && currentPostIndex < posts.length - 1;
+    const canGoPrev = direction === 'up' && currentPostIndex > 0;
+    
+    if (!canGoNext && !canGoPrev) return;
+    
+    setIsTransitioning(true);
+    setSlideDirection(direction);
+    
+    // Wait for exit animation
+    setTimeout(() => {
+      if (direction === 'down') {
+        setCurrentPostIndex(prev => prev + 1);
+      } else {
+        setCurrentPostIndex(prev => prev - 1);
+      }
+      
+      // Reset for enter animation
+      setTimeout(() => {
+        setSlideDirection(null);
+        setIsTransitioning(false);
+      }, 300);
+    }, 200);
+  };
+
   // Mouse wheel scroll for post navigation with debounce
   useEffect(() => {
     const container = containerRef.current;
@@ -61,21 +91,21 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose, onLike }: FullS
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
       
-      if (isScrolling) return;
+      if (isScrolling || isTransitioning) return;
       
       if (Math.abs(e.deltaY) > 30) {
         isScrolling = true;
         
         if (e.deltaY > 0) {
-          setCurrentPostIndex(prev => Math.min(prev + 1, posts.length - 1));
+          smoothNavigate('down');
         } else {
-          setCurrentPostIndex(prev => Math.max(prev - 1, 0));
+          smoothNavigate('up');
         }
         
-        // Block scrolling for 500ms (like YouTube Shorts)
+        // Block scrolling for 600ms (animation duration + buffer)
         scrollTimeout = setTimeout(() => {
           isScrolling = false;
-        }, 500);
+        }, 600);
       }
     };
 
@@ -84,7 +114,7 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose, onLike }: FullS
       container.removeEventListener('wheel', handleWheel);
       clearTimeout(scrollTimeout);
     };
-  }, [posts.length]);
+  }, [posts.length, isTransitioning, currentPostIndex]);
 
   // Handle keyboard navigation
   useEffect(() => {
@@ -109,15 +139,11 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose, onLike }: FullS
   }, []);
 
   const goToNextPost = () => {
-    if (currentPostIndex < posts.length - 1) {
-      setCurrentPostIndex(prev => prev + 1);
-    }
+    smoothNavigate('down');
   };
 
   const goToPrevPost = () => {
-    if (currentPostIndex > 0) {
-      setCurrentPostIndex(prev => prev - 1);
-    }
+    smoothNavigate('up');
   };
 
   const goToNextMedia = () => {
@@ -216,7 +242,12 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose, onLike }: FullS
 
       {/* Media area */}
       <div 
-        className="flex-1 flex items-center justify-center relative overflow-hidden z-[1]"
+        className={cn(
+          "flex-1 flex items-center justify-center relative overflow-hidden z-[1] transition-all duration-300 ease-out",
+          slideDirection === 'down' && "animate-slide-out-up",
+          slideDirection === 'up' && "animate-slide-out-down",
+          !slideDirection && "animate-slide-in"
+        )}
         onClick={handleMediaClick}
       >
         {isVideo(currentMediaUrl) ? (
