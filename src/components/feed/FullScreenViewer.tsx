@@ -50,25 +50,41 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose, onLike }: FullS
     }
   }, [isPlaying, currentMediaIndex, currentPostIndex]);
 
-  // Mouse wheel scroll for post navigation
+  // Mouse wheel scroll for post navigation with debounce
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
+    let isScrolling = false;
+    let scrollTimeout: NodeJS.Timeout;
+
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
+      
+      if (isScrolling) return;
+      
       if (Math.abs(e.deltaY) > 30) {
+        isScrolling = true;
+        
         if (e.deltaY > 0) {
-          goToNextPost();
+          setCurrentPostIndex(prev => Math.min(prev + 1, posts.length - 1));
         } else {
-          goToPrevPost();
+          setCurrentPostIndex(prev => Math.max(prev - 1, 0));
         }
+        
+        // Block scrolling for 500ms (like YouTube Shorts)
+        scrollTimeout = setTimeout(() => {
+          isScrolling = false;
+        }, 500);
       }
     };
 
     container.addEventListener('wheel', handleWheel, { passive: false });
-    return () => container.removeEventListener('wheel', handleWheel);
-  }, [currentPostIndex]);
+    return () => {
+      container.removeEventListener('wheel', handleWheel);
+      clearTimeout(scrollTimeout);
+    };
+  }, [posts.length]);
 
   // Handle keyboard navigation
   useEffect(() => {
