@@ -1,24 +1,22 @@
 import { useState } from 'react';
 import { Heart, MessageCircle, Share2, Bookmark } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { usePostLikes } from '@/hooks/usePostLikes';
 import { LikersDialog } from './LikersDialog';
 import { CommentsSheet } from './CommentsSheet';
 import { ShareDialog } from './ShareDialog';
 import { cn } from '@/lib/utils';
+import { formatCount } from '@/lib/formatCount';
 
 interface PostActionsProps {
   postId: string;
   initialLikesCount?: number;
   initialCommentsCount?: number;
-  variant?: 'default' | 'fullscreen';
 }
 
 export const PostActions = ({ 
   postId, 
   initialLikesCount = 0,
-  initialCommentsCount = 0,
-  variant = 'default' 
+  initialCommentsCount = 0
 }: PostActionsProps) => {
   const { isLiked, likesCount, likedUsers, toggleLike, fetchLikedUsers, isLoading } = usePostLikes(postId);
   const [showLikers, setShowLikers] = useState(false);
@@ -51,22 +49,15 @@ export const PostActions = ({
     setShowShare(true);
   };
 
-  const isFullscreen = variant === 'fullscreen';
   const displayLikesCount = likesCount || initialLikesCount;
 
   return (
     <>
-      <div className={cn(
-        "flex items-center",
-        isFullscreen ? "gap-6 text-white" : "justify-between"
-      )}>
+      <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           {/* Like button */}
           <button 
-            className={cn(
-              "flex items-center gap-1.5 transition-colors",
-              isFullscreen && "hover:opacity-80"
-            )}
+            className="flex items-center gap-1.5 transition-colors"
             onClick={handleLikeClick}
             disabled={isLoading}
           >
@@ -77,31 +68,19 @@ export const PostActions = ({
                 isAnimating && "scale-125"
               )} 
             />
-            {isFullscreen && (
-              <span className="text-sm">{displayLikesCount}</span>
-            )}
           </button>
           
           {/* Comment button */}
           <button 
-            className={cn(
-              "flex items-center gap-1.5 transition-colors",
-              isFullscreen && "hover:opacity-80"
-            )}
+            className="flex items-center gap-1.5 transition-colors"
             onClick={handleCommentsClick}
           >
             <MessageCircle className="h-6 w-6" />
-            {isFullscreen && (
-              <span className="text-sm">{initialCommentsCount}</span>
-            )}
           </button>
           
           {/* Share button */}
           <button 
-            className={cn(
-              "transition-colors",
-              isFullscreen && "hover:opacity-80"
-            )}
+            className="transition-colors"
             onClick={handleShareClick}
           >
             <Share2 className="h-6 w-6" />
@@ -109,39 +88,33 @@ export const PostActions = ({
         </div>
         
         <button 
-          className={cn(
-            "transition-colors",
-            !isFullscreen && "ml-auto",
-            isFullscreen && "ml-auto hover:opacity-80"
-          )}
+          className="ml-auto transition-colors"
           onClick={(e) => e.stopPropagation()}
         >
           <Bookmark className="h-6 w-6" />
         </button>
       </div>
 
-      {/* Counts - only show in default variant */}
-      {!isFullscreen && (
-        <div className="space-y-1">
-          {displayLikesCount > 0 && (
-            <button 
-              onClick={handleLikesCountClick}
-              className="font-semibold text-sm hover:underline"
-            >
-              {displayLikesCount} ta yoqtirish
-            </button>
-          )}
-          
-          {initialCommentsCount > 0 && (
-            <button 
-              onClick={handleCommentsClick}
-              className="block text-sm text-muted-foreground hover:underline"
-            >
-              {initialCommentsCount} ta izohni ko'rish
-            </button>
-          )}
-        </div>
-      )}
+      {/* Counts */}
+      <div className="space-y-1">
+        {displayLikesCount > 0 && (
+          <button 
+            onClick={handleLikesCountClick}
+            className="font-semibold text-sm hover:underline"
+          >
+            {formatCount(displayLikesCount)} ta yoqtirish
+          </button>
+        )}
+        
+        {initialCommentsCount > 0 && (
+          <button 
+            onClick={handleCommentsClick}
+            className="block text-sm text-muted-foreground hover:underline"
+          >
+            {formatCount(initialCommentsCount)} ta izohni ko'rish
+          </button>
+        )}
+      </div>
 
       {/* Dialogs */}
       <LikersDialog 

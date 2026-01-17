@@ -1,10 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
-import { X, Play, Pause, ChevronLeft, ChevronRight, Bookmark } from 'lucide-react';
+import { X, Play, Pause, ChevronLeft, ChevronRight, Heart } from 'lucide-react';
 import { Post } from '@/types';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useColorExtractor } from '@/hooks/useColorExtractor';
-import { PostActions } from '@/components/post/PostActions';
+import { FullscreenActions } from '@/components/post/FullscreenActions';
+import { PostCaption } from '@/components/post/PostCaption';
+import { usePostLikes } from '@/hooks/usePostLikes';
 
 interface FullScreenViewerProps {
   posts: Post[];
@@ -18,14 +20,19 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose }: FullScreenVie
   const [isPlaying, setIsPlaying] = useState(true);
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [slideDirection, setSlideDirection] = useState<'up' | 'down' | null>(null);
+  const [showDoubleTapHeart, setShowDoubleTapHeart] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const touchStartY = useRef(0);
   const touchStartX = useRef(0);
+  const lastTapRef = useRef(0);
 
   const currentPost = posts[currentPostIndex];
   const mediaUrls = currentPost?.media_urls || (currentPost?.image_url ? [currentPost.image_url] : []);
   const currentMediaUrl = mediaUrls[currentMediaIndex];
+
+  // Hook for double-tap like
+  const { isLiked, toggleLike } = usePostLikes(currentPost?.id || '');
 
   const isVideo = (url: string) => {
     return url?.includes('.mp4') || url?.includes('.mov') || url?.includes('.webm');
@@ -194,18 +201,39 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose }: FullScreenVie
   };
 
   const handleMediaClick = (e: React.MouseEvent) => {
+    const now = Date.now();
+    const DOUBLE_TAP_DELAY = 300;
+    
+    // Check for double tap
+    if (now - lastTapRef.current < DOUBLE_TAP_DELAY) {
+      // Double tap detected - show heart and like
+      setShowDoubleTapHeart(true);
+      if (!isLiked) {
+        toggleLike();
+      }
+      setTimeout(() => setShowDoubleTapHeart(false), 1000);
+      lastTapRef.current = 0;
+      return;
+    }
+    lastTapRef.current = now;
+
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
     const width = rect.width;
 
-    // Click on left side - previous media, right side - next media, center - toggle play
-    if (x < width * 0.3 && mediaUrls.length > 1) {
-      goToPrevMedia();
-    } else if (x > width * 0.7 && mediaUrls.length > 1) {
-      goToNextMedia();
-    } else if (isVideo(currentMediaUrl)) {
-      togglePlay();
-    }
+    // Single tap logic - delayed to check for double tap
+    setTimeout(() => {
+      if (lastTapRef.current !== 0) {
+        // Click on left side - previous media, right side - next media, center - toggle play
+        if (x < width * 0.3 && mediaUrls.length > 1) {
+          goToPrevMedia();
+        } else if (x > width * 0.7 && mediaUrls.length > 1) {
+          goToNextMedia();
+        } else if (isVideo(currentMediaUrl)) {
+          togglePlay();
+        }
+      }
+    }, DOUBLE_TAP_DELAY + 50);
   };
 
   if (!currentPost) return null;
@@ -286,6 +314,15 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose }: FullScreenVie
           />
         )}
 
+        {/* Double-tap heart animation overlay */}
+        {showDoubleTapHeart && (
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+            <Heart 
+              className="h-24 w-24 text-white fill-white drop-shadow-lg animate-heartBurst"
+            />
+          </div>
+        )}
+
         {/* Media indicators */}
         {mediaUrls.length > 1 && (
           <>
@@ -324,8 +361,17 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose }: FullScreenVie
         )}
       </div>
 
-      {/* Bottom section - Author info and actions */}
-      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/70 via-black/50 to-transparent p-4 pt-12 z-[1]">
+      {/* Right side actions - vertical layout like reference */}
+      <div className="absolute right-4 bottom-32 z-[2]">
+        <FullscreenActions
+          postId={currentPost.id}
+          initialLikesCount={currentPost.likes_count}
+          initialCommentsCount={currentPost.comments_count}
+        />
+      </div>
+
+      {/* Bottom section - Author info and caption */}
+      <div className="absolute bottom-0 left-0 right-16 bg-gradient-to-t from-black/70 via-black/50 to-transparent p-4 pt-12 z-[1]">
         {/* Author */}
         <div className="flex items-center gap-3 mb-3">
           <Avatar className="h-10 w-10 border-2 border-white/30">
@@ -338,18 +384,13 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose }: FullScreenVie
           </div>
         </div>
 
-        {/* Content */}
+        {/* Content with hashtags and "more" button */}
         {currentPost.content && (
-          <p className="text-sm mb-3 line-clamp-2 text-white/90">{currentPost.content}</p>
+          <PostCaption 
+            content={currentPost.content} 
+            variant="fullscreen"
+          />
         )}
-
-        {/* Actions */}
-        <PostActions 
-          postId={currentPost.id}
-          initialLikesCount={currentPost.likes_count}
-          initialCommentsCount={currentPost.comments_count}
-          variant="fullscreen"
-        />
       </div>
 
       {/* Swipe indicators */}

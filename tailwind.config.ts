@@ -109,6 +109,32 @@ export default {
 					transform: 'translateY(0)',
 					opacity: '1'
 				}
+			},
+			'heartBurst': {
+				'0%': {
+					transform: 'scale(0)',
+					opacity: '0'
+				},
+				'15%': {
+					transform: 'scale(1.2)',
+					opacity: '1'
+				},
+				'30%': {
+					transform: 'scale(0.95)',
+					opacity: '1'
+				},
+				'45%': {
+					transform: 'scale(1.05)',
+					opacity: '1'
+				},
+				'80%': {
+					transform: 'scale(1)',
+					opacity: '1'
+				},
+				'100%': {
+					transform: 'scale(1)',
+					opacity: '0'
+				}
 			}
 		},
 		animation: {
@@ -116,7 +142,8 @@ export default {
 			'accordion-up': 'accordion-up 0.2s ease-out',
 			'slide-out-up': 'slide-out-up 0.2s ease-out forwards',
 			'slide-out-down': 'slide-out-down 0.2s ease-out forwards',
-			'slide-in': 'slide-in 0.3s ease-out forwards'
+			'slide-in': 'slide-in 0.3s ease-out forwards',
+			'heartBurst': 'heartBurst 1s ease-out forwards'
 		},
   		boxShadow: {
   			'2xs': 'var(--shadow-2xs)',

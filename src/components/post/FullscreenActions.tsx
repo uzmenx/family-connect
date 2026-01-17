@@ -1,0 +1,170 @@
+import { useState } from 'react';
+import { Heart, MessageCircle, Send, Bookmark } from 'lucide-react';
+import { cn } from '@/lib/utils';
+import { usePostLikes } from '@/hooks/usePostLikes';
+import { LikersDialog } from './LikersDialog';
+import { CommentsSheet } from './CommentsSheet';
+import { ShareDialog } from './ShareDialog';
+import { formatCount } from '@/lib/formatCount';
+
+interface FullscreenActionsProps {
+  postId: string;
+  initialLikesCount?: number;
+  initialCommentsCount?: number;
+}
+
+export const FullscreenActions = ({
+  postId,
+  initialLikesCount = 0,
+  initialCommentsCount = 0
+}: FullscreenActionsProps) => {
+  const { isLiked, likesCount, likedUsers, toggleLike, fetchLikedUsers, isLoading } = usePostLikes(postId);
+  const [showLikers, setShowLikers] = useState(false);
+  const [showComments, setShowComments] = useState(false);
+  const [showShare, setShowShare] = useState(false);
+  const [isAnimating, setIsAnimating] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+
+  const displayLikesCount = likesCount || initialLikesCount;
+
+  const handleLikeClick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isLoading) return;
+    
+    setIsAnimating(true);
+    await toggleLike();
+    setTimeout(() => setIsAnimating(false), 300);
+  };
+
+  const handleLikesCountClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    fetchLikedUsers();
+    setShowLikers(true);
+  };
+
+  const handleCommentsClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowComments(true);
+  };
+
+  const handleShareClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowShare(true);
+  };
+
+  const handleSaveClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIsSaved(!isSaved);
+  };
+
+  const ActionButton = ({ 
+    icon: Icon, 
+    count, 
+    onClick, 
+    isActive = false,
+    activeClass = "",
+    animate = false
+  }: {
+    icon: React.ElementType;
+    count?: number;
+    onClick: (e: React.MouseEvent) => void;
+    isActive?: boolean;
+    activeClass?: string;
+    animate?: boolean;
+  }) => (
+    <button
+      onClick={onClick}
+      className="flex flex-col items-center gap-1 transition-transform hover:scale-110"
+    >
+      <div className={cn(
+        "p-2 rounded-full bg-black/20 backdrop-blur-sm",
+        isActive && "bg-black/40"
+      )}>
+        <Icon 
+          className={cn(
+            "h-6 w-6 text-white transition-all",
+            isActive && activeClass,
+            animate && "scale-125"
+          )} 
+        />
+      </div>
+      {count !== undefined && (
+        <span className="text-xs text-white font-medium">
+          {formatCount(count)}
+        </span>
+      )}
+    </button>
+  );
+
+  return (
+    <>
+      <div className="flex flex-col items-center gap-4">
+        {/* Share */}
+        <ActionButton 
+          icon={Send} 
+          onClick={handleShareClick}
+        />
+        
+        {/* Like */}
+        <button
+          onClick={handleLikeClick}
+          className="flex flex-col items-center gap-1 transition-transform hover:scale-110"
+        >
+          <div className={cn(
+            "p-2 rounded-full bg-black/20 backdrop-blur-sm",
+            isLiked && "bg-black/40"
+          )}>
+            <Heart 
+              className={cn(
+                "h-6 w-6 text-white transition-all",
+                isLiked && "fill-destructive text-destructive",
+                isAnimating && "scale-125"
+              )} 
+            />
+          </div>
+          <button 
+            onClick={handleLikesCountClick}
+            className="text-xs text-white font-medium hover:underline"
+          >
+            {formatCount(displayLikesCount)}
+          </button>
+        </button>
+        
+        {/* Comments */}
+        <ActionButton 
+          icon={MessageCircle} 
+          count={initialCommentsCount}
+          onClick={handleCommentsClick}
+        />
+        
+        {/* Bookmark */}
+        <ActionButton 
+          icon={Bookmark} 
+          onClick={handleSaveClick}
+          isActive={isSaved}
+          activeClass="fill-white"
+        />
+      </div>
+
+      {/* Dialogs */}
+      <LikersDialog 
+        open={showLikers} 
+        onOpenChange={setShowLikers}
+        users={likedUsers}
+        likesCount={displayLikesCount}
+      />
+      
+      <CommentsSheet
+        open={showComments}
+        onOpenChange={setShowComments}
+        postId={postId}
+      />
+      
+      <ShareDialog
+        open={showShare}
+        onOpenChange={setShowShare}
+        postId={postId}
+      />
+    </>
+  );
+};

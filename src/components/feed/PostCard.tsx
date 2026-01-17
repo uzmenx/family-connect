@@ -6,6 +6,7 @@ import { Post } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
 import { MediaCarousel } from '@/components/post/MediaCarousel';
 import { PostActions } from '@/components/post/PostActions';
+import { PostCaption } from '@/components/post/PostCaption';
 
 interface PostCardProps {
   post: Post;
@@ -56,10 +57,10 @@ export const PostCard = ({ post }: PostCardProps) => {
           />
           
           {post.content && (
-            <p className="text-sm">
-              <span className="font-semibold">{post.author?.username || 'user'}</span>{' '}
-              {post.content}
-            </p>
+            <PostCaption 
+              username={post.author?.username || 'user'}
+              content={post.content}
+            />
           )}
           
           <p className="text-xs text-muted-foreground uppercase">{timeAgo}</p>
