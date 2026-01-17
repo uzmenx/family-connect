@@ -1,18 +1,18 @@
 import { useState, useRef, useEffect } from 'react';
-import { X, Play, Pause, ChevronLeft, ChevronRight, Heart, MessageCircle, Share2, Bookmark } from 'lucide-react';
+import { X, Play, Pause, ChevronLeft, ChevronRight, Bookmark } from 'lucide-react';
 import { Post } from '@/types';
 import { cn } from '@/lib/utils';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { useColorExtractor } from '@/hooks/useColorExtractor';
+import { PostActions } from '@/components/post/PostActions';
 
 interface FullScreenViewerProps {
   posts: Post[];
   initialIndex: number;
   onClose: () => void;
-  onLike: (postId: string) => void;
 }
 
-export const FullScreenViewer = ({ posts, initialIndex, onClose, onLike }: FullScreenViewerProps) => {
+export const FullScreenViewer = ({ posts, initialIndex, onClose }: FullScreenViewerProps) => {
   const [currentPostIndex, setCurrentPostIndex] = useState(initialIndex);
   const [currentMediaIndex, setCurrentMediaIndex] = useState(0);
   const [isPlaying, setIsPlaying] = useState(true);
@@ -344,25 +344,12 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose, onLike }: FullS
         )}
 
         {/* Actions */}
-        <div className="flex items-center gap-6 text-white">
-          <button 
-            onClick={() => onLike(currentPost.id)} 
-            className="flex items-center gap-1.5"
-          >
-            <Heart className="h-6 w-6" />
-            <span className="text-sm">{currentPost.likes_count || 0}</span>
-          </button>
-          <button className="flex items-center gap-1.5">
-            <MessageCircle className="h-6 w-6" />
-            <span className="text-sm">{currentPost.comments_count || 0}</span>
-          </button>
-          <button>
-            <Share2 className="h-6 w-6" />
-          </button>
-          <button className="ml-auto">
-            <Bookmark className="h-6 w-6" />
-          </button>
-        </div>
+        <PostActions 
+          postId={currentPost.id}
+          initialLikesCount={currentPost.likes_count}
+          initialCommentsCount={currentPost.comments_count}
+          variant="fullscreen"
+        />
       </div>
 
       {/* Swipe indicators */}
