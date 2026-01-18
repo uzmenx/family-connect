@@ -18,16 +18,17 @@ export interface Comment {
   };
   isLiked?: boolean;
   replies?: Comment[];
-  isPending?: boolean; // For optimistic UI
-  isFailed?: boolean;  // For failed comments
+  isPending?: boolean;
+  isFailed?: boolean;
 }
 
 export const useComments = (postId: string) => {
   const { user, profile } = useAuth();
+  const userId = user?.id;
+  
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentsCount, setCommentsCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
-  const [hasFetched, setHasFetched] = useState(false);
   const pendingCommentsRef = useRef<Map<string, AbortController>>(new Map());
 
   // Fetch comments with authors - ALWAYS fetches fresh data
@@ -44,13 +45,14 @@ export const useComments = (postId: string) => {
 
       if (error) {
         console.error('Error fetching comments:', error);
+        setIsLoading(false);
         return;
       }
 
       if (!commentsData || commentsData.length === 0) {
         setComments([]);
         setCommentsCount(0);
-        setHasFetched(true);
+        setIsLoading(false);
         return;
       }
 
@@ -65,11 +67,11 @@ export const useComments = (postId: string) => {
 
       // Check which comments user has liked
       let userLikes: string[] = [];
-      if (user) {
+      if (userId) {
         const { data: likes } = await supabase
           .from('comment_likes')
           .select('comment_id')
-          .eq('user_id', user.id)
+          .eq('user_id', userId)
           .in('comment_id', commentsData.map(c => c.id));
         
         userLikes = likes?.map(l => l.comment_id) || [];
@@ -93,32 +95,31 @@ export const useComments = (postId: string) => {
 
       setComments(organizedComments);
       setCommentsCount(commentsData.length);
-      setHasFetched(true);
     } catch (error) {
       console.error('Error fetching comments:', error);
     } finally {
       setIsLoading(false);
     }
-  }, [postId, user]);
+  }, [postId, userId]);
 
-  // 🔥 OPTIMISTIC Add comment - appears instantly
-  const addComment = async (content: string, parentId?: string) => {
-    if (!user || !content.trim()) return null;
+  // OPTIMISTIC Add comment - appears instantly
+  const addComment = useCallback(async (content: string, parentId?: string) => {
+    if (!userId || !content.trim()) return null;
 
     // Generate temporary ID
-    const tempId = `temp-${Date.now()}`;
+    const tempId = `temp-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
     
     // Create optimistic comment
     const optimisticComment: Comment = {
       id: tempId,
       post_id: postId,
-      user_id: user.id,
+      user_id: userId,
       content: content.trim(),
       parent_id: parentId || null,
       likes_count: 0,
       created_at: new Date().toISOString(),
       author: profile ? {
-        id: user.id,
+        id: userId,
         name: profile.name,
         username: profile.username,
         avatar_url: profile.avatar_url
@@ -127,16 +128,14 @@ export const useComments = (postId: string) => {
       isPending: true
     };
 
-    // 🔥 OPTIMISTIC UPDATE - comment appears instantly
+    // OPTIMISTIC UPDATE - comment appears instantly
     if (parentId) {
-      // Add as reply
       setComments(prev => prev.map(c => 
         c.id === parentId 
           ? { ...c, replies: [...(c.replies || []), optimisticComment] }
           : c
       ));
     } else {
-      // Add as top-level comment
       setComments(prev => [optimisticComment, ...prev]);
     }
     setCommentsCount(prev => prev + 1);
@@ -149,7 +148,7 @@ export const useComments = (postId: string) => {
         .from('comments')
         .insert({
           post_id: postId,
-          user_id: user.id,
+          user_id: userId,
           content: content.trim(),
           parent_id: parentId || null
         })
@@ -159,24 +158,27 @@ export const useComments = (postId: string) => {
       if (error) throw error;
 
       // Replace temp comment with real one
+      const realComment: Comment = {
+        ...data,
+        author: optimisticComment.author,
+        isLiked: false,
+        isPending: false
+      };
+
       if (parentId) {
         setComments(prev => prev.map(c => 
           c.id === parentId 
             ? { 
                 ...c, 
                 replies: (c.replies || []).map(r => 
-                  r.id === tempId 
-                    ? { ...data, author: optimisticComment.author, isLiked: false }
-                    : r
+                  r.id === tempId ? realComment : r
                 )
               }
             : c
         ));
       } else {
         setComments(prev => prev.map(c => 
-          c.id === tempId 
-            ? { ...data, author: optimisticComment.author, isLiked: false }
-            : c
+          c.id === tempId ? realComment : c
         ));
       }
 
@@ -185,7 +187,7 @@ export const useComments = (postId: string) => {
     } catch (error) {
       console.error('Error adding comment:', error);
       
-      // 🔄 Mark as failed instead of removing
+      // Mark as failed instead of removing
       if (parentId) {
         setComments(prev => prev.map(c => 
           c.id === parentId 
@@ -206,17 +208,17 @@ export const useComments = (postId: string) => {
       pendingCommentsRef.current.delete(tempId);
       return null;
     }
-  };
+  }, [userId, postId, profile]);
 
   // Delete comment with optimistic update
-  const deleteComment = async (commentId: string) => {
-    if (!user) return false;
+  const deleteComment = useCallback(async (commentId: string) => {
+    if (!userId) return false;
 
     // Store for rollback
-    const prevComments = comments;
+    const prevComments = [...comments];
     const prevCount = commentsCount;
 
-    // 🔥 OPTIMISTIC DELETE
+    // OPTIMISTIC DELETE
     setComments(prev => prev.filter(c => c.id !== commentId).map(c => ({
       ...c,
       replies: c.replies?.filter(r => r.id !== commentId)
@@ -228,33 +230,48 @@ export const useComments = (postId: string) => {
         .from('comments')
         .delete()
         .eq('id', commentId)
-        .eq('user_id', user.id);
+        .eq('user_id', userId);
 
       if (error) throw error;
       return true;
     } catch (error) {
       console.error('Error deleting comment:', error);
-      // 🔄 ROLLBACK
+      // ROLLBACK
       setComments(prevComments);
       setCommentsCount(prevCount);
       return false;
     }
-  };
+  }, [userId, comments, commentsCount]);
 
-  // 🔥 OPTIMISTIC Toggle comment like
-  const toggleCommentLike = async (commentId: string) => {
-    if (!user) return;
+  // OPTIMISTIC Toggle comment like
+  const toggleCommentLike = useCallback(async (commentId: string) => {
+    if (!userId) return;
 
-    const comment = comments.find(c => c.id === commentId) || 
-                    comments.flatMap(c => c.replies || []).find(c => c.id === commentId);
+    // Find the comment
+    let targetComment: Comment | undefined;
+    let isReply = false;
+    let parentId: string | undefined;
+
+    for (const c of comments) {
+      if (c.id === commentId) {
+        targetComment = c;
+        break;
+      }
+      const reply = c.replies?.find(r => r.id === commentId);
+      if (reply) {
+        targetComment = reply;
+        isReply = true;
+        parentId = c.id;
+        break;
+      }
+    }
     
-    if (!comment) return;
+    if (!targetComment) return;
 
-    // Store for rollback
-    const prevIsLiked = comment.isLiked;
-    const prevCount = comment.likes_count;
+    const prevIsLiked = targetComment.isLiked;
+    const prevCount = targetComment.likes_count;
 
-    // 🔥 OPTIMISTIC UPDATE - like changes instantly
+    // OPTIMISTIC UPDATE
     setComments(prev => prev.map(c => {
       if (c.id === commentId) {
         return {
@@ -282,17 +299,17 @@ export const useComments = (postId: string) => {
           .from('comment_likes')
           .delete()
           .eq('comment_id', commentId)
-          .eq('user_id', user.id);
+          .eq('user_id', userId);
         if (error) throw error;
       } else {
         const { error } = await supabase
           .from('comment_likes')
-          .insert({ comment_id: commentId, user_id: user.id });
+          .insert({ comment_id: commentId, user_id: userId });
         if (error) throw error;
       }
     } catch (error) {
       console.error('Error toggling comment like:', error);
-      // 🔄 ROLLBACK
+      // ROLLBACK
       setComments(prev => prev.map(c => {
         if (c.id === commentId) {
           return { ...c, isLiked: prevIsLiked, likes_count: prevCount };
@@ -308,24 +325,36 @@ export const useComments = (postId: string) => {
         return c;
       }));
     }
-  };
+  }, [userId, comments]);
 
   // Retry failed comment
-  const retryComment = async (tempId: string) => {
-    const failedComment = comments.find(c => c.id === tempId) ||
-                          comments.flatMap(c => c.replies || []).find(c => c.id === tempId);
+  const retryComment = useCallback(async (tempId: string) => {
+    let failedComment: Comment | undefined;
     
-    if (!failedComment || !failedComment.isFailed) return;
+    for (const c of comments) {
+      if (c.id === tempId && c.isFailed) {
+        failedComment = c;
+        break;
+      }
+      const reply = c.replies?.find(r => r.id === tempId && r.isFailed);
+      if (reply) {
+        failedComment = reply;
+        break;
+      }
+    }
+    
+    if (!failedComment) return;
 
-    // Remove failed comment and re-add
+    // Remove failed comment
     setComments(prev => prev.filter(c => c.id !== tempId).map(c => ({
       ...c,
       replies: c.replies?.filter(r => r.id !== tempId)
     })));
     setCommentsCount(prev => Math.max(0, prev - 1));
 
+    // Re-add
     await addComment(failedComment.content, failedComment.parent_id || undefined);
-  };
+  }, [comments, addComment]);
 
   return {
     comments,
