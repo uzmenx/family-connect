@@ -4,7 +4,10 @@ import { PostCard } from '@/components/feed/PostCard';
 import { FullScreenViewer } from '@/components/feed/FullScreenViewer';
 import { PullToRefresh } from '@/components/feed/PullToRefresh';
 import { EndOfFeed } from '@/components/feed/EndOfFeed';
+import { StoriesRow } from '@/components/stories/StoriesRow';
+import { StoryViewer } from '@/components/stories/StoryViewer';
 import { useAuth } from '@/contexts/AuthContext';
+import { useStories } from '@/hooks/useStories';
 import { Post } from '@/types';
 import { supabase } from '@/integrations/supabase/client';
 import { Grid2X2, LayoutList } from 'lucide-react';
@@ -14,15 +17,25 @@ type GridLayout = 1 | 2;
 
 const Home = () => {
   const { user } = useAuth();
+  const { storyGroups, refetch: refetchStories } = useStories();
   const [posts, setPosts] = useState<Post[]>([]);
   const [gridLayout, setGridLayout] = useState<GridLayout>(1);
   const [isLoading, setIsLoading] = useState(true);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
+  
+  // Story viewer state
+  const [storyViewerOpen, setStoryViewerOpen] = useState(false);
+  const [storyGroupIndex, setStoryGroupIndex] = useState(0);
 
   const openViewer = (index: number) => {
     setViewerInitialIndex(index);
     setViewerOpen(true);
+  };
+
+  const openStoryViewer = (groupIndex: number) => {
+    setStoryGroupIndex(groupIndex);
+    setStoryViewerOpen(true);
   };
 
   useEffect(() => {
@@ -78,7 +91,7 @@ const Home = () => {
   }, []);
 
   const handleRefresh = async () => {
-    await fetchPosts();
+    await Promise.all([fetchPosts(), refetchStories()]);
   };
 
   const toggleGridLayout = () => {
@@ -106,6 +119,9 @@ const Home = () => {
           </Button>
         </header>
         
+        {/* Stories row */}
+        <StoriesRow onStoryClick={openStoryViewer} />
+
         <PullToRefresh onRefresh={handleRefresh}>
           {isLoading ? (
             <div className="text-center py-12">
@@ -159,6 +175,14 @@ const Home = () => {
             posts={posts}
             initialIndex={viewerInitialIndex}
             onClose={() => setViewerOpen(false)}
+          />
+        )}
+
+        {storyViewerOpen && storyGroups.length > 0 && (
+          <StoryViewer
+            storyGroups={storyGroups}
+            initialGroupIndex={storyGroupIndex}
+            onClose={() => setStoryViewerOpen(false)}
           />
         )}
       </div>
