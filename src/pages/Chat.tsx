@@ -17,6 +17,10 @@ import { ChatInput } from '@/components/chat/ChatInput';
 import { VoiceMessage } from '@/components/chat/VoiceMessage';
 import { MediaMessage } from '@/components/chat/MediaMessage';
 import { MediaFullscreen } from '@/components/chat/MediaFullscreen';
+import { MessageContextMenu } from '@/components/chat/MessageContextMenu';
+import { ForwardMessageDialog } from '@/components/chat/ForwardMessageDialog';
+import { ReplyPreview } from '@/components/chat/ReplyPreview';
+import { toast } from 'sonner';
 
 interface UserProfile {
   id: string;
@@ -36,7 +40,7 @@ const Chat = () => {
   const containerRef = useRef<HTMLDivElement>(null);
   const [fullscreenMedia, setFullscreenMedia] = useState<{ url: string; type: 'image' | 'video' } | null>(null);
 
-  const { messages, isLoading, otherUserTyping, sendMessage, setTyping } = useMessages(conversationId);
+  const { messages, isLoading, otherUserTyping, sendMessage, setTyping, refetch } = useMessages(conversationId);
   
   const {
     isInCall,
@@ -54,6 +58,13 @@ const Chat = () => {
     toggleMic,
   } = useVideoCall(userId || null);
 
+  // Reply & Forward
+  const [replyTo, setReplyTo] = useState<{ id: string; content: string } | null>(null);
+  const [forwardMessage, setForwardMessage] = useState<{ content: string; mediaUrl?: string | null; mediaType?: string | null } | null>(null);
+
+  // Deleted messages (local storage for "delete for me")
+  const [deletedMessageIds, setDeletedMessageIds] = useState<Set<string>>(new Set());
+
   // Initialize conversation
   useEffect(() => {
     const init = async () => {
@@ -69,6 +80,14 @@ const Chat = () => {
         .maybeSingle();
 
       setOtherUser(profile);
+
+      // Load deleted messages from localStorage
+      if (convId) {
+        const stored = localStorage.getItem(`deleted_messages_${convId}`);
+        if (stored) {
+          setDeletedMessageIds(new Set(JSON.parse(stored)));
+        }
+      }
     };
 
     init();
@@ -85,8 +104,56 @@ const Chat = () => {
   };
 
   const handleSendMessage = async (content: string, mediaUrl?: string, mediaType?: string) => {
-    await sendMessage(content, mediaUrl, mediaType);
+    let finalContent = content;
+    
+    // Add reply prefix if replying
+    if (replyTo) {
+      const replyPreview = replyTo.content.length > 30 
+        ? replyTo.content.substring(0, 30) + '...'
+        : replyTo.content;
+      finalContent = `↩️ "${replyPreview}"\n${content}`;
+      setReplyTo(null);
+    }
+
+    await sendMessage(finalContent, mediaUrl, mediaType);
     setTyping(false);
+  };
+
+  const handleReply = (messageId: string, content: string) => {
+    setReplyTo({ id: messageId, content });
+  };
+
+  const handleForward = (messageId: string, content: string) => {
+    const msg = messages.find(m => m.id === messageId);
+    setForwardMessage({
+      content,
+      mediaUrl: msg?.media_url,
+      mediaType: msg?.media_type
+    });
+  };
+
+  const handleDeleteForMe = (messageId: string) => {
+    const newDeleted = new Set(deletedMessageIds);
+    newDeleted.add(messageId);
+    setDeletedMessageIds(newDeleted);
+    localStorage.setItem(`deleted_messages_${conversationId}`, JSON.stringify([...newDeleted]));
+    toast.success('Xabar o\'chirildi');
+  };
+
+  const handleDeleteForAll = async (messageId: string) => {
+    try {
+      const { error } = await supabase
+        .from('messages')
+        .delete()
+        .eq('id', messageId);
+
+      if (error) throw error;
+      toast.success('Xabar barcha uchun o\'chirildi');
+      refetch();
+    } catch (error) {
+      console.error('Error deleting message:', error);
+      toast.error('Xatolik yuz berdi');
+    }
   };
 
   const formatMessageTime = (dateStr: string) => {
@@ -155,6 +222,9 @@ const Chat = () => {
       <p className="text-sm whitespace-pre-wrap break-words">{msg.content}</p>
     );
   };
+
+  // Filter out deleted messages
+  const visibleMessages = messages.filter(m => !deletedMessageIds.has(m.id));
 
   if (!otherUser) {
     return (
@@ -247,7 +317,7 @@ const Chat = () => {
             <div className="flex items-center justify-center h-full">
               <p className="text-muted-foreground">Yuklanmoqda...</p>
             </div>
-          ) : messages.length === 0 ? (
+          ) : visibleMessages.length === 0 ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
                 <Avatar className="h-20 w-20 mx-auto mb-4">
@@ -261,9 +331,9 @@ const Chat = () => {
             </div>
           ) : (
             <div className="space-y-2">
-              {messages.map((msg, index) => {
+              {visibleMessages.map((msg, index) => {
                 const isMine = msg.sender_id === user?.id;
-                const prevMsg = messages[index - 1];
+                const prevMsg = visibleMessages[index - 1];
                 const showDateSeparator = shouldShowDateSeparator(msg, prevMsg);
 
                 return (
@@ -279,26 +349,37 @@ const Chat = () => {
                       "flex",
                       isMine ? "justify-end" : "justify-start"
                     )}>
-                      <div className={cn(
-                        "max-w-[80%] rounded-2xl px-4 py-2",
-                        isMine 
-                          ? "bg-primary text-primary-foreground rounded-br-md" 
-                          : "bg-muted rounded-bl-md"
-                      )}>
-                        {renderMessageContent(msg, isMine)}
+                      <MessageContextMenu
+                        messageContent={msg.content}
+                        messageId={msg.id}
+                        isMine={isMine}
+                        isPrivateChat={true}
+                        onReply={handleReply}
+                        onForward={handleForward}
+                        onDeleteForMe={handleDeleteForMe}
+                        onDeleteForAll={isMine ? handleDeleteForAll : undefined}
+                      >
                         <div className={cn(
-                          "flex items-center gap-1 mt-1",
-                          isMine ? "justify-end" : "justify-start"
+                          "max-w-[80%] rounded-2xl px-4 py-2",
+                          isMine 
+                            ? "bg-primary text-primary-foreground rounded-br-md" 
+                            : "bg-muted rounded-bl-md"
                         )}>
-                          <span className={cn(
-                            "text-xs",
-                            isMine ? "text-primary-foreground/70" : "text-muted-foreground"
+                          {renderMessageContent(msg, isMine)}
+                          <div className={cn(
+                            "flex items-center gap-1 mt-1",
+                            isMine ? "justify-end" : "justify-start"
                           )}>
-                            {formatMessageTime(msg.created_at)}
-                          </span>
-                          {getStatusIcon(msg.status, isMine)}
+                            <span className={cn(
+                              "text-xs",
+                              isMine ? "text-primary-foreground/70" : "text-muted-foreground"
+                            )}>
+                              {formatMessageTime(msg.created_at)}
+                            </span>
+                            {getStatusIcon(msg.status, isMine)}
+                          </div>
                         </div>
-                      </div>
+                      </MessageContextMenu>
                     </div>
                   </div>
                 );
@@ -322,6 +403,14 @@ const Chat = () => {
           )}
         </div>
 
+        {/* Reply Preview */}
+        {replyTo && (
+          <ReplyPreview
+            replyToContent={replyTo.content}
+            onCancel={() => setReplyTo(null)}
+          />
+        )}
+
         {/* Chat Input */}
         <ChatInput
           conversationId={conversationId}
@@ -329,6 +418,17 @@ const Chat = () => {
           onTyping={setTyping}
         />
       </div>
+
+      {/* Forward Dialog */}
+      {forwardMessage && (
+        <ForwardMessageDialog
+          open={!!forwardMessage}
+          onOpenChange={(open) => !open && setForwardMessage(null)}
+          messageContent={forwardMessage.content}
+          mediaUrl={forwardMessage.mediaUrl}
+          mediaType={forwardMessage.mediaType}
+        />
+      )}
     </>
   );
 };

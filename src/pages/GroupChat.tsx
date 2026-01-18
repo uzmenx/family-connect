@@ -14,6 +14,10 @@ import { MediaMessage } from '@/components/chat/MediaMessage';
 import { VoiceMessage } from '@/components/chat/VoiceMessage';
 import { MediaFullscreen } from '@/components/chat/MediaFullscreen';
 import { useVoiceRecorder } from '@/hooks/useVoiceRecorder';
+import { GroupSettingsSheet } from '@/components/groups/GroupSettingsSheet';
+import { MessageContextMenu } from '@/components/chat/MessageContextMenu';
+import { ForwardMessageDialog } from '@/components/chat/ForwardMessageDialog';
+import { ReplyPreview } from '@/components/chat/ReplyPreview';
 
 interface MediaFile {
   file: File;
@@ -45,6 +49,7 @@ interface GroupInfo {
   type: 'group' | 'channel';
   visibility: 'public' | 'private';
   owner_id: string;
+  invite_link: string | null;
   memberCount: number;
 }
 
@@ -65,6 +70,16 @@ const GroupChat = () => {
   const [selectedMedia, setSelectedMedia] = useState<MediaFile | null>(null);
   const [fullscreenMedia, setFullscreenMedia] = useState<{ url: string; type: 'image' | 'video' } | null>(null);
   const voiceRecorder = useVoiceRecorder();
+
+  // Settings sheet
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  // Reply & Forward
+  const [replyTo, setReplyTo] = useState<{ id: string; content: string } | null>(null);
+  const [forwardMessage, setForwardMessage] = useState<{ content: string; mediaUrl?: string | null; mediaType?: string | null } | null>(null);
+
+  // Deleted messages (local storage for "delete for me")
+  const [deletedMessageIds, setDeletedMessageIds] = useState<Set<string>>(new Set());
 
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
@@ -155,7 +170,13 @@ const GroupChat = () => {
   useEffect(() => {
     fetchGroupInfo();
     fetchMessages();
-  }, [fetchGroupInfo, fetchMessages]);
+
+    // Load deleted messages from localStorage
+    const stored = localStorage.getItem(`deleted_group_messages_${groupId}`);
+    if (stored) {
+      setDeletedMessageIds(new Set(JSON.parse(stored)));
+    }
+  }, [fetchGroupInfo, fetchMessages, groupId]);
 
   // Realtime subscription
   useEffect(() => {
@@ -184,6 +205,19 @@ const GroupChat = () => {
           setMessages(prev => [...prev, { ...newMsg, sender: profile }]);
         }
       )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'group_messages',
+          filter: `group_id=eq.${groupId}`
+        },
+        (payload) => {
+          const deletedId = (payload.old as any).id;
+          setMessages(prev => prev.filter(m => m.id !== deletedId));
+        }
+      )
       .subscribe();
 
     return () => {
@@ -208,6 +242,15 @@ const GroupChat = () => {
       let mediaUrl: string | null = null;
       let mediaType: string | null = null;
       let content = newMessage.trim();
+
+      // Add reply prefix if replying
+      if (replyTo) {
+        const replyPreview = replyTo.content.length > 30 
+          ? replyTo.content.substring(0, 30) + '...'
+          : replyTo.content;
+        content = `↩️ "${replyPreview}"\n${content}`;
+        setReplyTo(null);
+      }
 
       // Handle voice message
       if (voiceRecorder.audioBlob) {
@@ -273,6 +316,42 @@ const GroupChat = () => {
     }
   };
 
+  const handleReply = (messageId: string, content: string) => {
+    setReplyTo({ id: messageId, content });
+  };
+
+  const handleForward = (messageId: string, content: string) => {
+    const msg = messages.find(m => m.id === messageId);
+    setForwardMessage({
+      content,
+      mediaUrl: msg?.media_url,
+      mediaType: msg?.media_type
+    });
+  };
+
+  const handleDeleteForMe = (messageId: string) => {
+    const newDeleted = new Set(deletedMessageIds);
+    newDeleted.add(messageId);
+    setDeletedMessageIds(newDeleted);
+    localStorage.setItem(`deleted_group_messages_${groupId}`, JSON.stringify([...newDeleted]));
+    toast.success('Xabar o\'chirildi');
+  };
+
+  const handleDeleteForAll = async (messageId: string) => {
+    try {
+      const { error } = await supabase
+        .from('group_messages')
+        .delete()
+        .eq('id', messageId);
+
+      if (error) throw error;
+      toast.success('Xabar barcha uchun o\'chirildi');
+    } catch (error) {
+      console.error('Error deleting message:', error);
+      toast.error('Xatolik yuz berdi');
+    }
+  };
+
   const getInitials = (name: string | null | undefined) => {
     if (!name) return 'U';
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
@@ -306,6 +385,9 @@ const GroupChat = () => {
     return <p className="break-words">{message.content}</p>;
   };
 
+  // Filter out deleted messages
+  const visibleMessages = messages.filter(m => !deletedMessageIds.has(m.id));
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -322,7 +404,7 @@ const GroupChat = () => {
           <Button variant="ghost" size="icon" onClick={() => navigate('/messages')}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <Avatar className="h-10 w-10">
+          <Avatar className="h-10 w-10 cursor-pointer" onClick={() => setSettingsOpen(true)}>
             <AvatarImage src={groupInfo?.avatar_url || undefined} />
             <AvatarFallback className="bg-primary/10">
               {groupInfo?.type === 'group' ? (
@@ -332,13 +414,13 @@ const GroupChat = () => {
               )}
             </AvatarFallback>
           </Avatar>
-          <div className="flex-1 min-w-0">
+          <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setSettingsOpen(true)}>
             <h1 className="font-semibold truncate">{groupInfo?.name}</h1>
             <p className="text-xs text-muted-foreground">
               {groupInfo?.memberCount} a'zo
             </p>
           </div>
-          <Button variant="ghost" size="icon">
+          <Button variant="ghost" size="icon" onClick={() => setSettingsOpen(true)}>
             <MoreVertical className="h-5 w-5" />
           </Button>
         </div>
@@ -347,15 +429,15 @@ const GroupChat = () => {
       {/* Messages */}
       <ScrollArea ref={scrollRef} className="flex-1 p-4">
         <div className="space-y-4">
-          {messages.length === 0 ? (
+          {visibleMessages.length === 0 ? (
             <div className="text-center py-12">
               <p className="text-muted-foreground">Hozircha xabarlar yo'q</p>
             </div>
           ) : (
-            messages.map((message, index) => {
+            visibleMessages.map((message, index) => {
               const isOwn = message.sender_id === user?.id;
               const showSender = !isOwn && (
-                index === 0 || messages[index - 1].sender_id !== message.sender_id
+                index === 0 || visibleMessages[index - 1].sender_id !== message.sender_id
               );
 
               return (
@@ -363,39 +445,58 @@ const GroupChat = () => {
                   key={message.id}
                   className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
                 >
-                  <div className={`max-w-[80%] ${isOwn ? 'items-end' : 'items-start'}`}>
-                    {showSender && (
-                      <div className="flex items-center gap-2 mb-1">
-                        <Avatar className="h-6 w-6">
-                          <AvatarImage src={message.sender?.avatar_url || undefined} />
-                          <AvatarFallback className="text-xs">
-                            {getInitials(message.sender?.name)}
-                          </AvatarFallback>
-                        </Avatar>
-                        <span className="text-xs font-medium text-primary">
-                          {message.sender?.name || message.sender?.username || 'Foydalanuvchi'}
-                        </span>
+                  <MessageContextMenu
+                    messageContent={message.content}
+                    messageId={message.id}
+                    isMine={isOwn}
+                    isPrivateChat={false}
+                    onReply={handleReply}
+                    onForward={handleForward}
+                    onDeleteForMe={handleDeleteForMe}
+                    onDeleteForAll={isOwn || groupInfo?.owner_id === user?.id ? handleDeleteForAll : undefined}
+                  >
+                    <div className={`max-w-[80%] ${isOwn ? 'items-end' : 'items-start'}`}>
+                      {showSender && (
+                        <div className="flex items-center gap-2 mb-1">
+                          <Avatar className="h-6 w-6">
+                            <AvatarImage src={message.sender?.avatar_url || undefined} />
+                            <AvatarFallback className="text-xs">
+                              {getInitials(message.sender?.name)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <span className="text-xs font-medium text-primary">
+                            {message.sender?.name || message.sender?.username || 'Foydalanuvchi'}
+                          </span>
+                        </div>
+                      )}
+                      <div
+                        className={`rounded-2xl px-4 py-2 ${
+                          isOwn
+                            ? 'bg-primary text-primary-foreground rounded-tr-md'
+                            : 'bg-muted rounded-tl-md'
+                        }`}
+                      >
+                        {renderMessageContent(message)}
+                        <p className={`text-xs mt-1 ${isOwn ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
+                          {formatMessageTime(message.created_at)}
+                        </p>
                       </div>
-                    )}
-                    <div
-                      className={`rounded-2xl px-4 py-2 ${
-                        isOwn
-                          ? 'bg-primary text-primary-foreground rounded-tr-md'
-                          : 'bg-muted rounded-tl-md'
-                      }`}
-                    >
-                      {renderMessageContent(message)}
-                      <p className={`text-xs mt-1 ${isOwn ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
-                        {formatMessageTime(message.created_at)}
-                      </p>
                     </div>
-                  </div>
+                  </MessageContextMenu>
                 </div>
               );
             })
           )}
         </div>
       </ScrollArea>
+
+      {/* Reply Preview */}
+      {replyTo && (
+        <ReplyPreview
+          replyToContent={replyTo.content}
+          onCancel={() => setReplyTo(null)}
+        />
+      )}
 
       {/* Input */}
       {canSend ? (
@@ -477,6 +578,27 @@ const GroupChat = () => {
           mediaUrl={fullscreenMedia.url}
           mediaType={fullscreenMedia.type}
           onClose={() => setFullscreenMedia(null)}
+        />
+      )}
+
+      {/* Group Settings Sheet */}
+      {groupInfo && (
+        <GroupSettingsSheet
+          open={settingsOpen}
+          onOpenChange={setSettingsOpen}
+          groupInfo={groupInfo}
+          onGroupUpdated={fetchGroupInfo}
+        />
+      )}
+
+      {/* Forward Dialog */}
+      {forwardMessage && (
+        <ForwardMessageDialog
+          open={!!forwardMessage}
+          onOpenChange={(open) => !open && setForwardMessage(null)}
+          messageContent={forwardMessage.content}
+          mediaUrl={forwardMessage.mediaUrl}
+          mediaType={forwardMessage.mediaType}
         />
       )}
     </div>
