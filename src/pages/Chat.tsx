@@ -3,14 +3,17 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useMessages } from '@/hooks/useMessages';
 import { useConversations } from '@/hooks/useConversations';
+import { useVideoCall } from '@/hooks/useVideoCall';
 import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { ArrowLeft, Send, Check, CheckCheck } from 'lucide-react';
+import { ArrowLeft, Send, Check, CheckCheck, Video, Loader2 } from 'lucide-react';
 import { format, isToday, isYesterday, isSameDay } from 'date-fns';
 import { uz } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
+import { VideoCallUI } from '@/components/chat/VideoCallUI';
+import { IncomingCallDialog } from '@/components/chat/IncomingCallDialog';
 
 interface UserProfile {
   id: string;
@@ -33,6 +36,22 @@ const Chat = () => {
   const containerRef = useRef<HTMLDivElement>(null);
 
   const { messages, isLoading, otherUserTyping, sendMessage, setTyping } = useMessages(conversationId);
+  
+  const {
+    isInCall,
+    isCreatingRoom,
+    incomingCall,
+    cameraOn,
+    micOn,
+    callObject,
+    remoteParticipant,
+    startCall,
+    answerCall,
+    declineCall,
+    leaveCall,
+    toggleCamera,
+    toggleMic,
+  } = useVideoCall(userId || null);
 
   // Initialize conversation
   useEffect(() => {
@@ -152,30 +171,65 @@ const Chat = () => {
   }
 
   return (
-    <div className="min-h-screen bg-background flex flex-col">
-      {/* Header */}
-      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3">
-        <div className="flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/messages')}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <Avatar 
-            className="h-10 w-10 cursor-pointer" 
-            onClick={() => navigate(`/user/${userId}`)}
-          >
-            <AvatarImage src={otherUser.avatar_url || undefined} />
-            <AvatarFallback>{getInitials(otherUser.name)}</AvatarFallback>
-          </Avatar>
-          <div className="flex-1" onClick={() => navigate(`/user/${userId}`)}>
-            <h1 className="font-semibold">{otherUser.name || 'Foydalanuvchi'}</h1>
-            {otherUserTyping ? (
-              <p className="text-xs text-primary">yozyapti...</p>
-            ) : (
-              <p className="text-xs text-muted-foreground">oxirgi faollik</p>
-            )}
+    <>
+      {/* Video Call UI */}
+      {isInCall && callObject && (
+        <VideoCallUI
+          callObject={callObject}
+          remoteParticipant={remoteParticipant}
+          cameraOn={cameraOn}
+          micOn={micOn}
+          onToggleCamera={toggleCamera}
+          onToggleMic={toggleMic}
+          onEndCall={leaveCall}
+        />
+      )}
+
+      {/* Incoming Call Dialog */}
+      {incomingCall && (
+        <IncomingCallDialog
+          callerId={incomingCall.caller_id}
+          onAnswer={answerCall}
+          onDecline={declineCall}
+        />
+      )}
+
+      <div className="min-h-screen bg-background flex flex-col">
+        {/* Header */}
+        <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3">
+          <div className="flex items-center gap-3">
+            <Button variant="ghost" size="icon" onClick={() => navigate('/messages')}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <Avatar 
+              className="h-10 w-10 cursor-pointer" 
+              onClick={() => navigate(`/user/${userId}`)}
+            >
+              <AvatarImage src={otherUser.avatar_url || undefined} />
+              <AvatarFallback>{getInitials(otherUser.name)}</AvatarFallback>
+            </Avatar>
+            <div className="flex-1" onClick={() => navigate(`/user/${userId}`)}>
+              <h1 className="font-semibold">{otherUser.name || 'Foydalanuvchi'}</h1>
+              {otherUserTyping ? (
+                <p className="text-xs text-primary">yozyapti...</p>
+              ) : (
+                <p className="text-xs text-muted-foreground">oxirgi faollik</p>
+              )}
+            </div>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={startCall}
+              disabled={isCreatingRoom || isInCall}
+            >
+              {isCreatingRoom ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <Video className="h-5 w-5" />
+              )}
+            </Button>
           </div>
         </div>
-      </div>
 
       {/* Messages */}
       <div 
@@ -294,8 +348,9 @@ const Chat = () => {
             <Send className="h-5 w-5" />
           </Button>
         </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 };
 

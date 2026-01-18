@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      calls: {
+        Row: {
+          caller_id: string
+          created_at: string
+          ended_at: string | null
+          id: string
+          receiver_id: string
+          room_name: string
+          room_url: string
+          status: string
+        }
+        Insert: {
+          caller_id: string
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          receiver_id: string
+          room_name: string
+          room_url: string
+          status?: string
+        }
+        Update: {
+          caller_id?: string
+          created_at?: string
+          ended_at?: string | null
+          id?: string
+          receiver_id?: string
+          room_name?: string
+          room_url?: string
+          status?: string
+        }
+        Relationships: []
+      }
       comment_likes: {
         Row: {
           comment_id: string
