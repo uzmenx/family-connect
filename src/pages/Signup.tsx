@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2, Mail, Lock, User, ArrowLeft } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
@@ -11,6 +12,7 @@ const Signup = () => {
   const [username, setUsername] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [gender, setGender] = useState<'male' | 'female' | ''>('');
   const [isLoading, setIsLoading] = useState(false);
   const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const navigate = useNavigate();
@@ -54,12 +56,13 @@ const Signup = () => {
       if (error) throw error;
 
       if (data.user) {
-        // Update the profile with username
+        // Update the profile with username and gender
         const { error: profileError } = await supabase
           .from('profiles')
           .update({ 
             username: username,
-            name: username 
+            name: username,
+            gender: gender || null
           })
           .eq('id', data.user.id);
 
@@ -172,6 +175,31 @@ const Signup = () => {
                 minLength={6}
               />
             </div>
+          </div>
+
+          {/* Gender Selection */}
+          <div className="space-y-3 py-2">
+            <Label className="text-muted-foreground">Jins (ixtiyoriy)</Label>
+            <RadioGroup 
+              value={gender} 
+              onValueChange={(value) => setGender(value as 'male' | 'female')}
+              className="flex gap-6"
+            >
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="male" id="signup-male" className="border-sky-500 text-sky-500" />
+                <Label htmlFor="signup-male" className="cursor-pointer flex items-center gap-2">
+                  <div className="w-4 h-4 rounded-full bg-sky-500"></div>
+                  Erkak
+                </Label>
+              </div>
+              <div className="flex items-center space-x-2">
+                <RadioGroupItem value="female" id="signup-female" className="border-pink-500 text-pink-500" />
+                <Label htmlFor="signup-female" className="cursor-pointer flex items-center gap-2">
+                  <div className="w-4 h-4 rounded-full bg-pink-500"></div>
+                  Ayol
+                </Label>
+              </div>
+            </RadioGroup>
           </div>
 
           <Button 
