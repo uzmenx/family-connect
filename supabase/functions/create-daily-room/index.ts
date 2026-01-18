@@ -68,7 +68,6 @@ Deno.serve(async (req) => {
         privacy: 'public',
         properties: {
           max_participants: 2,
-          enable_recording: 'none',
           exp: Math.floor(Date.now() / 1000) + (20 * 60), // 20 minutes expiration
           enable_prejoin_ui: false,
           enable_knocking: false,
