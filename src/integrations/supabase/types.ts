@@ -169,6 +169,118 @@ export type Database = {
         }
         Relationships: []
       }
+      group_chats: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          description: string | null
+          id: string
+          invite_link: string | null
+          name: string
+          owner_id: string
+          type: Database["public"]["Enums"]["chat_type"]
+          updated_at: string
+          visibility: Database["public"]["Enums"]["chat_visibility"]
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          invite_link?: string | null
+          name: string
+          owner_id: string
+          type?: Database["public"]["Enums"]["chat_type"]
+          updated_at?: string
+          visibility?: Database["public"]["Enums"]["chat_visibility"]
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          invite_link?: string | null
+          name?: string
+          owner_id?: string
+          type?: Database["public"]["Enums"]["chat_type"]
+          updated_at?: string
+          visibility?: Database["public"]["Enums"]["chat_visibility"]
+        }
+        Relationships: []
+      }
+      group_members: {
+        Row: {
+          group_id: string
+          id: string
+          joined_at: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          group_id: string
+          id?: string
+          joined_at?: string
+          role?: string
+          user_id: string
+        }
+        Update: {
+          group_id?: string
+          id?: string
+          joined_at?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_members_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "group_chats"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      group_messages: {
+        Row: {
+          content: string
+          created_at: string
+          group_id: string
+          id: string
+          media_type: string | null
+          media_url: string | null
+          sender_id: string
+          updated_at: string
+        }
+        Insert: {
+          content: string
+          created_at?: string
+          group_id: string
+          id?: string
+          media_type?: string | null
+          media_url?: string | null
+          sender_id: string
+          updated_at?: string
+        }
+        Update: {
+          content?: string
+          created_at?: string
+          group_id?: string
+          id?: string
+          media_type?: string | null
+          media_url?: string | null
+          sender_id?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "group_messages_group_id_fkey"
+            columns: ["group_id"]
+            isOneToOne: false
+            referencedRelation: "group_chats"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       messages: {
         Row: {
           content: string
@@ -436,7 +548,8 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
-      [_ in never]: never
+      chat_type: "group" | "channel"
+      chat_visibility: "public" | "private"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -563,6 +676,9 @@ export type CompositeTypes<
 
 export const Constants = {
   public: {
-    Enums: {},
+    Enums: {
+      chat_type: ["group", "channel"],
+      chat_visibility: ["public", "private"],
+    },
   },
 } as const
