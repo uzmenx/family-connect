@@ -2,17 +2,25 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useConversations } from '@/hooks/useConversations';
-import { useFollow } from '@/hooks/useFollow';
+import { useGroupChats } from '@/hooks/useGroupChats';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Search, MessageCircle } from 'lucide-react';
+import { ArrowLeft, Search, MessageCircle, Users, Megaphone } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDistanceToNow } from 'date-fns';
 import { uz } from 'date-fns/locale';
+import { toast } from 'sonner';
+
+// Group components
+import { NewChatMenu } from '@/components/groups/NewChatMenu';
+import { CreateGroupDialog } from '@/components/groups/CreateGroupDialog';
+import { AddMembersDialog } from '@/components/groups/AddMembersDialog';
+import { ChannelVisibilityDialog } from '@/components/groups/ChannelVisibilityDialog';
+import { GroupChatItem } from '@/components/groups/GroupChatItem';
 
 interface FollowUser {
   id: string;
@@ -21,14 +29,32 @@ interface FollowUser {
   avatar_url: string | null;
 }
 
+type TabValue = 'all' | 'groups' | 'channels' | 'followers' | 'following';
+
+interface PendingGroupData {
+  name: string;
+  description: string;
+  avatarUrl: string | null;
+  memberIds?: string[];
+}
+
 const Messages = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { conversations, isLoading, totalUnread } = useConversations();
-  const [activeTab, setActiveTab] = useState<'chats' | 'followers' | 'following'>('chats');
+  const { conversations, isLoading: convLoading, totalUnread } = useConversations();
+  const { groups, channels, isLoading: groupsLoading, createGroupChat, refetch: refetchGroups } = useGroupChats();
+  
+  const [activeTab, setActiveTab] = useState<TabValue>('all');
   const [followers, setFollowers] = useState<FollowUser[]>([]);
   const [following, setFollowing] = useState<FollowUser[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+
+  // Group/Channel creation flow
+  const [createType, setCreateType] = useState<'group' | 'channel' | null>(null);
+  const [showCreateDialog, setShowCreateDialog] = useState(false);
+  const [showMembersDialog, setShowMembersDialog] = useState(false);
+  const [showVisibilityDialog, setShowVisibilityDialog] = useState(false);
+  const [pendingGroupData, setPendingGroupData] = useState<PendingGroupData | null>(null);
 
   useEffect(() => {
     if (!user?.id) return;
@@ -42,11 +68,13 @@ const Messages = () => {
 
       if (followersData) {
         const followerIds = followersData.map(f => f.follower_id);
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, name, username, avatar_url')
-          .in('id', followerIds);
-        setFollowers(profiles || []);
+        if (followerIds.length > 0) {
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, name, username, avatar_url')
+            .in('id', followerIds);
+          setFollowers(profiles || []);
+        }
       }
 
       // Fetch following
@@ -57,11 +85,13 @@ const Messages = () => {
 
       if (followingData) {
         const followingIds = followingData.map(f => f.following_id);
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, name, username, avatar_url')
-          .in('id', followingIds);
-        setFollowing(profiles || []);
+        if (followingIds.length > 0) {
+          const { data: profiles } = await supabase
+            .from('profiles')
+            .select('id, name, username, avatar_url')
+            .in('id', followingIds);
+          setFollowing(profiles || []);
+        }
       }
     };
 
@@ -81,11 +111,26 @@ const Messages = () => {
     navigate(`/chat/${userId}`);
   };
 
+  const handleGroupClick = (groupId: string) => {
+    navigate(`/group-chat/${groupId}`);
+  };
+
+  // Filter functions
   const filteredConversations = conversations.filter(conv => {
     if (!searchQuery) return true;
     const name = conv.otherUser.name?.toLowerCase() || '';
     const username = conv.otherUser.username?.toLowerCase() || '';
     return name.includes(searchQuery.toLowerCase()) || username.includes(searchQuery.toLowerCase());
+  });
+
+  const filteredGroups = groups.filter(g => {
+    if (!searchQuery) return true;
+    return g.name.toLowerCase().includes(searchQuery.toLowerCase());
+  });
+
+  const filteredChannels = channels.filter(c => {
+    if (!searchQuery) return true;
+    return c.name.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
   const filteredFollowers = followers.filter(f => {
@@ -102,6 +147,90 @@ const Messages = () => {
     return name.includes(searchQuery.toLowerCase()) || username.includes(searchQuery.toLowerCase());
   });
 
+  // Create group/channel handlers
+  const handleNewGroup = () => {
+    setCreateType('group');
+    setShowCreateDialog(true);
+  };
+
+  const handleNewChannel = () => {
+    setCreateType('channel');
+    setShowCreateDialog(true);
+  };
+
+  const handleCreateNext = (name: string, description: string, avatarUrl: string | null) => {
+    setPendingGroupData({ name, description, avatarUrl });
+    setShowCreateDialog(false);
+    setShowMembersDialog(true);
+  };
+
+  const handleMembersComplete = async (memberIds: string[]) => {
+    if (!pendingGroupData || !createType) return;
+
+    if (createType === 'channel') {
+      setShowMembersDialog(false);
+      setShowVisibilityDialog(true);
+      // Store memberIds temporarily
+      setPendingGroupData({
+        ...pendingGroupData,
+        memberIds: memberIds as any
+      });
+    } else {
+      // Create group immediately
+      const groupId = await createGroupChat(
+        pendingGroupData.name,
+        'group',
+        memberIds,
+        pendingGroupData.description,
+        pendingGroupData.avatarUrl || undefined,
+        'private'
+      );
+
+      if (groupId) {
+        toast.success('Guruh yaratildi!');
+        setShowMembersDialog(false);
+        resetCreateFlow();
+        navigate(`/group-chat/${groupId}`);
+      } else {
+        toast.error('Xatolik yuz berdi');
+      }
+    }
+  };
+
+  const handleVisibilityComplete = async (visibility: 'public' | 'private', inviteLink: string) => {
+    if (!pendingGroupData || !createType) return;
+
+    const memberIds = (pendingGroupData as any).memberIds || [];
+    
+    const channelId = await createGroupChat(
+      pendingGroupData.name,
+      'channel',
+      memberIds,
+      pendingGroupData.description,
+      pendingGroupData.avatarUrl || undefined,
+      visibility
+    );
+
+    if (channelId) {
+      toast.success('Kanal yaratildi!');
+      setShowVisibilityDialog(false);
+      resetCreateFlow();
+      navigate(`/group-chat/${channelId}`);
+    } else {
+      toast.error('Xatolik yuz berdi');
+    }
+  };
+
+  const resetCreateFlow = () => {
+    setCreateType(null);
+    setPendingGroupData(null);
+    setShowCreateDialog(false);
+    setShowMembersDialog(false);
+    setShowVisibilityDialog(false);
+  };
+
+  const isLoading = convLoading || groupsLoading;
+
   return (
     <AppLayout>
       <div className="min-h-screen bg-background pb-20">
@@ -117,6 +246,7 @@ const Messages = () => {
                 {totalUnread}
               </Badge>
             )}
+            <NewChatMenu onNewGroup={handleNewGroup} onNewChannel={handleNewChannel} />
           </div>
 
           {/* Search */}
@@ -132,89 +262,194 @@ const Messages = () => {
             </div>
           </div>
 
-          {/* Tabs */}
-          <Tabs value={activeTab} onValueChange={(v) => setActiveTab(v as any)} className="w-full">
-            <TabsList className="w-full rounded-none border-b bg-transparent p-0">
-              <TabsTrigger 
-                value="chats" 
-                className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+          {/* Tabs - 2 rows */}
+          <div className="px-4 pb-2 space-y-2">
+            <div className="flex gap-2">
+              <Button
+                variant={activeTab === 'all' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setActiveTab('all')}
+                className="flex-1"
               >
-                Chatlar
-              </TabsTrigger>
-              <TabsTrigger 
-                value="followers" 
-                className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+                Barcha
+              </Button>
+              <Button
+                variant={activeTab === 'groups' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setActiveTab('groups')}
+                className="flex-1"
+              >
+                <Users className="h-4 w-4 mr-1" />
+                Guruhlar
+              </Button>
+              <Button
+                variant={activeTab === 'channels' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setActiveTab('channels')}
+                className="flex-1"
+              >
+                <Megaphone className="h-4 w-4 mr-1" />
+                Kanallar
+              </Button>
+            </div>
+            <div className="flex gap-2">
+              <Button
+                variant={activeTab === 'followers' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setActiveTab('followers')}
+                className="flex-1"
               >
                 Kuzatuvchilar
-              </TabsTrigger>
-              <TabsTrigger 
-                value="following" 
-                className="flex-1 rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent"
+              </Button>
+              <Button
+                variant={activeTab === 'following' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setActiveTab('following')}
+                className="flex-1"
               >
                 Kuzatilmoqda
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
+              </Button>
+            </div>
+          </div>
         </div>
 
         {/* Content */}
         <div className="divide-y divide-border">
-          {activeTab === 'chats' && (
+          {/* All chats */}
+          {activeTab === 'all' && (
             <>
               {isLoading ? (
                 <div className="text-center py-12">
                   <p className="text-muted-foreground">Yuklanmoqda...</p>
                 </div>
-              ) : filteredConversations.length === 0 ? (
-                <div className="text-center py-12 px-4">
-                  <MessageCircle className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
-                  <p className="text-muted-foreground">Hozircha chatlar yo'q</p>
-                  <p className="text-sm text-muted-foreground mt-1">
-                    Kuzatuvchilar yoki Kuzatilmoqda bo'limidan chat boshlang
-                  </p>
-                </div>
               ) : (
-                filteredConversations.map((conv) => (
-                  <div
-                    key={conv.id}
-                    onClick={() => handleUserClick(conv.otherUser.id)}
-                    className="flex items-center gap-3 p-4 hover:bg-muted/50 cursor-pointer active:bg-muted transition-colors"
-                  >
-                    <div className="relative">
-                      <Avatar className="h-12 w-12">
-                        <AvatarImage src={conv.otherUser.avatar_url || undefined} />
-                        <AvatarFallback>{getInitials(conv.otherUser.name)}</AvatarFallback>
-                      </Avatar>
-                      {conv.unreadCount > 0 && (
-                        <span className="absolute -top-1 -right-1 h-5 w-5 bg-primary text-primary-foreground text-xs rounded-full flex items-center justify-center">
-                          {conv.unreadCount > 9 ? '9+' : conv.unreadCount}
-                        </span>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center justify-between">
-                        <h3 className="font-semibold truncate">
-                          {conv.otherUser.name || conv.otherUser.username || 'Foydalanuvchi'}
-                        </h3>
-                        {conv.lastMessage && (
-                          <span className="text-xs text-muted-foreground">
-                            {formatTime(conv.lastMessage.created_at)}
+                <>
+                  {/* Groups */}
+                  {filteredGroups.map((group) => (
+                    <GroupChatItem
+                      key={group.id}
+                      chat={group}
+                      onClick={() => handleGroupClick(group.id)}
+                    />
+                  ))}
+                  
+                  {/* Channels */}
+                  {filteredChannels.map((channel) => (
+                    <GroupChatItem
+                      key={channel.id}
+                      chat={channel}
+                      onClick={() => handleGroupClick(channel.id)}
+                    />
+                  ))}
+
+                  {/* Conversations */}
+                  {filteredConversations.map((conv) => (
+                    <div
+                      key={conv.id}
+                      onClick={() => handleUserClick(conv.otherUser.id)}
+                      className="flex items-center gap-3 p-4 hover:bg-muted/50 cursor-pointer active:bg-muted transition-colors"
+                    >
+                      <div className="relative">
+                        <Avatar className="h-12 w-12">
+                          <AvatarImage src={conv.otherUser.avatar_url || undefined} />
+                          <AvatarFallback>{getInitials(conv.otherUser.name)}</AvatarFallback>
+                        </Avatar>
+                        {conv.unreadCount > 0 && (
+                          <span className="absolute -top-1 -right-1 h-5 w-5 bg-primary text-primary-foreground text-xs rounded-full flex items-center justify-center">
+                            {conv.unreadCount > 9 ? '9+' : conv.unreadCount}
                           </span>
                         )}
                       </div>
-                      {conv.lastMessage && (
-                        <p className={`text-sm truncate ${conv.unreadCount > 0 ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
-                          {conv.lastMessage.sender_id === user?.id ? 'Siz: ' : ''}
-                          {conv.lastMessage.content}
-                        </p>
-                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between">
+                          <h3 className="font-semibold truncate">
+                            {conv.otherUser.name || conv.otherUser.username || 'Foydalanuvchi'}
+                          </h3>
+                          {conv.lastMessage && (
+                            <span className="text-xs text-muted-foreground">
+                              {formatTime(conv.lastMessage.created_at)}
+                            </span>
+                          )}
+                        </div>
+                        {conv.lastMessage && (
+                          <p className={`text-sm truncate ${conv.unreadCount > 0 ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
+                            {conv.lastMessage.sender_id === user?.id ? 'Siz: ' : ''}
+                            {conv.lastMessage.content}
+                          </p>
+                        )}
+                      </div>
                     </div>
-                  </div>
+                  ))}
+
+                  {filteredConversations.length === 0 && filteredGroups.length === 0 && filteredChannels.length === 0 && (
+                    <div className="text-center py-12 px-4">
+                      <MessageCircle className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
+                      <p className="text-muted-foreground">Hozircha chatlar yo'q</p>
+                      <p className="text-sm text-muted-foreground mt-1">
+                        Guruh yoki kanal yarating
+                      </p>
+                    </div>
+                  )}
+                </>
+              )}
+            </>
+          )}
+
+          {/* Groups */}
+          {activeTab === 'groups' && (
+            <>
+              {groupsLoading ? (
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground">Yuklanmoqda...</p>
+                </div>
+              ) : filteredGroups.length === 0 ? (
+                <div className="text-center py-12 px-4">
+                  <Users className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
+                  <p className="text-muted-foreground">Guruhlar yo'q</p>
+                  <Button variant="link" onClick={handleNewGroup}>
+                    Yangi guruh yaratish
+                  </Button>
+                </div>
+              ) : (
+                filteredGroups.map((group) => (
+                  <GroupChatItem
+                    key={group.id}
+                    chat={group}
+                    onClick={() => handleGroupClick(group.id)}
+                  />
                 ))
               )}
             </>
           )}
 
+          {/* Channels */}
+          {activeTab === 'channels' && (
+            <>
+              {groupsLoading ? (
+                <div className="text-center py-12">
+                  <p className="text-muted-foreground">Yuklanmoqda...</p>
+                </div>
+              ) : filteredChannels.length === 0 ? (
+                <div className="text-center py-12 px-4">
+                  <Megaphone className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
+                  <p className="text-muted-foreground">Kanallar yo'q</p>
+                  <Button variant="link" onClick={handleNewChannel}>
+                    Yangi kanal yaratish
+                  </Button>
+                </div>
+              ) : (
+                filteredChannels.map((channel) => (
+                  <GroupChatItem
+                    key={channel.id}
+                    chat={channel}
+                    onClick={() => handleGroupClick(channel.id)}
+                  />
+                ))
+              )}
+            </>
+          )}
+
+          {/* Followers */}
           {activeTab === 'followers' && (
             <>
               {filteredFollowers.length === 0 ? (
@@ -249,6 +484,7 @@ const Messages = () => {
             </>
           )}
 
+          {/* Following */}
           {activeTab === 'following' && (
             <>
               {filteredFollowing.length === 0 ? (
@@ -256,22 +492,22 @@ const Messages = () => {
                   <p className="text-muted-foreground">Hech kimni kuzatmayapsiz</p>
                 </div>
               ) : (
-                filteredFollowing.map((following) => (
+                filteredFollowing.map((followingUser) => (
                   <div
-                    key={following.id}
-                    onClick={() => handleUserClick(following.id)}
+                    key={followingUser.id}
+                    onClick={() => handleUserClick(followingUser.id)}
                     className="flex items-center gap-3 p-4 hover:bg-muted/50 cursor-pointer active:bg-muted transition-colors"
                   >
                     <Avatar className="h-12 w-12">
-                      <AvatarImage src={following.avatar_url || undefined} />
-                      <AvatarFallback>{getInitials(following.name)}</AvatarFallback>
+                      <AvatarImage src={followingUser.avatar_url || undefined} />
+                      <AvatarFallback>{getInitials(followingUser.name)}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold truncate">
-                        {following.name || 'Foydalanuvchi'}
+                        {followingUser.name || 'Foydalanuvchi'}
                       </h3>
                       <p className="text-sm text-muted-foreground truncate">
-                        @{following.username || 'username'}
+                        @{followingUser.username || 'username'}
                       </p>
                     </div>
                     <Button variant="outline" size="sm">
@@ -284,6 +520,48 @@ const Messages = () => {
           )}
         </div>
       </div>
+
+      {/* Dialogs */}
+      {createType && (
+        <>
+          <CreateGroupDialog
+            open={showCreateDialog}
+            onOpenChange={(open) => {
+              if (!open) resetCreateFlow();
+              setShowCreateDialog(open);
+            }}
+            type={createType}
+            onNext={handleCreateNext}
+          />
+          <AddMembersDialog
+            open={showMembersDialog}
+            onOpenChange={(open) => {
+              if (!open) resetCreateFlow();
+              setShowMembersDialog(open);
+            }}
+            type={createType}
+            onComplete={handleMembersComplete}
+            onBack={() => {
+              setShowMembersDialog(false);
+              setShowCreateDialog(true);
+            }}
+          />
+          {createType === 'channel' && (
+            <ChannelVisibilityDialog
+              open={showVisibilityDialog}
+              onOpenChange={(open) => {
+                if (!open) resetCreateFlow();
+                setShowVisibilityDialog(open);
+              }}
+              onComplete={handleVisibilityComplete}
+              onBack={() => {
+                setShowVisibilityDialog(false);
+                setShowMembersDialog(true);
+              }}
+            />
+          )}
+        </>
+      )}
     </AppLayout>
   );
 };

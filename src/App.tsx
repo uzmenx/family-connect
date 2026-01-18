@@ -20,6 +20,7 @@ import Notifications from "./pages/Notifications";
 import UserProfile from "./pages/UserProfile";
 import Messages from "./pages/Messages";
 import Chat from "./pages/Chat";
+import GroupChat from "./pages/GroupChat";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -94,6 +95,7 @@ const App = () => (
               <Route path="/user/:userId" element={<ProtectedRoute><UserProfile /></ProtectedRoute>} />
               <Route path="/messages" element={<ProtectedRoute><Messages /></ProtectedRoute>} />
               <Route path="/chat/:userId" element={<ProtectedRoute><Chat /></ProtectedRoute>} />
+              <Route path="/group-chat/:groupId" element={<ProtectedRoute><GroupChat /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </BrowserRouter>
