@@ -15,6 +15,8 @@ const CACHE_TTL = 2 * 60 * 1000; // 2 minutes
 
 export const usePostLikes = (postId: string) => {
   const { user } = useAuth();
+  const userId = user?.id;
+  
   const [isLiked, setIsLiked] = useState(false);
   const [likesCount, setLikesCount] = useState(0);
   const [likedUsers, setLikedUsers] = useState<LikeUser[]>([]);
@@ -29,17 +31,17 @@ export const usePostLikes = (postId: string) => {
 
   // Check like status from DB
   const checkLikeStatus = useCallback(async (): Promise<boolean> => {
-    if (!user) return false;
+    if (!userId) return false;
     
     const { data } = await supabase
       .from('post_likes')
       .select('id')
       .eq('post_id', postId)
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .maybeSingle();
     
     return !!data;
-  }, [postId, user]);
+  }, [postId, userId]);
 
   // Get likes count from DB
   const fetchLikesCount = useCallback(async (): Promise<number> => {
@@ -75,7 +77,7 @@ export const usePostLikes = (postId: string) => {
 
   // OPTIMISTIC Toggle like
   const toggleLike = useCallback(async () => {
-    if (!user || isLoading) return;
+    if (!userId || isLoading) return;
 
     // Cancel pending request
     if (abortRef.current) {
@@ -103,14 +105,14 @@ export const usePostLikes = (postId: string) => {
           .from('post_likes')
           .delete()
           .eq('post_id', postId)
-          .eq('user_id', user.id);
+          .eq('user_id', userId);
         
         if (error) throw error;
       } else {
         // Like
         const { error } = await supabase
           .from('post_likes')
-          .insert({ post_id: postId, user_id: user.id });
+          .insert({ post_id: postId, user_id: userId });
         
         if (error) throw error;
       }
@@ -126,7 +128,7 @@ export const usePostLikes = (postId: string) => {
       setIsLoading(false);
       abortRef.current = null;
     }
-  }, [user, isLoading, isLiked, likesCount, postId, updateCache]);
+  }, [userId, isLoading, isLiked, likesCount, postId, updateCache]);
 
   // Initialize from cache or fetch from DB
   useEffect(() => {
@@ -138,9 +140,11 @@ export const usePostLikes = (postId: string) => {
       // Check cache first
       const cached = likeCache.get(postId);
       if (cached && (Date.now() - cached.timestamp) < CACHE_TTL) {
-        setIsLiked(cached.isLiked);
-        setLikesCount(cached.count);
-        setIsInitialized(true);
+        if (isMounted) {
+          setIsLiked(cached.isLiked);
+          setLikesCount(cached.count);
+          setIsInitialized(true);
+        }
         return;
       }
 
@@ -159,6 +163,9 @@ export const usePostLikes = (postId: string) => {
         }
       } catch (error) {
         console.error('Error initializing likes:', error);
+        if (isMounted) {
+          setIsInitialized(true);
+        }
       }
     };
 
@@ -169,15 +176,17 @@ export const usePostLikes = (postId: string) => {
     };
   }, [postId, checkLikeStatus, fetchLikesCount, updateCache]);
 
-  // Re-check when user changes (login/logout)
+  // Re-check when user changes (login/logout) - using stable userId
   useEffect(() => {
-    if (isInitialized && user !== undefined) {
+    if (isInitialized) {
       checkLikeStatus().then(liked => {
         setIsLiked(liked);
         updateCache(liked, likesCount);
       });
     }
-  }, [user?.id]);
+    // Only react to userId changes, not the whole effect dependencies
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [userId]);
 
   return {
     isLiked,
