@@ -10,6 +10,8 @@ export interface Message {
   status: 'sent' | 'delivered' | 'seen';
   created_at: string;
   updated_at: string;
+  media_url?: string | null;
+  media_type?: 'image' | 'video' | 'audio' | null;
 }
 
 export const useMessages = (conversationId: string | null) => {
@@ -130,18 +132,28 @@ export const useMessages = (conversationId: string | null) => {
     };
   }, [conversationId, user?.id]);
 
-  const sendMessage = async (content: string) => {
-    if (!conversationId || !user?.id || !content.trim()) return null;
+  const sendMessage = async (content: string, mediaUrl?: string, mediaType?: string) => {
+    if (!conversationId || !user?.id) return null;
+    
+    // Must have content or media
+    if (!content.trim() && !mediaUrl) return null;
 
     try {
+      const messageData: any = {
+        conversation_id: conversationId,
+        sender_id: user.id,
+        content: content.trim() || (mediaType === 'audio' ? '🎤 Ovozli xabar' : '📎 Media'),
+        status: 'sent'
+      };
+
+      if (mediaUrl) {
+        messageData.media_url = mediaUrl;
+        messageData.media_type = mediaType;
+      }
+
       const { data, error } = await supabase
         .from('messages')
-        .insert({
-          conversation_id: conversationId,
-          sender_id: user.id,
-          content: content.trim(),
-          status: 'sent'
-        })
+        .insert(messageData)
         .select()
         .single();
 
