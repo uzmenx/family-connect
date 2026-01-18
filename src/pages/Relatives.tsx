@@ -3,14 +3,18 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { useAuth } from '@/contexts/AuthContext';
 import { FamilyTree } from '@/components/family/FamilyTree';
 import { AddRelativeDialog } from '@/components/family/AddRelativeDialog';
-import { Button } from '@/components/ui/button';
-import { Plus } from 'lucide-react';
+import { GenderSelectDialog } from '@/components/family/GenderSelectDialog';
 import { Relative } from '@/types';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 const Relatives = () => {
-  const { user, profile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
+  const { toast } = useToast();
   const [relatives, setRelatives] = useState<Relative[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [genderDialogOpen, setGenderDialogOpen] = useState(false);
+  const [userGender, setUserGender] = useState<'male' | 'female' | null>(null);
 
   useEffect(() => {
     if (user) {
@@ -19,6 +23,56 @@ const Relatives = () => {
       setRelatives(userRelatives);
     }
   }, [user]);
+
+  // Check user's gender from profile
+  useEffect(() => {
+    const fetchGender = async () => {
+      if (user) {
+        const { data } = await supabase
+          .from('profiles')
+          .select('gender')
+          .eq('id', user.id)
+          .single();
+        
+        if (data?.gender) {
+          setUserGender(data.gender as 'male' | 'female');
+        } else {
+          // Show gender selection dialog if not set
+          setGenderDialogOpen(true);
+        }
+      }
+    };
+    
+    fetchGender();
+  }, [user]);
+
+  const handleGenderSelect = async (gender: 'male' | 'female') => {
+    if (!user) return;
+
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ gender })
+        .eq('id', user.id);
+
+      if (error) throw error;
+
+      setUserGender(gender);
+      setGenderDialogOpen(false);
+      await refreshProfile();
+      
+      toast({
+        title: "Saqlandi!",
+        description: "Jinsingiz muvaffaqiyatli saqlandi",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Xato",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleAddRelative = (newRelative: Omit<Relative, 'id' | 'user_id' | 'created_at'>) => {
     if (!user) return;
@@ -36,6 +90,11 @@ const Relatives = () => {
     
     setRelatives(prev => [...prev, relative]);
     setDialogOpen(false);
+
+    toast({
+      title: "Qo'shildi!",
+      description: `${relative.relative_name} oila daraxtiga qo'shildi`,
+    });
   };
 
   // Create a user object compatible with FamilyTree component
@@ -57,25 +116,34 @@ const Relatives = () => {
 
   return (
     <AppLayout>
-      <div className="max-w-lg mx-auto">
-        <header className="sticky top-0 bg-background/80 backdrop-blur-sm border-b border-border p-4 z-40 flex items-center justify-between">
-          <h1 className="text-xl font-bold">Oila daraxti</h1>
-          <Button size="sm" onClick={() => setDialogOpen(true)} className="gap-2">
-            <Plus className="h-4 w-4" />
-            Qo'shish
-          </Button>
+      <div className="max-w-lg mx-auto relative min-h-screen bg-gradient-to-b from-emerald-400 via-teal-400 to-green-300 dark:from-emerald-800 dark:via-teal-800 dark:to-green-700">
+        <header className="sticky top-0 bg-background/80 backdrop-blur-sm border-b border-border p-4 z-40">
+          <h1 className="text-xl font-bold text-center">Oila daraxti</h1>
         </header>
         
         <div className="p-4">
-          {relatives.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">Hozircha qarindoshlar yo'q</p>
-              <p className="text-sm text-muted-foreground mt-2">Birinchi qarindoshni qo'shing!</p>
-            </div>
-          ) : (
-            <FamilyTree relatives={relatives} currentUser={currentUserForTree} />
-          )}
+          {relatives.length === 0 && userGender ? (
+            <FamilyTree 
+              relatives={relatives} 
+              currentUser={currentUserForTree}
+              userGender={userGender}
+              onAddRelative={() => setDialogOpen(true)}
+            />
+          ) : relatives.length > 0 ? (
+            <FamilyTree 
+              relatives={relatives} 
+              currentUser={currentUserForTree}
+              userGender={userGender}
+              onAddRelative={() => setDialogOpen(true)}
+            />
+          ) : null}
         </div>
+
+        <GenderSelectDialog
+          open={genderDialogOpen}
+          onOpenChange={setGenderDialogOpen}
+          onSelect={handleGenderSelect}
+        />
 
         <AddRelativeDialog 
           open={dialogOpen} 

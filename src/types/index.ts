@@ -18,9 +18,10 @@ export interface Relative {
   id: string;
   user_id: string;
   relative_name: string;
-  relation_type: 'father' | 'mother' | 'sibling' | 'child' | 'spouse' | 'grandparent' | 'grandchild' | 'uncle' | 'aunt' | 'cousin';
+  relation_type: 'father' | 'mother' | 'sibling' | 'child' | 'spouse' | 'grandparent' | 'grandchild' | 'uncle' | 'aunt' | 'cousin' | 'grandfather' | 'grandmother' | 'brother' | 'younger_brother' | 'sister' | 'younger_sister' | 'son' | 'daughter' | 'husband' | 'wife' | 'nephew' | 'niece' | 'grandson' | 'granddaughter';
   parent_relative_id: string | null;
   avatar_url: string;
+  gender?: 'male' | 'female';
   created_at: string;
 }
 
