@@ -148,6 +148,86 @@ export type Database = {
         }
         Relationships: []
       }
+      family_invitations: {
+        Row: {
+          created_at: string
+          id: string
+          member_id: string
+          receiver_id: string
+          relation_type: string
+          sender_id: string
+          status: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          member_id: string
+          receiver_id: string
+          relation_type: string
+          sender_id: string
+          status?: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          member_id?: string
+          receiver_id?: string
+          relation_type?: string
+          sender_id?: string
+          status?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_invitations_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "family_tree_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      family_tree_members: {
+        Row: {
+          avatar_url: string | null
+          created_at: string
+          gender: string | null
+          id: string
+          is_placeholder: boolean
+          linked_user_id: string | null
+          member_name: string
+          owner_id: string
+          relation_type: string
+          updated_at: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          created_at?: string
+          gender?: string | null
+          id?: string
+          is_placeholder?: boolean
+          linked_user_id?: string | null
+          member_name: string
+          owner_id: string
+          relation_type: string
+          updated_at?: string
+        }
+        Update: {
+          avatar_url?: string | null
+          created_at?: string
+          gender?: string | null
+          id?: string
+          is_placeholder?: boolean
+          linked_user_id?: string | null
+          member_name?: string
+          owner_id?: string
+          relation_type?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
       follows: {
         Row: {
           created_at: string

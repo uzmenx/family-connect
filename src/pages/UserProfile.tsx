@@ -5,7 +5,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Grid3X3, Bookmark } from 'lucide-react';
+import { ArrowLeft, Grid3X3, Bookmark, Users } from 'lucide-react';
 import { useUserPosts } from '@/hooks/useUserPosts';
 import { useFollow } from '@/hooks/useFollow';
 import { PostCard } from '@/components/feed/PostCard';
@@ -17,6 +17,10 @@ import { MessageButton } from '@/components/chat/MessageButton';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { formatCount } from '@/lib/formatCount';
+import { useFamilyTree } from '@/hooks/useFamilyTree';
+import { SelectMemberDialog } from '@/components/family/SelectMemberDialog';
+import { AddRelativeDialog } from '@/components/family/AddRelativeDialog';
+import { useToast } from '@/hooks/use-toast';
 
 interface UserProfile {
   id: string;
@@ -30,6 +34,7 @@ const UserProfilePage = () => {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
+  const { toast } = useToast();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { posts, isLoading: postsLoading, postsCount, refetch } = useUserPosts(userId);
@@ -37,6 +42,11 @@ const UserProfilePage = () => {
   const [activeTab, setActiveTab] = useState<'posts' | 'saved'>('posts');
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
+  
+  // Family tree states
+  const { members, addMember, sendInvitation } = useFamilyTree();
+  const [selectMemberOpen, setSelectMemberOpen] = useState(false);
+  const [addRelativeOpen, setAddRelativeOpen] = useState(false);
 
   // Redirect to own profile if viewing self
   useEffect(() => {
@@ -131,7 +141,16 @@ const UserProfilePage = () => {
             </Avatar>
             
             {userId && (
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setSelectMemberOpen(true)}
+                  className="gap-1"
+                >
+                  <Users className="h-4 w-4" />
+                  Qarindoshim
+                </Button>
                 <FollowButton targetUserId={userId} />
                 <MessageButton userId={userId} />
               </div>
@@ -236,6 +255,43 @@ const UserProfilePage = () => {
             onClose={() => setViewerOpen(false)}
           />
         )}
+
+        {/* Select member dialog */}
+        <SelectMemberDialog
+          open={selectMemberOpen}
+          onOpenChange={setSelectMemberOpen}
+          members={members}
+          targetUserName={profile?.name || 'Foydalanuvchi'}
+          onSelectMember={async (member) => {
+            if (userId) {
+              await sendInvitation(userId, member.id, member.relation_type);
+              setSelectMemberOpen(false);
+            }
+          }}
+          onCreateNew={() => {
+            setSelectMemberOpen(false);
+            setAddRelativeOpen(true);
+          }}
+        />
+
+        {/* Add relative dialog */}
+        <AddRelativeDialog
+          open={addRelativeOpen}
+          onOpenChange={setAddRelativeOpen}
+          onAdd={async (relative) => {
+            const newMember = await addMember({
+              member_name: relative.relative_name,
+              relation_type: relative.relation_type,
+              avatar_url: relative.avatar_url,
+              gender: relative.gender,
+            });
+            if (newMember && userId) {
+              await sendInvitation(userId, newMember.id, newMember.relation_type);
+            }
+            setAddRelativeOpen(false);
+          }}
+          relatives={[]}
+        />
       </div>
     </AppLayout>
   );

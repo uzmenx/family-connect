@@ -4,25 +4,28 @@ import { useAuth } from '@/contexts/AuthContext';
 import { FamilyTree } from '@/components/family/FamilyTree';
 import { AddRelativeDialog } from '@/components/family/AddRelativeDialog';
 import { GenderSelectDialog } from '@/components/family/GenderSelectDialog';
-import { Relative } from '@/types';
+import { InvitationCard } from '@/components/family/InvitationCard';
+import { useFamilyTree } from '@/hooks/useFamilyTree';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
 const Relatives = () => {
   const { user, profile, refreshProfile } = useAuth();
   const { toast } = useToast();
-  const [relatives, setRelatives] = useState<Relative[]>([]);
   const [dialogOpen, setDialogOpen] = useState(false);
   const [genderDialogOpen, setGenderDialogOpen] = useState(false);
   const [userGender, setUserGender] = useState<'male' | 'female' | null>(null);
 
-  useEffect(() => {
-    if (user) {
-      const allRelatives = JSON.parse(localStorage.getItem('family_app_relatives') || '[]');
-      const userRelatives = allRelatives.filter((r: Relative) => r.user_id === user.id);
-      setRelatives(userRelatives);
-    }
-  }, [user]);
+  const {
+    members,
+    invitations,
+    isLoading,
+    addMember,
+    sendInvitation,
+    respondToInvitation,
+    linkExistingMemberToUser,
+    deleteMember,
+  } = useFamilyTree();
 
   // Check user's gender from profile
   useEffect(() => {
@@ -74,44 +77,36 @@ const Relatives = () => {
     }
   };
 
-  const handleAddRelative = (newRelative: Omit<Relative, 'id' | 'user_id' | 'created_at'>) => {
-    if (!user) return;
-
-    const relative: Relative = {
-      ...newRelative,
-      id: crypto.randomUUID(),
-      user_id: user.id,
-      created_at: new Date().toISOString(),
-    };
-
-    const allRelatives = JSON.parse(localStorage.getItem('family_app_relatives') || '[]');
-    allRelatives.push(relative);
-    localStorage.setItem('family_app_relatives', JSON.stringify(allRelatives));
-    
-    setRelatives(prev => [...prev, relative]);
-    setDialogOpen(false);
-
-    toast({
-      title: "Qo'shildi!",
-      description: `${relative.relative_name} oila daraxtiga qo'shildi`,
+  const handleAddRelative = async (newRelative: {
+    relative_name: string;
+    relation_type: string;
+    avatar_url?: string;
+    gender?: 'male' | 'female';
+  }) => {
+    await addMember({
+      member_name: newRelative.relative_name,
+      relation_type: newRelative.relation_type,
+      avatar_url: newRelative.avatar_url,
+      gender: newRelative.gender,
     });
+    setDialogOpen(false);
   };
+
+  const handleSendInvitation = async (memberId: string, receiverId: string) => {
+    const member = members.find(m => m.id === memberId);
+    if (member) {
+      await sendInvitation(receiverId, memberId, member.relation_type);
+    }
+  };
+
+  // Filter invitations for current user (received ones)
+  const receivedInvitations = invitations.filter(inv => inv.receiver_id === user?.id);
 
   // Create a user object compatible with FamilyTree component
   const currentUserForTree = profile ? {
     id: user?.id || '',
-    email: profile.email || '',
     full_name: profile.name || '',
-    username: profile.username || '',
-    bio: profile.bio || '',
     avatar_url: profile.avatar_url || '',
-    cover_url: '',
-    instagram: '',
-    telegram: '',
-    followers_count: 0,
-    following_count: 0,
-    relatives_count: relatives.length,
-    created_at: profile.created_at
   } : null;
 
   return (
@@ -120,23 +115,38 @@ const Relatives = () => {
         <header className="sticky top-0 bg-background/80 backdrop-blur-sm border-b border-border p-4 z-40">
           <h1 className="text-xl font-bold text-center">Oila daraxti</h1>
         </header>
+
+        {/* Pending invitations */}
+        {receivedInvitations.length > 0 && (
+          <div className="p-4 space-y-3">
+            <h2 className="font-semibold text-foreground">Taklifnomalar</h2>
+            {receivedInvitations.map((inv) => (
+              <InvitationCard
+                key={inv.id}
+                invitation={inv}
+                onAccept={() => respondToInvitation(inv.id, true)}
+                onReject={() => respondToInvitation(inv.id, false)}
+              />
+            ))}
+          </div>
+        )}
         
         <div className="p-4">
-          {relatives.length === 0 && userGender ? (
+          {isLoading ? (
+            <div className="flex items-center justify-center min-h-[50vh]">
+              <p className="text-muted-foreground">Yuklanmoqda...</p>
+            </div>
+          ) : (
             <FamilyTree 
-              relatives={relatives} 
+              members={members} 
               currentUser={currentUserForTree}
               userGender={userGender}
               onAddRelative={() => setDialogOpen(true)}
+              isOwner={true}
+              onSendInvitation={handleSendInvitation}
+              onDeleteMember={deleteMember}
             />
-          ) : relatives.length > 0 ? (
-            <FamilyTree 
-              relatives={relatives} 
-              currentUser={currentUserForTree}
-              userGender={userGender}
-              onAddRelative={() => setDialogOpen(true)}
-            />
-          ) : null}
+          )}
         </div>
 
         <GenderSelectDialog
@@ -149,7 +159,16 @@ const Relatives = () => {
           open={dialogOpen} 
           onOpenChange={setDialogOpen}
           onAdd={handleAddRelative}
-          relatives={relatives}
+          relatives={members.map(m => ({
+            id: m.id,
+            user_id: m.owner_id,
+            relative_name: m.member_name,
+            relation_type: m.relation_type as any,
+            parent_relative_id: null,
+            avatar_url: m.avatar_url || '',
+            gender: m.gender || undefined,
+            created_at: m.created_at,
+          }))}
         />
       </div>
     </AppLayout>
