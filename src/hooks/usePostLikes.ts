@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -15,15 +15,24 @@ const LIKE_CACHE_TTL = 2 * 60 * 1000; // 2 minutes
 
 export const usePostLikes = (postId: string) => {
   const { user } = useAuth();
-  const cached = likeCache.get(postId);
-  const isCacheValid = cached && (Date.now() - cached.timestamp) < LIKE_CACHE_TTL;
+  
+  // Calculate cache validity ONCE using useMemo to avoid hook count changes
+  const initialState = useMemo(() => {
+    const cached = likeCache.get(postId);
+    const isValid = cached && (Date.now() - cached.timestamp) < LIKE_CACHE_TTL;
+    return {
+      isLiked: isValid ? cached.isLiked : false,
+      count: isValid ? cached.count : 0,
+      isValid: !!isValid
+    };
+  }, [postId]);
 
-  const [isLiked, setIsLiked] = useState(isCacheValid ? cached.isLiked : false);
-  const [likesCount, setLikesCount] = useState(isCacheValid ? cached.count : 0);
+  const [isLiked, setIsLiked] = useState(initialState.isLiked);
+  const [likesCount, setLikesCount] = useState(initialState.count);
   const [likedUsers, setLikedUsers] = useState<LikeUser[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const pendingRequestRef = useRef<AbortController | null>(null);
-  const hasInitializedRef = useRef(isCacheValid);
+  const hasInitializedRef = useRef(initialState.isValid);
 
   // Update cache when state changes
   const updateCache = useCallback((liked: boolean, count: number) => {
@@ -153,8 +162,7 @@ export const usePostLikes = (postId: string) => {
   useEffect(() => {
     const initialize = async () => {
       // Use cache if valid
-      if (isCacheValid) {
-        hasInitializedRef.current = true;
+      if (hasInitializedRef.current) {
         return;
       }
 
@@ -170,7 +178,7 @@ export const usePostLikes = (postId: string) => {
     };
 
     initialize();
-  }, [checkLikeStatus, fetchLikesCount, isCacheValid, updateCache]);
+  }, [checkLikeStatus, fetchLikesCount, updateCache]);
 
   return {
     isLiked,
