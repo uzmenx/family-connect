@@ -1,13 +1,25 @@
+import { useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Relative, User } from '@/types';
-import { User as UserIcon, Plus } from 'lucide-react';
+import { User as UserIcon, Plus, HelpCircle } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { FamilyMember } from '@/hooks/useFamilyTree';
+import { MemberCardDialog } from './MemberCardDialog';
+import { SendInvitationDialog } from './SendInvitationDialog';
+
+interface User {
+  id: string;
+  full_name: string;
+  avatar_url: string;
+}
 
 interface FamilyTreeProps {
-  relatives: Relative[];
+  members: FamilyMember[];
   currentUser: User | null;
   userGender: 'male' | 'female' | null;
   onAddRelative: () => void;
+  isOwner?: boolean;
+  onSendInvitation?: (memberId: string, receiverId: string) => void;
+  onDeleteMember?: (memberId: string) => void;
 }
 
 // Relation labels mapping (these are private labels, only shown to profile owner)
@@ -38,14 +50,27 @@ const relationLabels: Record<string, string> = {
   cousin: 'Amakivachcha',
 };
 
-export const FamilyTree = ({ relatives, currentUser, userGender, onAddRelative }: FamilyTreeProps) => {
-  // Categorize relatives
-  const parents = relatives.filter(r => ['father', 'mother'].includes(r.relation_type));
-  const grandparents = relatives.filter(r => ['grandfather', 'grandmother', 'grandparent'].includes(r.relation_type));
-  const siblings = relatives.filter(r => ['brother', 'younger_brother', 'sister', 'younger_sister', 'sibling'].includes(r.relation_type));
-  const spouse = relatives.filter(r => ['husband', 'wife', 'spouse'].includes(r.relation_type));
-  const children = relatives.filter(r => ['son', 'daughter', 'child'].includes(r.relation_type));
-  const others = relatives.filter(r => 
+export const FamilyTree = ({ 
+  members, 
+  currentUser, 
+  userGender, 
+  onAddRelative,
+  isOwner = true,
+  onSendInvitation,
+  onDeleteMember,
+}: FamilyTreeProps) => {
+  const [selectedMember, setSelectedMember] = useState<FamilyMember | null>(null);
+  const [memberCardOpen, setMemberCardOpen] = useState(false);
+  const [sendInvitationOpen, setSendInvitationOpen] = useState(false);
+  const [pendingMemberId, setPendingMemberId] = useState<string | null>(null);
+
+  // Categorize members
+  const parents = members.filter(r => ['father', 'mother'].includes(r.relation_type));
+  const grandparents = members.filter(r => ['grandfather', 'grandmother', 'grandparent'].includes(r.relation_type));
+  const siblings = members.filter(r => ['brother', 'younger_brother', 'sister', 'younger_sister', 'sibling'].includes(r.relation_type));
+  const spouse = members.filter(r => ['husband', 'wife', 'spouse'].includes(r.relation_type));
+  const children = members.filter(r => ['son', 'daughter', 'child'].includes(r.relation_type));
+  const others = members.filter(r => 
     !['father', 'mother', 'grandfather', 'grandmother', 'grandparent', 'brother', 'younger_brother', 'sister', 'younger_sister', 'sibling', 'husband', 'wife', 'spouse', 'son', 'daughter', 'child'].includes(r.relation_type)
   );
 
@@ -70,24 +95,66 @@ export const FamilyTree = ({ relatives, currentUser, userGender, onAddRelative }
     };
   };
 
-  const renderRelativeNode = (relative: Relative) => {
-    const colors = getGenderColors(relative.gender);
+  const handleMemberClick = (member: FamilyMember) => {
+    setSelectedMember(member);
+    setMemberCardOpen(true);
+  };
+
+  const handleSendInvitation = () => {
+    if (selectedMember) {
+      setPendingMemberId(selectedMember.id);
+      setSendInvitationOpen(true);
+    }
+  };
+
+  const handleSelectUser = (userId: string) => {
+    if (pendingMemberId && onSendInvitation) {
+      onSendInvitation(pendingMemberId, userId);
+      setPendingMemberId(null);
+    }
+  };
+
+  const handleDeleteMember = () => {
+    if (selectedMember && onDeleteMember) {
+      onDeleteMember(selectedMember.id);
+    }
+  };
+
+  const renderMemberNode = (member: FamilyMember) => {
+    const displayGender = member.linked_profile?.gender as 'male' | 'female' | null || member.gender;
+    const colors = getGenderColors(displayGender);
+    const displayName = member.linked_profile?.name || member.member_name;
+    const displayAvatar = member.linked_profile?.avatar_url || member.avatar_url;
+    const isPlaceholder = member.is_placeholder;
     
     return (
-      <div key={relative.id} className="flex flex-col items-center gap-2">
-        <div className={cn("rounded-full p-0.5", colors.ring, "ring-2")}>
+      <button
+        key={member.id}
+        onClick={() => handleMemberClick(member)}
+        className="flex flex-col items-center gap-2 group"
+      >
+        <div className={cn("rounded-full p-0.5 relative", colors.ring, "ring-2")}>
           <Avatar className={cn("h-16 w-16 border-2", colors.border)}>
-            <AvatarImage src={relative.avatar_url} />
+            <AvatarImage src={displayAvatar || undefined} />
             <AvatarFallback className={cn(colors.bg, "text-white text-lg")}>
-              {relative.relative_name.charAt(0).toUpperCase()}
+              {displayName.charAt(0).toUpperCase()}
             </AvatarFallback>
           </Avatar>
+          {isPlaceholder && (
+            <div className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-amber-500 flex items-center justify-center">
+              <HelpCircle className="h-3 w-3 text-white" />
+            </div>
+          )}
         </div>
         <div className="text-center">
-          <p className="font-medium text-sm">{relative.relative_name}</p>
-          <p className="text-xs text-muted-foreground">{relationLabels[relative.relation_type] || relative.relation_type}</p>
+          <p className="font-medium text-sm text-foreground">{displayName}</p>
+          {isOwner && (
+            <p className="text-xs text-muted-foreground">
+              {relationLabels[member.relation_type] || member.relation_type}
+            </p>
+          )}
         </div>
-      </div>
+      </button>
     );
   };
 
@@ -105,7 +172,7 @@ export const FamilyTree = ({ relatives, currentUser, userGender, onAddRelative }
           </Avatar>
         </div>
         <div className="text-center">
-          <p className="font-bold">{currentUser?.full_name || 'Siz'}</p>
+          <p className="font-bold text-foreground">{currentUser?.full_name || 'Siz'}</p>
           <p className="text-xs text-muted-foreground">Siz</p>
         </div>
       </div>
@@ -117,7 +184,7 @@ export const FamilyTree = ({ relatives, currentUser, userGender, onAddRelative }
       {/* Grandparents row */}
       {grandparents.length > 0 && (
         <div className="flex justify-center gap-8 flex-wrap">
-          {grandparents.map(renderRelativeNode)}
+          {grandparents.map(renderMemberNode)}
         </div>
       )}
 
@@ -131,7 +198,7 @@ export const FamilyTree = ({ relatives, currentUser, userGender, onAddRelative }
         <div className="flex justify-center items-center gap-4">
           {parents.map((parent, index) => (
             <div key={parent.id} className="flex items-center">
-              {renderRelativeNode(parent)}
+              {renderMemberNode(parent)}
               {index === 0 && parents.length > 1 && (
                 <div className="mx-2 w-8 h-0.5 bg-muted-foreground/50 flex items-center justify-center">
                   <span className="text-muted-foreground text-lg">⚭</span>
@@ -152,7 +219,7 @@ export const FamilyTree = ({ relatives, currentUser, userGender, onAddRelative }
         {/* Siblings on left */}
         {siblings.length > 0 && (
           <div className="flex gap-4">
-            {siblings.map(renderRelativeNode)}
+            {siblings.map(renderMemberNode)}
           </div>
         )}
 
@@ -166,7 +233,7 @@ export const FamilyTree = ({ relatives, currentUser, userGender, onAddRelative }
               <div className="w-8 h-0.5 bg-muted-foreground/50 flex items-center justify-center">
                 <span className="text-muted-foreground text-lg">⚭</span>
               </div>
-              {spouse.map(renderRelativeNode)}
+              {spouse.map(renderMemberNode)}
             </>
           )}
         </div>
@@ -180,7 +247,7 @@ export const FamilyTree = ({ relatives, currentUser, userGender, onAddRelative }
       {/* Children row */}
       {children.length > 0 && (
         <div className="flex justify-center gap-6 flex-wrap">
-          {children.map(renderRelativeNode)}
+          {children.map(renderMemberNode)}
         </div>
       )}
 
@@ -189,18 +256,37 @@ export const FamilyTree = ({ relatives, currentUser, userGender, onAddRelative }
         <div className="mt-8 pt-8 border-t border-border w-full">
           <p className="text-sm font-medium text-muted-foreground mb-4 text-center">Boshqa qarindoshlar</p>
           <div className="flex justify-center gap-6 flex-wrap">
-            {others.map(renderRelativeNode)}
+            {others.map(renderMemberNode)}
           </div>
         </div>
       )}
 
-      {/* Add relative floating button */}
-      <button
-        onClick={onAddRelative}
-        className="fixed bottom-24 right-4 w-14 h-14 rounded-full bg-sky-500 hover:bg-sky-600 text-white shadow-lg flex items-center justify-center transition-colors z-50"
-      >
-        <Plus className="h-6 w-6" />
-      </button>
+      {/* Add relative floating button - only show for owner */}
+      {isOwner && (
+        <button
+          onClick={onAddRelative}
+          className="fixed bottom-24 right-4 w-14 h-14 rounded-full bg-sky-500 hover:bg-sky-600 text-white shadow-lg flex items-center justify-center transition-colors z-50"
+        >
+          <Plus className="h-6 w-6" />
+        </button>
+      )}
+
+      {/* Member card dialog */}
+      <MemberCardDialog
+        open={memberCardOpen}
+        onOpenChange={setMemberCardOpen}
+        member={selectedMember}
+        isOwner={isOwner}
+        onSendInvitation={handleSendInvitation}
+        onDelete={handleDeleteMember}
+      />
+
+      {/* Send invitation dialog */}
+      <SendInvitationDialog
+        open={sendInvitationOpen}
+        onOpenChange={setSendInvitationOpen}
+        onSelectUser={handleSelectUser}
+      />
     </div>
   );
 };
