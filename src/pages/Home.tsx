@@ -86,9 +86,11 @@ const Home = () => {
           ) : gridLayout === 1 ? (
             <div className="space-y-4 pb-20">
               {posts.map((post, index) => (
-                <div key={post.id} onClick={() => openViewer(index)} className="cursor-pointer">
-                  <PostCard post={post} />
-                </div>
+                <PostCard 
+                  key={post.id} 
+                  post={post} 
+                  onMediaClick={() => openViewer(index)}
+                />
               ))}
               <EndOfFeed />
             </div>

@@ -27,21 +27,30 @@ export const useComments = (postId: string) => {
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentsCount, setCommentsCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [hasFetched, setHasFetched] = useState(false);
   const pendingCommentsRef = useRef<Map<string, AbortController>>(new Map());
 
-  // Fetch comments with authors
+  // Fetch comments with authors - ALWAYS fetches fresh data
   const fetchComments = useCallback(async () => {
+    if (!postId) return;
+    
     setIsLoading(true);
     try {
-      const { data: commentsData } = await supabase
+      const { data: commentsData, error } = await supabase
         .from('comments')
         .select('*')
         .eq('post_id', postId)
         .order('created_at', { ascending: false });
 
+      if (error) {
+        console.error('Error fetching comments:', error);
+        return;
+      }
+
       if (!commentsData || commentsData.length === 0) {
         setComments([]);
         setCommentsCount(0);
+        setHasFetched(true);
         return;
       }
 
@@ -84,6 +93,7 @@ export const useComments = (postId: string) => {
 
       setComments(organizedComments);
       setCommentsCount(commentsData.length);
+      setHasFetched(true);
     } catch (error) {
       console.error('Error fetching comments:', error);
     } finally {
