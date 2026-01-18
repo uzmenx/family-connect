@@ -1,10 +1,11 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { FamilyMember } from '@/hooks/useFamilyTree';
-import { cn } from '@/lib/utils';
-import { Check, Plus, User } from 'lucide-react';
+import { FamilyTreePreview } from './FamilyTreePreview';
+import { Plus } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface SelectMemberDialogProps {
   open: boolean;
@@ -23,31 +24,62 @@ export const SelectMemberDialog = ({
   onCreateNew,
   targetUserName,
 }: SelectMemberDialogProps) => {
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const { user, profile } = useAuth();
+  const [selectedMember, setSelectedMember] = useState<FamilyMember | null>(null);
+  const [userGender, setUserGender] = useState<'male' | 'female' | null>(null);
+
+  // Fetch user's gender
+  useEffect(() => {
+    const fetchGender = async () => {
+      if (user?.id) {
+        const { data } = await supabase
+          .from('profiles')
+          .select('gender')
+          .eq('id', user.id)
+          .single();
+        
+        if (data?.gender) {
+          setUserGender(data.gender as 'male' | 'female');
+        }
+      }
+    };
+    
+    if (open) {
+      fetchGender();
+    }
+  }, [user?.id, open]);
 
   // Filter only placeholder members (not linked to any user)
   const placeholderMembers = members.filter(m => m.is_placeholder);
 
-  const getGenderColors = (gender: 'male' | 'female' | null | undefined) => {
-    if (gender === 'male') {
-      return { ring: 'ring-sky-400', bg: 'bg-sky-500' };
-    } else if (gender === 'female') {
-      return { ring: 'ring-pink-400', bg: 'bg-pink-500' };
-    }
-    return { ring: 'ring-muted', bg: 'bg-muted' };
+  const handleMemberSelect = (member: FamilyMember) => {
+    setSelectedMember(member);
   };
 
   const handleConfirm = () => {
-    const member = members.find(m => m.id === selectedId);
-    if (member) {
-      onSelectMember(member);
-      setSelectedId(null);
+    if (selectedMember) {
+      onSelectMember(selectedMember);
+      setSelectedMember(null);
     }
   };
 
+  const handleClose = (isOpen: boolean) => {
+    if (!isOpen) {
+      setSelectedMember(null);
+    }
+    onOpenChange(isOpen);
+  };
+
+  const currentUserForTree = profile ? {
+    id: user?.id || '',
+    full_name: profile.name || '',
+    avatar_url: profile.avatar_url || '',
+    gender: userGender,
+  } : null;
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-md max-h-[80vh] overflow-y-auto">
+    <Dialog open={open} onOpenChange={handleClose}>
+      <DialogContent className="max-w-md max-h-[85vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {targetUserName} uchun profil tanlang
@@ -56,65 +88,50 @@ export const SelectMemberDialog = ({
 
         <div className="space-y-4 mt-4">
           {placeholderMembers.length === 0 ? (
-            <p className="text-center text-muted-foreground py-4">
-              Oila daraxtingizda bo'sh profil yo'q
-            </p>
-          ) : (
-            <div className="grid grid-cols-3 gap-4">
-              {placeholderMembers.map((member) => {
-                const colors = getGenderColors(member.gender);
-                const isSelected = selectedId === member.id;
-
-                return (
-                  <button
-                    key={member.id}
-                    onClick={() => setSelectedId(member.id)}
-                    className={cn(
-                      "flex flex-col items-center gap-2 p-3 rounded-lg border-2 transition-all",
-                      isSelected 
-                        ? "border-primary bg-primary/10" 
-                        : "border-transparent hover:bg-muted"
-                    )}
-                  >
-                    <div className={cn("rounded-full p-0.5 relative", colors.ring, "ring-2")}>
-                      <Avatar className="h-14 w-14">
-                        <AvatarImage src={member.avatar_url || undefined} />
-                        <AvatarFallback className={cn(colors.bg, "text-white")}>
-                          {member.member_name.charAt(0).toUpperCase()}
-                        </AvatarFallback>
-                      </Avatar>
-                      {isSelected && (
-                        <div className="absolute -bottom-1 -right-1 h-5 w-5 rounded-full bg-green-500 flex items-center justify-center">
-                          <Check className="h-3 w-3 text-white" />
-                        </div>
-                      )}
-                    </div>
-                    <p className="text-xs font-medium text-center truncate w-full">
-                      {member.member_name}
-                    </p>
-                  </button>
-                );
-              })}
+            <div className="text-center py-6">
+              <p className="text-muted-foreground mb-4">
+                Oila daraxtingizda bo'sh profil yo'q
+              </p>
+              <Button onClick={onCreateNew}>
+                <Plus className="h-4 w-4 mr-2" />
+                Yangi profil yaratish
+              </Button>
             </div>
+          ) : (
+            <>
+              <p className="text-sm text-muted-foreground text-center">
+                Oila daraxtidan bo'sh profilni tanlang (sariq belgi bilan ko'rsatilgan)
+              </p>
+              
+              <FamilyTreePreview
+                members={members}
+                currentUser={currentUserForTree}
+                selectedMemberId={selectedMember?.id}
+                onSelectMember={handleMemberSelect}
+                selectable={true}
+              />
+            </>
           )}
 
-          <div className="flex gap-3 pt-4 border-t">
-            <Button
-              variant="outline"
-              className="flex-1"
-              onClick={onCreateNew}
-            >
-              <Plus className="h-4 w-4 mr-2" />
-              Yangi yaratish
-            </Button>
-            <Button
-              className="flex-1"
-              disabled={!selectedId}
-              onClick={handleConfirm}
-            >
-              Taklif qilish
-            </Button>
-          </div>
+          {placeholderMembers.length > 0 && (
+            <div className="flex gap-3 pt-4 border-t">
+              <Button
+                variant="outline"
+                className="flex-1"
+                onClick={onCreateNew}
+              >
+                <Plus className="h-4 w-4 mr-2" />
+                Yangi yaratish
+              </Button>
+              <Button
+                className="flex-1"
+                disabled={!selectedMember}
+                onClick={handleConfirm}
+              >
+                Taklif qilish
+              </Button>
+            </div>
+          )}
         </div>
       </DialogContent>
     </Dialog>
