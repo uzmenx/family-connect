@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -9,12 +9,30 @@ interface LikeUser {
   avatar_url: string | null;
 }
 
+// Local cache for like states - prevents re-fetching on every render
+const likeCache = new Map<string, { isLiked: boolean; count: number; timestamp: number }>();
+const LIKE_CACHE_TTL = 2 * 60 * 1000; // 2 minutes
+
 export const usePostLikes = (postId: string) => {
   const { user } = useAuth();
-  const [isLiked, setIsLiked] = useState(false);
-  const [likesCount, setLikesCount] = useState(0);
+  const cached = likeCache.get(postId);
+  const isCacheValid = cached && (Date.now() - cached.timestamp) < LIKE_CACHE_TTL;
+
+  const [isLiked, setIsLiked] = useState(isCacheValid ? cached.isLiked : false);
+  const [likesCount, setLikesCount] = useState(isCacheValid ? cached.count : 0);
   const [likedUsers, setLikedUsers] = useState<LikeUser[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const pendingRequestRef = useRef<AbortController | null>(null);
+  const hasInitializedRef = useRef(isCacheValid);
+
+  // Update cache when state changes
+  const updateCache = useCallback((liked: boolean, count: number) => {
+    likeCache.set(postId, {
+      isLiked: liked,
+      count: count,
+      timestamp: Date.now()
+    });
+  }, [postId]);
 
   // Check if user has liked this post
   const checkLikeStatus = useCallback(async () => {
@@ -23,6 +41,9 @@ export const usePostLikes = (postId: string) => {
       return;
     }
 
+    // Skip if we have valid cache
+    if (hasInitializedRef.current) return;
+
     const { data } = await supabase
       .from('post_likes')
       .select('id')
@@ -30,17 +51,24 @@ export const usePostLikes = (postId: string) => {
       .eq('user_id', user.id)
       .maybeSingle();
 
-    setIsLiked(!!data);
+    const liked = !!data;
+    setIsLiked(liked);
+    return liked;
   }, [postId, user]);
 
   // Fetch likes count
   const fetchLikesCount = useCallback(async () => {
+    // Skip if we have valid cache
+    if (hasInitializedRef.current) return;
+
     const { count } = await supabase
       .from('post_likes')
       .select('*', { count: 'exact', head: true })
       .eq('post_id', postId);
 
-    setLikesCount(count || 0);
+    const actualCount = count || 0;
+    setLikesCount(actualCount);
+    return actualCount;
   }, [postId]);
 
   // Fetch users who liked
@@ -65,46 +93,84 @@ export const usePostLikes = (postId: string) => {
     }
   }, [postId]);
 
-  // Toggle like
+  // OPTIMISTIC Toggle like - UI updates instantly
   const toggleLike = async () => {
     if (!user || isLoading) return;
 
-    setIsLoading(true);
+    // Cancel any pending request
+    if (pendingRequestRef.current) {
+      pendingRequestRef.current.abort();
+    }
+
+    // Store previous state for rollback
+    const prevIsLiked = isLiked;
+    const prevCount = likesCount;
+
+    // 🔥 OPTIMISTIC UPDATE - UI changes instantly
+    const newIsLiked = !isLiked;
+    const newCount = newIsLiked ? likesCount + 1 : Math.max(0, likesCount - 1);
     
+    setIsLiked(newIsLiked);
+    setLikesCount(newCount);
+    updateCache(newIsLiked, newCount);
+
+    setIsLoading(true);
+    pendingRequestRef.current = new AbortController();
+
     try {
-      if (isLiked) {
+      if (prevIsLiked) {
         // Unlike
-        await supabase
+        const { error } = await supabase
           .from('post_likes')
           .delete()
           .eq('post_id', postId)
           .eq('user_id', user.id);
         
-        setIsLiked(false);
-        setLikesCount(prev => Math.max(0, prev - 1));
+        if (error) throw error;
       } else {
         // Like
-        await supabase
+        const { error } = await supabase
           .from('post_likes')
           .insert({ post_id: postId, user_id: user.id });
         
-        setIsLiked(true);
-        setLikesCount(prev => prev + 1);
+        if (error) throw error;
       }
-    } catch (error) {
+    } catch (error: any) {
+      // Don't rollback on abort
+      if (error?.name === 'AbortError') return;
+      
       console.error('Error toggling like:', error);
-      // Revert optimistic update
-      await checkLikeStatus();
-      await fetchLikesCount();
+      // 🔄 ROLLBACK on error
+      setIsLiked(prevIsLiked);
+      setLikesCount(prevCount);
+      updateCache(prevIsLiked, prevCount);
     } finally {
       setIsLoading(false);
+      pendingRequestRef.current = null;
     }
   };
 
   useEffect(() => {
-    checkLikeStatus();
-    fetchLikesCount();
-  }, [checkLikeStatus, fetchLikesCount]);
+    const initialize = async () => {
+      // Use cache if valid
+      if (isCacheValid) {
+        hasInitializedRef.current = true;
+        return;
+      }
+
+      const [liked, count] = await Promise.all([
+        checkLikeStatus(),
+        fetchLikesCount()
+      ]);
+
+      if (liked !== undefined && count !== undefined) {
+        updateCache(liked, count);
+        hasInitializedRef.current = true;
+      }
+    };
+
+    initialize();
+  }, [checkLikeStatus, fetchLikesCount, isCacheValid, updateCache]);
 
   return {
     isLiked,
@@ -113,9 +179,10 @@ export const usePostLikes = (postId: string) => {
     isLoading,
     toggleLike,
     fetchLikedUsers,
-    refresh: () => {
-      checkLikeStatus();
-      fetchLikesCount();
+    refresh: async () => {
+      hasInitializedRef.current = false;
+      likeCache.delete(postId);
+      await Promise.all([checkLikeStatus(), fetchLikesCount()]);
     }
   };
 };
