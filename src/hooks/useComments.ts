@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
@@ -18,13 +18,16 @@ export interface Comment {
   };
   isLiked?: boolean;
   replies?: Comment[];
+  isPending?: boolean; // For optimistic UI
+  isFailed?: boolean;  // For failed comments
 }
 
 export const useComments = (postId: string) => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [comments, setComments] = useState<Comment[]>([]);
   const [commentsCount, setCommentsCount] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const pendingCommentsRef = useRef<Map<string, AbortController>>(new Map());
 
   // Fetch comments with authors
   const fetchComments = useCallback(async () => {
@@ -88,9 +91,48 @@ export const useComments = (postId: string) => {
     }
   }, [postId, user]);
 
-  // Add comment
+  // 🔥 OPTIMISTIC Add comment - appears instantly
   const addComment = async (content: string, parentId?: string) => {
     if (!user || !content.trim()) return null;
+
+    // Generate temporary ID
+    const tempId = `temp-${Date.now()}`;
+    
+    // Create optimistic comment
+    const optimisticComment: Comment = {
+      id: tempId,
+      post_id: postId,
+      user_id: user.id,
+      content: content.trim(),
+      parent_id: parentId || null,
+      likes_count: 0,
+      created_at: new Date().toISOString(),
+      author: profile ? {
+        id: user.id,
+        name: profile.name,
+        username: profile.username,
+        avatar_url: profile.avatar_url
+      } : undefined,
+      isLiked: false,
+      isPending: true
+    };
+
+    // 🔥 OPTIMISTIC UPDATE - comment appears instantly
+    if (parentId) {
+      // Add as reply
+      setComments(prev => prev.map(c => 
+        c.id === parentId 
+          ? { ...c, replies: [...(c.replies || []), optimisticComment] }
+          : c
+      ));
+    } else {
+      // Add as top-level comment
+      setComments(prev => [optimisticComment, ...prev]);
+    }
+    setCommentsCount(prev => prev + 1);
+
+    const controller = new AbortController();
+    pendingCommentsRef.current.set(tempId, controller);
 
     try {
       const { data, error } = await supabase
@@ -105,18 +147,71 @@ export const useComments = (postId: string) => {
         .single();
 
       if (error) throw error;
-      
-      await fetchComments();
+
+      // Replace temp comment with real one
+      if (parentId) {
+        setComments(prev => prev.map(c => 
+          c.id === parentId 
+            ? { 
+                ...c, 
+                replies: (c.replies || []).map(r => 
+                  r.id === tempId 
+                    ? { ...data, author: optimisticComment.author, isLiked: false }
+                    : r
+                )
+              }
+            : c
+        ));
+      } else {
+        setComments(prev => prev.map(c => 
+          c.id === tempId 
+            ? { ...data, author: optimisticComment.author, isLiked: false }
+            : c
+        ));
+      }
+
+      pendingCommentsRef.current.delete(tempId);
       return data;
     } catch (error) {
       console.error('Error adding comment:', error);
+      
+      // 🔄 Mark as failed instead of removing
+      if (parentId) {
+        setComments(prev => prev.map(c => 
+          c.id === parentId 
+            ? { 
+                ...c, 
+                replies: (c.replies || []).map(r => 
+                  r.id === tempId ? { ...r, isPending: false, isFailed: true } : r
+                )
+              }
+            : c
+        ));
+      } else {
+        setComments(prev => prev.map(c => 
+          c.id === tempId ? { ...c, isPending: false, isFailed: true } : c
+        ));
+      }
+      
+      pendingCommentsRef.current.delete(tempId);
       return null;
     }
   };
 
-  // Delete comment
+  // Delete comment with optimistic update
   const deleteComment = async (commentId: string) => {
     if (!user) return false;
+
+    // Store for rollback
+    const prevComments = comments;
+    const prevCount = commentsCount;
+
+    // 🔥 OPTIMISTIC DELETE
+    setComments(prev => prev.filter(c => c.id !== commentId).map(c => ({
+      ...c,
+      replies: c.replies?.filter(r => r.id !== commentId)
+    })));
+    setCommentsCount(prev => Math.max(0, prev - 1));
 
     try {
       const { error } = await supabase
@@ -126,16 +221,17 @@ export const useComments = (postId: string) => {
         .eq('user_id', user.id);
 
       if (error) throw error;
-      
-      await fetchComments();
       return true;
     } catch (error) {
       console.error('Error deleting comment:', error);
+      // 🔄 ROLLBACK
+      setComments(prevComments);
+      setCommentsCount(prevCount);
       return false;
     }
   };
 
-  // Toggle comment like
+  // 🔥 OPTIMISTIC Toggle comment like
   const toggleCommentLike = async (commentId: string) => {
     if (!user) return;
 
@@ -144,43 +240,81 @@ export const useComments = (postId: string) => {
     
     if (!comment) return;
 
+    // Store for rollback
+    const prevIsLiked = comment.isLiked;
+    const prevCount = comment.likes_count;
+
+    // 🔥 OPTIMISTIC UPDATE - like changes instantly
+    setComments(prev => prev.map(c => {
+      if (c.id === commentId) {
+        return {
+          ...c,
+          isLiked: !c.isLiked,
+          likes_count: c.isLiked ? Math.max(0, c.likes_count - 1) : c.likes_count + 1
+        };
+      }
+      if (c.replies) {
+        return {
+          ...c,
+          replies: c.replies.map(r => 
+            r.id === commentId
+              ? { ...r, isLiked: !r.isLiked, likes_count: r.isLiked ? Math.max(0, r.likes_count - 1) : r.likes_count + 1 }
+              : r
+          )
+        };
+      }
+      return c;
+    }));
+
     try {
-      if (comment.isLiked) {
-        await supabase
+      if (prevIsLiked) {
+        const { error } = await supabase
           .from('comment_likes')
           .delete()
           .eq('comment_id', commentId)
           .eq('user_id', user.id);
+        if (error) throw error;
       } else {
-        await supabase
+        const { error } = await supabase
           .from('comment_likes')
           .insert({ comment_id: commentId, user_id: user.id });
+        if (error) throw error;
       }
-
-      // Update local state optimistically
+    } catch (error) {
+      console.error('Error toggling comment like:', error);
+      // 🔄 ROLLBACK
       setComments(prev => prev.map(c => {
         if (c.id === commentId) {
-          return {
-            ...c,
-            isLiked: !c.isLiked,
-            likes_count: c.isLiked ? c.likes_count - 1 : c.likes_count + 1
-          };
+          return { ...c, isLiked: prevIsLiked, likes_count: prevCount };
         }
         if (c.replies) {
           return {
             ...c,
             replies: c.replies.map(r => 
-              r.id === commentId
-                ? { ...r, isLiked: !r.isLiked, likes_count: r.isLiked ? r.likes_count - 1 : r.likes_count + 1 }
-                : r
+              r.id === commentId ? { ...r, isLiked: prevIsLiked, likes_count: prevCount } : r
             )
           };
         }
         return c;
       }));
-    } catch (error) {
-      console.error('Error toggling comment like:', error);
     }
+  };
+
+  // Retry failed comment
+  const retryComment = async (tempId: string) => {
+    const failedComment = comments.find(c => c.id === tempId) ||
+                          comments.flatMap(c => c.replies || []).find(c => c.id === tempId);
+    
+    if (!failedComment || !failedComment.isFailed) return;
+
+    // Remove failed comment and re-add
+    setComments(prev => prev.filter(c => c.id !== tempId).map(c => ({
+      ...c,
+      replies: c.replies?.filter(r => r.id !== tempId)
+    })));
+    setCommentsCount(prev => Math.max(0, prev - 1));
+
+    await addComment(failedComment.content, failedComment.parent_id || undefined);
   };
 
   return {
@@ -190,6 +324,7 @@ export const useComments = (postId: string) => {
     fetchComments,
     addComment,
     deleteComment,
-    toggleCommentLike
+    toggleCommentLike,
+    retryComment
   };
 };

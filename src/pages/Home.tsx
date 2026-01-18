@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { PostCard } from '@/components/feed/PostCard';
 import { FullScreenViewer } from '@/components/feed/FullScreenViewer';
@@ -8,19 +8,18 @@ import { StoriesRow } from '@/components/stories/StoriesRow';
 import { StoryViewer } from '@/components/stories/StoryViewer';
 import { useAuth } from '@/contexts/AuthContext';
 import { useStories } from '@/hooks/useStories';
-import { Post } from '@/types';
-import { supabase } from '@/integrations/supabase/client';
+import { usePostsCache } from '@/hooks/usePostsCache';
 import { Grid2X2, LayoutList } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Post } from '@/types';
 
 type GridLayout = 1 | 2;
 
 const Home = () => {
   const { user } = useAuth();
   const { storyGroups, refetch: refetchStories } = useStories();
-  const [posts, setPosts] = useState<Post[]>([]);
+  const { posts, isLoading, isRefreshing, fetchPosts } = usePostsCache();
   const [gridLayout, setGridLayout] = useState<GridLayout>(1);
-  const [isLoading, setIsLoading] = useState(true);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
   
@@ -40,58 +39,10 @@ const Home = () => {
 
   useEffect(() => {
     fetchPosts();
-  }, []);
-
-  const fetchPosts = useCallback(async () => {
-    setIsLoading(true);
-    try {
-      const { data: postsData, error } = await supabase
-        .from('posts')
-        .select('*')
-        .order('created_at', { ascending: false });
-
-      if (error) throw error;
-
-      if (postsData && postsData.length > 0) {
-        const userIds = [...new Set(postsData.map(p => p.user_id))];
-        const { data: profiles } = await supabase
-          .from('profiles')
-          .select('*')
-          .in('id', userIds);
-
-        const postsWithAuthors = postsData.map(post => ({
-          ...post,
-          media_urls: post.media_urls || [],
-          author: profiles?.find(p => p.id === post.user_id) ? {
-            id: post.user_id,
-            email: profiles.find(p => p.id === post.user_id)?.email || '',
-            full_name: profiles.find(p => p.id === post.user_id)?.name || 'Foydalanuvchi',
-            username: profiles.find(p => p.id === post.user_id)?.username || 'user',
-            bio: profiles.find(p => p.id === post.user_id)?.bio || '',
-            avatar_url: profiles.find(p => p.id === post.user_id)?.avatar_url || '',
-            cover_url: '',
-            instagram: '',
-            telegram: '',
-            followers_count: 0,
-            following_count: 0,
-            relatives_count: 0,
-            created_at: post.created_at,
-          } : undefined
-        }));
-
-        setPosts(postsWithAuthors);
-      } else {
-        setPosts([]);
-      }
-    } catch (error) {
-      console.error('Error fetching posts:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, []);
+  }, [fetchPosts]);
 
   const handleRefresh = async () => {
-    await Promise.all([fetchPosts(), refetchStories()]);
+    await Promise.all([fetchPosts(true), refetchStories()]);
   };
 
   const toggleGridLayout = () => {
