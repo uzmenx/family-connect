@@ -23,12 +23,13 @@ export const CommentsSheet = ({ open, onOpenChange, postId }: CommentsSheetProps
   const [replyTo, setReplyTo] = useState<{ id: string; name: string } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  // Fetch comments when sheet opens
+  // ALWAYS fetch fresh comments when sheet opens
   const handleOpenChange = (isOpen: boolean) => {
+    onOpenChange(isOpen);
     if (isOpen) {
+      // Force fresh fetch every time sheet opens
       fetchComments();
     }
-    onOpenChange(isOpen);
   };
 
   const handleSubmit = async () => {

@@ -12,9 +12,10 @@ import { FollowButton } from '@/components/user/FollowButton';
 interface PostCardProps {
   post: Post;
   onDelete?: () => void;
+  onMediaClick?: () => void;
 }
 
-export const PostCard = ({ post, onDelete }: PostCardProps) => {
+export const PostCard = ({ post, onDelete, onMediaClick }: PostCardProps) => {
   const timeAgo = formatDistanceToNow(new Date(post.created_at), { addSuffix: true });
   
   const mediaUrls = post.media_urls?.length > 0 
@@ -50,12 +51,17 @@ export const PostCard = ({ post, onDelete }: PostCardProps) => {
           </div>
         </div>
         
-        {/* Media */}
+        {/* Media - ONLY media area triggers fullscreen */}
         {mediaUrls.length > 0 && (
-          <MediaCarousel mediaUrls={mediaUrls} />
+          <div 
+            onClick={onMediaClick} 
+            className={onMediaClick ? "cursor-pointer" : ""}
+          >
+            <MediaCarousel mediaUrls={mediaUrls} />
+          </div>
         )}
         
-        {/* Actions */}
+        {/* Actions - does NOT trigger fullscreen */}
         <div className="p-3 space-y-2">
           <PostActions 
             postId={post.id}
