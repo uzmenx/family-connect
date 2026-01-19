@@ -590,12 +590,59 @@ export const useFamilyTree = (userId?: string) => {
     }
   };
 
+  // Add spouse to an existing member
+  const addSpouseToMember = async (
+    memberId: string, 
+    spouseData: { name: string; gender: 'male' | 'female'; avatarUrl?: string },
+    isSecondSpouse: boolean = false
+  ) => {
+    if (!user?.id) return null;
+
+    try {
+      // Ensure user has a network before adding member
+      await ensureFamilyNetwork(user.id);
+
+      const relationType = isSecondSpouse ? `spouse_2_of_${memberId}` : `spouse_of_${memberId}`;
+
+      const { data, error } = await supabase
+        .from('family_tree_members')
+        .insert({
+          owner_id: user.id,
+          member_name: spouseData.name,
+          relation_type: relationType,
+          avatar_url: spouseData.avatarUrl || null,
+          gender: spouseData.gender,
+          is_placeholder: true,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      await fetchMembers();
+      toast({
+        title: "Juft qo'shildi!",
+        description: `${spouseData.name} juft sifatida qo'shildi`,
+      });
+
+      return data;
+    } catch (error: any) {
+      toast({
+        title: "Xato",
+        description: error.message,
+        variant: "destructive",
+      });
+      return null;
+    }
+  };
+
   return {
     members,
     invitations,
     isLoading,
     networkUsers,
     addMember,
+    addSpouseToMember,
     sendInvitation,
     respondToInvitation,
     linkExistingMemberToUser,
