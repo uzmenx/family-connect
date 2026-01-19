@@ -1,5 +1,4 @@
 import { useEffect, useRef, useState } from 'react';
-import { Heart } from 'lucide-react';
 
 interface Position {
   x: number;
@@ -31,22 +30,16 @@ const generateCurvedPath = (from: Position, to: Position, type: 'parent' | 'chil
   }
   
   if (type === 'parent') {
-    // For parent - curve going upward from member to parent
-    const controlX1 = from.x;
-    const controlY1 = from.y - Math.abs(dy) * 0.4;
-    const controlX2 = to.x;
-    const controlY2 = to.y + Math.abs(dy) * 0.4;
+    // For parent - elegant bezier curve going UP from child to parent
+    const controlY = from.y - Math.abs(dy) * 0.5;
     
-    return `M ${from.x} ${from.y} C ${controlX1} ${controlY1}, ${controlX2} ${controlY2}, ${to.x} ${to.y}`;
+    return `M ${from.x} ${from.y} C ${from.x} ${controlY}, ${to.x} ${to.y + Math.abs(dy) * 0.3}, ${to.x} ${to.y}`;
   }
   
-  // For child - curve going downward from heart to child
-  const controlX1 = from.x;
-  const controlY1 = from.y + Math.abs(dy) * 0.4;
-  const controlX2 = to.x;
-  const controlY2 = to.y - Math.abs(dy) * 0.4;
+  // For child - elegant bezier curve going DOWN from heart to child
+  const controlY = from.y + Math.abs(dy) * 0.5;
   
-  return `M ${from.x} ${from.y} C ${controlX1} ${controlY1}, ${controlX2} ${controlY2}, ${to.x} ${to.y}`;
+  return `M ${from.x} ${from.y} C ${from.x} ${controlY}, ${to.x} ${to.y - Math.abs(dy) * 0.3}, ${to.x} ${to.y}`;
 };
 
 export const FamilyConnectorLines = ({ containerRef, connections }: FamilyConnectorLinesProps) => {
@@ -89,21 +82,21 @@ export const FamilyConnectorLines = ({ containerRef, connections }: FamilyConnec
       style={{ overflow: 'visible' }}
     >
       <defs>
-        {/* Gradient for parent lines */}
+        {/* Gradient for parent lines - going up */}
         <linearGradient id="parentLineGradient" x1="0%" y1="100%" x2="0%" y2="0%">
           <stop offset="0%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0.6" />
-          <stop offset="100%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0.3" />
+          <stop offset="100%" stopColor="#ef4444" stopOpacity="0.4" />
         </linearGradient>
         
-        {/* Gradient for child lines */}
+        {/* Gradient for child lines - going down */}
         <linearGradient id="childLineGradient" x1="0%" y1="0%" x2="0%" y2="100%">
           <stop offset="0%" stopColor="#ef4444" stopOpacity="0.6" />
           <stop offset="100%" stopColor="hsl(var(--muted-foreground))" stopOpacity="0.4" />
         </linearGradient>
         
-        {/* Filter for glow effect */}
+        {/* Filter for subtle glow effect */}
         <filter id="lineGlow" x="-20%" y="-20%" width="140%" height="140%">
-          <feGaussianBlur stdDeviation="2" result="blur" />
+          <feGaussianBlur stdDeviation="1.5" result="blur" />
           <feMerge>
             <feMergeNode in="blur" />
             <feMergeNode in="SourceGraphic" />
@@ -133,8 +126,8 @@ export const FamilyConnectorLines = ({ containerRef, connections }: FamilyConnec
               stroke={connection.type === 'child' ? 'url(#childLineGradient)' : 'url(#parentLineGradient)'}
               strokeWidth="2"
               strokeLinecap="round"
-              strokeDasharray={connection.type === 'spouse' ? '0' : '0'}
               className="transition-all duration-300"
+              filter="url(#lineGlow)"
             />
           </g>
         );
@@ -159,73 +152,92 @@ export const useConnectionPositions = (
       const containerRect = containerRef.current.getBoundingClientRect();
       const newConnections: Connection[] = [];
 
-      // Calculate parent connections
+      // Calculate parent-to-member connections (parent above, member below)
       members.forEach((member) => {
         const memberEl = memberElements.get(member.id);
         if (!memberEl) return;
 
         const memberRect = memberEl.getBoundingClientRect();
-        const memberCenter = {
+        const memberTop = {
           x: memberRect.left - containerRect.left + memberRect.width / 2,
           y: memberRect.top - containerRect.top,
         };
 
-        // Find fathers of this member
-        const fathers = members.filter(m => 
-          m.relation_type === `father_of_${member.id}` || 
-          m.relation_type === `father_2_of_${member.id}`
-        );
+        // Check for parents-of-X heart element (combined heart for both parents)
+        const parentsHeartEl = heartElements.get(`parents-of-${member.id}`);
+        if (parentsHeartEl) {
+          const heartRect = parentsHeartEl.getBoundingClientRect();
+          newConnections.push({
+            from: memberTop,
+            to: {
+              x: heartRect.left - containerRect.left + heartRect.width / 2,
+              y: heartRect.top - containerRect.top + heartRect.height,
+            },
+            type: 'parent',
+            fromMemberId: member.id,
+            toMemberId: 'parents',
+          });
+        } else {
+          // Find fathers of this member
+          const fathers = members.filter(m => 
+            m.relation_type === `father_of_${member.id}` || 
+            m.relation_type === `father_2_of_${member.id}`
+          );
 
-        fathers.forEach((father) => {
-          const fatherEl = memberElements.get(father.id);
-          if (fatherEl) {
-            const fatherRect = fatherEl.getBoundingClientRect();
-            newConnections.push({
-              from: memberCenter,
-              to: {
-                x: fatherRect.left - containerRect.left + fatherRect.width / 2,
-                y: fatherRect.top - containerRect.top + fatherRect.height,
-              },
-              type: 'parent',
-              fromMemberId: member.id,
-              toMemberId: father.id,
-            });
-          }
-        });
+          fathers.forEach((father) => {
+            const fatherEl = memberElements.get(father.id);
+            if (fatherEl) {
+              const fatherRect = fatherEl.getBoundingClientRect();
+              newConnections.push({
+                from: memberTop,
+                to: {
+                  x: fatherRect.left - containerRect.left + fatherRect.width / 2,
+                  y: fatherRect.top - containerRect.top + fatherRect.height,
+                },
+                type: 'parent',
+                fromMemberId: member.id,
+                toMemberId: father.id,
+              });
+            }
+          });
 
-        // Find mothers of this member
-        const mothers = members.filter(m => 
-          m.relation_type === `mother_of_${member.id}` || 
-          m.relation_type === `mother_2_of_${member.id}`
-        );
+          // Find mothers of this member
+          const mothers = members.filter(m => 
+            m.relation_type === `mother_of_${member.id}` || 
+            m.relation_type === `mother_2_of_${member.id}`
+          );
 
-        mothers.forEach((mother) => {
-          const motherEl = memberElements.get(mother.id);
-          if (motherEl) {
-            const motherRect = motherEl.getBoundingClientRect();
-            newConnections.push({
-              from: memberCenter,
-              to: {
-                x: motherRect.left - containerRect.left + motherRect.width / 2,
-                y: motherRect.top - containerRect.top + motherRect.height,
-              },
-              type: 'parent',
-              fromMemberId: member.id,
-              toMemberId: mother.id,
-            });
-          }
-        });
+          mothers.forEach((mother) => {
+            const motherEl = memberElements.get(mother.id);
+            if (motherEl) {
+              const motherRect = motherEl.getBoundingClientRect();
+              newConnections.push({
+                from: memberTop,
+                to: {
+                  x: motherRect.left - containerRect.left + motherRect.width / 2,
+                  y: motherRect.top - containerRect.top + motherRect.height,
+                },
+                type: 'parent',
+                fromMemberId: member.id,
+                toMemberId: mother.id,
+              });
+            }
+          });
+        }
       });
 
       // Calculate child connections (from heart to child)
-      heartElements.forEach((heartEl, parentMemberId) => {
-        if (!heartEl) return;
+      heartElements.forEach((heartEl, heartKey) => {
+        if (!heartEl || heartKey.startsWith('parent-') || heartKey.startsWith('parents-of-')) return;
 
         const heartRect = heartEl.getBoundingClientRect();
         const heartCenter = {
           x: heartRect.left - containerRect.left + heartRect.width / 2,
           y: heartRect.top - containerRect.top + heartRect.height,
         };
+
+        // The heartKey is the parent member ID
+        const parentMemberId = heartKey;
 
         // Find children of this member
         const childMembers = members.filter(m => 
@@ -254,7 +266,7 @@ export const useConnectionPositions = (
     };
 
     // Delay to ensure DOM is rendered
-    const timer = setTimeout(calculateConnections, 100);
+    const timer = setTimeout(calculateConnections, 150);
     
     // Recalculate on resize
     window.addEventListener('resize', calculateConnections);
