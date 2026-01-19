@@ -115,6 +115,22 @@ export const usePostLikes = (postId: string) => {
           .insert({ post_id: postId, user_id: userId });
         
         if (error) throw error;
+
+        // Get post owner and create notification
+        const { data: post } = await supabase
+          .from('posts')
+          .select('user_id')
+          .eq('id', postId)
+          .single();
+
+        if (post && post.user_id !== userId) {
+          await supabase.from('notifications').insert({
+            user_id: post.user_id,
+            actor_id: userId,
+            type: 'like',
+            post_id: postId,
+          });
+        }
       }
     } catch (error: any) {
       if (error?.name === 'AbortError') return;
