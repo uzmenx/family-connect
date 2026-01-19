@@ -777,22 +777,32 @@ export const useFamilyTree = (userId?: string) => {
   ) => {
     if (!user?.id) return null;
 
-    // Check father limit
-    const currentFatherCount = countFathersForMember(memberId);
-    if (currentFatherCount >= FAMILY_LIMITS.MAX_FATHERS) {
-      toast({
-        title: "Limit",
-        description: `Maksimal ${FAMILY_LIMITS.MAX_FATHERS} ta ota qo'shish mumkin`,
-        variant: "destructive",
-      });
-      return null;
-    }
-
     try {
+      // Fetch fresh data to get accurate count
+      const { data: existingFathers, error: countError } = await supabase
+        .from('family_tree_members')
+        .select('id, relation_type')
+        .eq('owner_id', user.id)
+        .or(`relation_type.eq.father_of_${memberId},relation_type.eq.father_2_of_${memberId}`);
+
+      if (countError) throw countError;
+
+      const currentFatherCount = existingFathers?.length || 0;
+
+      if (currentFatherCount >= FAMILY_LIMITS.MAX_FATHERS) {
+        toast({
+          title: "Limit",
+          description: `Maksimal ${FAMILY_LIMITS.MAX_FATHERS} ta ota qo'shish mumkin`,
+          variant: "destructive",
+        });
+        return null;
+      }
+
       await ensureFamilyNetwork(user.id);
 
-      const isSecond = currentFatherCount > 0;
-      const relationType = isSecond ? `father_2_of_${memberId}` : `father_of_${memberId}`;
+      // Check if first father exists
+      const hasFirstFather = existingFathers?.some(f => f.relation_type === `father_of_${memberId}`);
+      const relationType = hasFirstFather ? `father_2_of_${memberId}` : `father_of_${memberId}`;
 
       const { data, error } = await supabase
         .from('family_tree_members')
@@ -812,7 +822,7 @@ export const useFamilyTree = (userId?: string) => {
       await fetchMembers();
       toast({
         title: "Ota qo'shildi!",
-        description: `${fatherData.name} ota sifatida qo'shildi`,
+        description: `${fatherData.name} ${hasFirstFather ? 'ikkinchi ' : ''}ota sifatida qo'shildi`,
       });
 
       return data;
@@ -833,22 +843,32 @@ export const useFamilyTree = (userId?: string) => {
   ) => {
     if (!user?.id) return null;
 
-    // Check mother limit
-    const currentMotherCount = countMothersForMember(memberId);
-    if (currentMotherCount >= FAMILY_LIMITS.MAX_MOTHERS) {
-      toast({
-        title: "Limit",
-        description: `Maksimal ${FAMILY_LIMITS.MAX_MOTHERS} ta ona qo'shish mumkin`,
-        variant: "destructive",
-      });
-      return null;
-    }
-
     try {
+      // Fetch fresh data to get accurate count
+      const { data: existingMothers, error: countError } = await supabase
+        .from('family_tree_members')
+        .select('id, relation_type')
+        .eq('owner_id', user.id)
+        .or(`relation_type.eq.mother_of_${memberId},relation_type.eq.mother_2_of_${memberId}`);
+
+      if (countError) throw countError;
+
+      const currentMotherCount = existingMothers?.length || 0;
+
+      if (currentMotherCount >= FAMILY_LIMITS.MAX_MOTHERS) {
+        toast({
+          title: "Limit",
+          description: `Maksimal ${FAMILY_LIMITS.MAX_MOTHERS} ta ona qo'shish mumkin`,
+          variant: "destructive",
+        });
+        return null;
+      }
+
       await ensureFamilyNetwork(user.id);
 
-      const isSecond = currentMotherCount > 0;
-      const relationType = isSecond ? `mother_2_of_${memberId}` : `mother_of_${memberId}`;
+      // Check if first mother exists
+      const hasFirstMother = existingMothers?.some(m => m.relation_type === `mother_of_${memberId}`);
+      const relationType = hasFirstMother ? `mother_2_of_${memberId}` : `mother_of_${memberId}`;
 
       const { data, error } = await supabase
         .from('family_tree_members')
@@ -868,7 +888,7 @@ export const useFamilyTree = (userId?: string) => {
       await fetchMembers();
       toast({
         title: "Ona qo'shildi!",
-        description: `${motherData.name} ona sifatida qo'shildi`,
+        description: `${motherData.name} ${hasFirstMother ? 'ikkinchi ' : ''}ona sifatida qo'shildi`,
       });
 
       return data;
