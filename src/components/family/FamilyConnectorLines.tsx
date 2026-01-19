@@ -9,6 +9,7 @@ interface Connection {
   from: Position;
   to: Position;
   type: 'parent' | 'child' | 'spouse';
+  path?: string; // AI-generated SVG path
   fromMemberId?: string;
   toMemberId?: string;
 }
@@ -105,7 +106,8 @@ export const FamilyConnectorLines = ({ containerRef, connections }: FamilyConnec
       </defs>
 
       {connections.map((connection, index) => {
-        const path = generateCurvedPath(connection.from, connection.to, connection.type);
+        // Use AI-generated path if available, otherwise generate fallback
+        const path = connection.path || generateCurvedPath(connection.from, connection.to, connection.type);
         
         return (
           <g key={`connection-${index}`}>
