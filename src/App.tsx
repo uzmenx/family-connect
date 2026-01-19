@@ -78,10 +78,10 @@ const App = () => (
     <TooltipProvider>
       <ThemeInitializer>
         <AuthProvider>
-          <PushNotification />
           <Toaster />
           <Sonner />
           <BrowserRouter>
+            <PushNotification />
             <Routes>
               <Route path="/auth" element={<PublicRoute><AuthLogin /></PublicRoute>} />
               <Route path="/signup" element={<PublicRoute><Signup /></PublicRoute>} />
