@@ -178,8 +178,8 @@ export const MemberCardDialog = ({
 
           {/* Action buttons */}
           <div className="w-full space-y-2 mt-6">
-            {/* Family action buttons - show for all members except spouse/child relations */}
-            {isOwner && !isSpouseRelation && !isChildRelation && !isParentRelation && (
+            {/* Family action buttons - show for ALL members */}
+            {isOwner && (
               <div className="grid grid-cols-4 gap-2 mb-4">
                 {/* Add Father button */}
                 {canAddFather && onAddFather && (

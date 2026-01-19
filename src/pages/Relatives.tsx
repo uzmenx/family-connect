@@ -22,6 +22,13 @@ const Relatives = () => {
     isLoading,
     addMember,
     addSpouseToMember,
+    addChildToMember,
+    addFatherToMember,
+    addMotherToMember,
+    countSpousesForMember,
+    countChildrenForMember,
+    countFathersForMember,
+    countMothersForMember,
     sendInvitation,
     respondToInvitation,
     linkExistingMemberToUser,
@@ -100,10 +107,20 @@ const Relatives = () => {
     }
   };
 
-  const handleAddSpouse = async (memberId: string, spouseData: { name: string; gender: 'male' | 'female'; avatarUrl?: string }) => {
-    // Check if this is a second spouse
-    const hasFirstSpouse = members.some(m => m.relation_type === `spouse_of_${memberId}`);
-    await addSpouseToMember(memberId, spouseData, hasFirstSpouse);
+  const handleAddSpouse = async (memberId: string, spouseData: { name: string; gender: 'male' | 'female'; avatarUrl?: string }, isSecond: boolean) => {
+    await addSpouseToMember(memberId, spouseData, isSecond);
+  };
+
+  const handleAddChild = async (memberId: string, childData: { name: string; gender: 'male' | 'female'; avatarUrl?: string }) => {
+    await addChildToMember(memberId, childData);
+  };
+
+  const handleAddFather = async (memberId: string, data: { name: string; avatarUrl?: string }) => {
+    await addFatherToMember(memberId, data);
+  };
+
+  const handleAddMother = async (memberId: string, data: { name: string; avatarUrl?: string }) => {
+    await addMotherToMember(memberId, data);
   };
 
   // Filter invitations for current user (received ones)
@@ -153,6 +170,13 @@ const Relatives = () => {
               onSendInvitation={handleSendInvitation}
               onDeleteMember={deleteMember}
               onAddSpouse={handleAddSpouse}
+              onAddChild={handleAddChild}
+              onAddFather={handleAddFather}
+              onAddMother={handleAddMother}
+              countSpousesForMember={countSpousesForMember}
+              countChildrenForMember={countChildrenForMember}
+              countFathersForMember={countFathersForMember}
+              countMothersForMember={countMothersForMember}
             />
           )}
         </div>
