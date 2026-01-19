@@ -8,7 +8,8 @@ import { MemberCardDialog } from './MemberCardDialog';
 import { SendInvitationDialog } from './SendInvitationDialog';
 import { AddSpouseDialog } from './AddSpouseDialog';
 import { AddFamilyMemberDialog } from './AddFamilyMemberDialog';
-import { FamilyConnectorLines, useConnectionPositions } from './FamilyConnectorLines';
+import { FamilyConnectorLines } from './FamilyConnectorLines';
+import { useAIConnectorLines } from '@/hooks/useAIConnectorLines';
 import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
@@ -119,6 +120,7 @@ export const FamilyTree = ({
   const memberElementsRef = useRef<Map<string, HTMLElement | null>>(new Map());
   const heartElementsRef = useRef<Map<string, HTMLElement | null>>(new Map());
   const [renderKey, setRenderKey] = useState(0);
+  const [useAI, setUseAI] = useState(true); // Toggle for AI line calculation
 
   // Attach wheel event for zoom
   useEffect(() => {
@@ -144,12 +146,13 @@ export const FamilyTree = ({
     heartElementsRef.current.set(id, el);
   }, []);
 
-  // Calculate connections - use zoomContainerRef for accurate positioning
-  const connections = useConnectionPositions(
+  // Calculate connections with AI - use zoomContainerRef for accurate positioning
+  const { connections, isCalculating, recalculate } = useAIConnectorLines(
     zoomContainerRef,
     memberElementsRef.current,
     members,
-    heartElementsRef.current
+    heartElementsRef.current,
+    useAI
   );
 
   // Categorize members - include new relation types
@@ -608,6 +611,23 @@ export const FamilyTree = ({
         >
           <RotateCcw className="h-5 w-5" />
         </Button>
+        <div className="h-px bg-border/50" />
+        {/* AI Toggle */}
+        <Button
+          variant={useAI ? "default" : "ghost"}
+          size="icon"
+          className={cn("h-10 w-10 text-xs font-bold", useAI && "bg-primary text-primary-foreground")}
+          onClick={() => {
+            setUseAI(!useAI);
+            setTimeout(recalculate, 100);
+          }}
+          title={useAI ? "AI chizish yoqilgan" : "AI chizish o'chirilgan"}
+        >
+          AI
+        </Button>
+        {isCalculating && (
+          <div className="absolute -top-1 -right-1 w-3 h-3 bg-primary rounded-full animate-pulse" />
+        )}
         <span className="text-[10px] text-center text-muted-foreground">
           {Math.round(scale * 100)}%
         </span>
