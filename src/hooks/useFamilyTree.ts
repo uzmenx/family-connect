@@ -134,53 +134,117 @@ export const useFamilyTree = (userId?: string) => {
   // Merge two family networks when invitation is accepted
   const mergeNetworks = useCallback(async (user1Id: string, user2Id: string): Promise<boolean> => {
     try {
+      console.log('Merging networks for users:', user1Id, user2Id);
+      
       // Get both users' networks
-      const { data: profiles } = await supabase
+      const { data: profiles, error: fetchError } = await supabase
         .from('profiles')
         .select('id, family_network_id')
         .in('id', [user1Id, user2Id]);
 
-      if (!profiles || profiles.length !== 2) return false;
-
-      const network1 = profiles.find(p => p.id === user1Id)?.family_network_id;
-      const network2 = profiles.find(p => p.id === user2Id)?.family_network_id;
-
-      // If both have the same network, nothing to merge
-      if (network1 && network1 === network2) return true;
-
-      // Determine target network (prefer existing one)
-      let targetNetworkId = network1 || network2;
-
-      // If neither has a network, create one
-      if (!targetNetworkId) {
-        targetNetworkId = await ensureFamilyNetwork(user1Id);
-        if (!targetNetworkId) return false;
+      if (fetchError) {
+        console.error('Error fetching profiles:', fetchError);
+        return false;
       }
 
-      // Move all users from network2 to network1 (if network2 exists and is different)
-      if (network2 && network2 !== targetNetworkId) {
+      if (!profiles || profiles.length !== 2) {
+        console.error('Could not find both profiles:', profiles);
+        return false;
+      }
+
+      const profile1 = profiles.find(p => p.id === user1Id);
+      const profile2 = profiles.find(p => p.id === user2Id);
+      
+      const network1 = profile1?.family_network_id;
+      const network2 = profile2?.family_network_id;
+
+      console.log('Current networks:', { network1, network2 });
+
+      // If both have the same network, nothing to merge
+      if (network1 && network1 === network2) {
+        console.log('Users already in same network');
+        return true;
+      }
+
+      // Determine target network
+      let targetNetworkId: string | null = null;
+
+      if (network1 && network2) {
+        // Both have networks - merge network2 users into network1
+        targetNetworkId = network1;
+        
         const { error: moveError } = await supabase
           .from('profiles')
           .update({ family_network_id: targetNetworkId })
           .eq('family_network_id', network2);
 
-        if (moveError) throw moveError;
+        if (moveError) {
+          console.error('Error moving users from network2:', moveError);
+          throw moveError;
+        }
+        console.log('Moved users from network2 to network1');
+      } else if (network1) {
+        // Only user1 has network - add user2 to it
+        targetNetworkId = network1;
+        
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ family_network_id: targetNetworkId })
+          .eq('id', user2Id);
+
+        if (updateError) {
+          console.error('Error adding user2 to network:', updateError);
+          throw updateError;
+        }
+        console.log('Added user2 to network1');
+      } else if (network2) {
+        // Only user2 has network - add user1 to it
+        targetNetworkId = network2;
+        
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ family_network_id: targetNetworkId })
+          .eq('id', user1Id);
+
+        if (updateError) {
+          console.error('Error adding user1 to network:', updateError);
+          throw updateError;
+        }
+        console.log('Added user1 to network2');
+      } else {
+        // Neither has a network - create one and add both
+        const { data: newNetwork, error: networkError } = await supabase
+          .from('family_networks')
+          .insert({})
+          .select()
+          .single();
+
+        if (networkError) {
+          console.error('Error creating new network:', networkError);
+          throw networkError;
+        }
+
+        targetNetworkId = newNetwork.id;
+
+        const { error: updateError } = await supabase
+          .from('profiles')
+          .update({ family_network_id: targetNetworkId })
+          .in('id', [user1Id, user2Id]);
+
+        if (updateError) {
+          console.error('Error adding both users to new network:', updateError);
+          throw updateError;
+        }
+        console.log('Created new network and added both users');
       }
 
-      // Make sure both users are in the target network
-      const { error: updateError } = await supabase
-        .from('profiles')
-        .update({ family_network_id: targetNetworkId })
-        .in('id', [user1Id, user2Id]);
-
-      if (updateError) throw updateError;
-
+      console.log('Networks merged successfully, target:', targetNetworkId);
       return true;
     } catch (error) {
       console.error('Error merging networks:', error);
       return false;
     }
-  }, [ensureFamilyNetwork]);
+  }, []);
 
   const fetchMembers = useCallback(async () => {
     if (!targetUserId) return;
