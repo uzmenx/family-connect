@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { User as UserIcon, Plus, HelpCircle, Heart, MoreHorizontal, Baby } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -7,6 +7,7 @@ import { MemberCardDialog } from './MemberCardDialog';
 import { SendInvitationDialog } from './SendInvitationDialog';
 import { AddSpouseDialog } from './AddSpouseDialog';
 import { AddFamilyMemberDialog } from './AddFamilyMemberDialog';
+import { FamilyConnectorLines, useConnectionPositions } from './FamilyConnectorLines';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -97,6 +98,35 @@ export const FamilyTree = ({
   const [addFatherDialogOpen, setAddFatherDialogOpen] = useState(false);
   const [addMotherDialogOpen, setAddMotherDialogOpen] = useState(false);
   const [targetMemberForAction, setTargetMemberForAction] = useState<FamilyMember | null>(null);
+
+  // Refs for connection lines
+  const containerRef = useRef<HTMLDivElement>(null);
+  const memberElementsRef = useRef<Map<string, HTMLElement | null>>(new Map());
+  const heartElementsRef = useRef<Map<string, HTMLElement | null>>(new Map());
+  const [renderKey, setRenderKey] = useState(0);
+
+  // Force re-render after members update to recalculate lines
+  useEffect(() => {
+    const timer = setTimeout(() => setRenderKey(prev => prev + 1), 200);
+    return () => clearTimeout(timer);
+  }, [members]);
+
+  // Ref setter functions
+  const setMemberRef = useCallback((id: string, el: HTMLElement | null) => {
+    memberElementsRef.current.set(id, el);
+  }, []);
+
+  const setHeartRef = useCallback((id: string, el: HTMLElement | null) => {
+    heartElementsRef.current.set(id, el);
+  }, []);
+
+  // Calculate connections
+  const connections = useConnectionPositions(
+    containerRef,
+    memberElementsRef.current,
+    members,
+    heartElementsRef.current
+  );
 
   // Categorize members - include new relation types
   const parents = members.filter(r => ['father', 'mother'].includes(r.relation_type) || r.relation_type.includes('father_of_') || r.relation_type.includes('mother_of_'));
@@ -242,9 +272,12 @@ export const FamilyTree = ({
     setTargetMemberForAction(null);
   };
 
-  // Render heart connector between couple
-  const renderHeartConnector = () => (
-    <div className="flex items-center justify-center mx-1">
+  // Render heart connector between couple - with ref for line connections
+  const renderHeartConnector = (memberId: string) => (
+    <div 
+      className="flex items-center justify-center mx-1"
+      ref={(el) => setHeartRef(memberId, el)}
+    >
       <Heart className="h-5 w-5 text-red-500 fill-red-500" />
     </div>
   );
@@ -259,36 +292,66 @@ export const FamilyTree = ({
     const memberMotherCount = countMothersForMember ? countMothersForMember(member.id) : 0;
 
     const memberChildren = getChildrenOfMember(member.id);
+    const memberFathers = getFathersOfMember(member.id);
+    const memberMothers = getMothersOfMember(member.id);
+
+    const hasSpouse = firstSpouse || secondSpouse;
 
     return (
-      <div key={member.id} className="flex flex-col items-center gap-4">
+      <div key={member.id} className="flex flex-col items-center gap-6">
+        {/* Parents row (fathers and mothers) */}
+        {(memberFathers.length > 0 || memberMothers.length > 0) && (
+          <div className="flex gap-8 flex-wrap justify-center mb-2">
+            {memberFathers.map(father => (
+              <div key={father.id} ref={(el) => setMemberRef(father.id, el)}>
+                {renderSingleMember(father, showLabel, 0, 0, 0, 0)}
+              </div>
+            ))}
+            {memberMothers.map(mother => (
+              <div key={mother.id} ref={(el) => setMemberRef(mother.id, el)}>
+                {renderSingleMember(mother, showLabel, 0, 0, 0, 0)}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* Main member with spouses */}
         <div className="flex items-center gap-1">
           {/* Second spouse on left */}
           {secondSpouse && (
             <>
-              {renderSingleMember(secondSpouse, showLabel, 0, 0, 0, 0)}
-              {renderHeartConnector()}
+              <div ref={(el) => setMemberRef(secondSpouse.id, el)}>
+                {renderSingleMember(secondSpouse, showLabel, 0, 0, 0, 0)}
+              </div>
+              {renderHeartConnector(member.id)}
             </>
           )}
           
           {/* Main member */}
-          {renderSingleMember(member, showLabel, memberSpouseCount, memberChildCount, memberFatherCount, memberMotherCount)}
+          <div ref={(el) => setMemberRef(member.id, el)}>
+            {renderSingleMember(member, showLabel, memberSpouseCount, memberChildCount, memberFatherCount, memberMotherCount)}
+          </div>
           
           {/* First spouse on right */}
           {firstSpouse && (
             <>
-              {renderHeartConnector()}
-              {renderSingleMember(firstSpouse, showLabel, 0, 0, 0, 0)}
+              {renderHeartConnector(member.id)}
+              <div ref={(el) => setMemberRef(firstSpouse.id, el)}>
+                {renderSingleMember(firstSpouse, showLabel, 0, 0, 0, 0)}
+              </div>
             </>
           )}
         </div>
 
         {/* Children of this member */}
         {memberChildren.length > 0 && (
-          <div className="flex flex-col items-center gap-2">
-            <div className="w-0.5 h-4 bg-muted-foreground/30"></div>
-            <div className="flex gap-6 flex-wrap justify-center">
-              {memberChildren.map(child => renderMemberWithSpouses(child, true))}
+          <div className="flex flex-col items-center gap-4">
+            <div className="flex gap-8 flex-wrap justify-center">
+              {memberChildren.map(child => (
+                <div key={child.id} ref={(el) => setMemberRef(child.id, el)}>
+                  {renderMemberWithSpouses(child, true)}
+                </div>
+              ))}
             </div>
           </div>
         )}
@@ -327,7 +390,6 @@ export const FamilyTree = ({
     
     return (
       <div
-        key={member.id}
         className="flex flex-col items-center gap-2 group relative"
       >
         <button
@@ -373,8 +435,10 @@ export const FamilyTree = ({
         {/* Second spouse on left */}
         {secondSpouse && (
           <>
-            {renderSingleMember(secondSpouse, false, 0, 0, 0, 0)}
-            {renderHeartConnector()}
+            <div ref={(el) => setMemberRef(secondSpouse.id, el)}>
+              {renderSingleMember(secondSpouse, false, 0, 0, 0, 0)}
+            </div>
+            {renderHeartConnector('current-user')}
           </>
         )}
 
@@ -431,8 +495,10 @@ export const FamilyTree = ({
         {/* First spouse on right */}
         {currentUserSpouse && (
           <>
-            {renderHeartConnector()}
-            {renderSingleMember(currentUserSpouse, false, 0, 0, 0, 0)}
+            {renderHeartConnector('current-user')}
+            <div ref={(el) => setMemberRef(currentUserSpouse.id, el)}>
+              {renderSingleMember(currentUserSpouse, false, 0, 0, 0, 0)}
+            </div>
           </>
         )}
       </div>
@@ -443,7 +509,14 @@ export const FamilyTree = ({
   const topLevelMembers = [...grandparents, ...parents.filter(p => !p.relation_type.includes('_of_')), ...siblings, ...children.filter(c => !c.relation_type.includes('_of_')), ...others];
   
   return (
-    <div className="relative min-h-[60vh] flex flex-col items-center py-8">
+    <div ref={containerRef} className="relative min-h-[60vh] flex flex-col items-center py-8">
+      {/* SVG Connection Lines */}
+      <FamilyConnectorLines 
+        key={renderKey}
+        containerRef={containerRef} 
+        connections={connections} 
+      />
+
       {/* Dotted background pattern for chess-like feel */}
       <div 
         className="absolute inset-0 opacity-20"
@@ -457,14 +530,11 @@ export const FamilyTree = ({
         {/* Grandparents row */}
         {grandparents.length > 0 && (
           <div className="flex justify-center gap-12 flex-wrap px-4">
-            {grandparents.map(member => renderMemberWithSpouses(member))}
-          </div>
-        )}
-
-        {/* Connector line */}
-        {grandparents.length > 0 && parents.length > 0 && (
-          <div className="flex justify-center">
-            <div className="w-0.5 h-8 bg-muted-foreground/30"></div>
+            {grandparents.map(member => (
+              <div key={member.id} ref={(el) => setMemberRef(member.id, el)}>
+                {renderMemberWithSpouses(member)}
+              </div>
+            ))}
           </div>
         )}
 
@@ -474,19 +544,12 @@ export const FamilyTree = ({
             {/* Group father and mother together as a couple */}
             <div className="flex items-center gap-1">
               {parents.filter(p => !p.relation_type.includes('_of_')).map((parent, index) => (
-                <div key={parent.id} className="flex items-center">
+                <div key={parent.id} className="flex items-center" ref={(el) => setMemberRef(parent.id, el)}>
                   {renderSingleMember(parent, true, 0, 0, 0, 0)}
-                  {index === 0 && parents.filter(p => !p.relation_type.includes('_of_')).length > 1 && renderHeartConnector()}
+                  {index === 0 && parents.filter(p => !p.relation_type.includes('_of_')).length > 1 && renderHeartConnector('parents')}
                 </div>
               ))}
             </div>
-          </div>
-        )}
-
-        {/* Connector line */}
-        {parents.filter(p => !p.relation_type.includes('_of_')).length > 0 && (
-          <div className="flex justify-center">
-            <div className="w-0.5 h-8 bg-muted-foreground/30"></div>
           </div>
         )}
 
@@ -495,7 +558,11 @@ export const FamilyTree = ({
           {/* Siblings on left */}
           {siblings.length > 0 && (
             <div className="flex gap-8 items-start">
-              {siblings.map(sibling => renderMemberWithSpouses(sibling))}
+              {siblings.map(sibling => (
+                <div key={sibling.id} ref={(el) => setMemberRef(sibling.id, el)}>
+                  {renderMemberWithSpouses(sibling)}
+                </div>
+              ))}
             </div>
           )}
 
@@ -503,17 +570,14 @@ export const FamilyTree = ({
           {renderCurrentUser()}
         </div>
 
-        {/* Connector line */}
-        {children.filter(c => !c.relation_type.includes('_of_')).length > 0 && (
-          <div className="flex justify-center">
-            <div className="w-0.5 h-8 bg-muted-foreground/30"></div>
-          </div>
-        )}
-
         {/* Children row - only non-dynamic children */}
         {children.filter(c => !c.relation_type.includes('_of_')).length > 0 && (
           <div className="flex justify-center gap-10 flex-wrap px-4">
-            {children.filter(c => !c.relation_type.includes('_of_')).map(child => renderMemberWithSpouses(child))}
+            {children.filter(c => !c.relation_type.includes('_of_')).map(child => (
+              <div key={child.id} ref={(el) => setMemberRef(child.id, el)}>
+                {renderMemberWithSpouses(child)}
+              </div>
+            ))}
           </div>
         )}
 
@@ -522,7 +586,11 @@ export const FamilyTree = ({
           <div className="mt-8 pt-8 border-t border-border/30 w-full">
             <p className="text-sm font-medium text-muted-foreground mb-6 text-center">Boshqa qarindoshlar</p>
             <div className="flex justify-center gap-10 flex-wrap px-4">
-              {others.map(other => renderMemberWithSpouses(other))}
+              {others.map(other => (
+                <div key={other.id} ref={(el) => setMemberRef(other.id, el)}>
+                  {renderMemberWithSpouses(other)}
+                </div>
+              ))}
             </div>
           </div>
         )}
