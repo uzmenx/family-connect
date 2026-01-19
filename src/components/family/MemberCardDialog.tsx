@@ -5,8 +5,14 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import { FamilyMember } from '@/hooks/useFamilyTree';
 import { cn } from '@/lib/utils';
-import { Send, Trash2, User, MessageCircle, Link as LinkIcon } from 'lucide-react';
+import { Send, Trash2, User, MessageCircle, Link as LinkIcon, Heart, MoreHorizontal, Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 // Relation labels mapping
 const relationLabels: Record<string, string> = {
@@ -31,6 +37,7 @@ const relationLabels: Record<string, string> = {
   sibling: 'Aka/Uka/Opa/Singil',
   child: 'Farzand',
   spouse: "Turmush o'rtog'i",
+  spouse_2: "Ikkinchi juft",
   grandparent: 'Buvi/Bobiyo',
   grandchild: 'Nevara',
   cousin: 'Amakivachcha',
@@ -43,6 +50,9 @@ interface MemberCardDialogProps {
   isOwner: boolean;
   onSendInvitation: () => void;
   onDelete: () => void;
+  onAddSpouse?: (isSecondSpouse: boolean) => void;
+  hasFirstSpouse?: boolean;
+  hasSecondSpouse?: boolean;
 }
 
 export const MemberCardDialog = ({
@@ -52,6 +62,9 @@ export const MemberCardDialog = ({
   isOwner,
   onSendInvitation,
   onDelete,
+  onAddSpouse,
+  hasFirstSpouse = false,
+  hasSecondSpouse = false,
 }: MemberCardDialogProps) => {
   const navigate = useNavigate();
 
@@ -66,10 +79,16 @@ export const MemberCardDialog = ({
     return { ring: 'ring-muted', bg: 'bg-muted', border: 'border-muted' };
   };
 
-  const colors = getGenderColors(member.gender || member.linked_profile?.gender as any);
+  const memberGender = member.gender || member.linked_profile?.gender as any;
+  const colors = getGenderColors(memberGender);
   const displayName = member.linked_profile?.name || member.member_name;
   const displayAvatar = member.linked_profile?.avatar_url || member.avatar_url;
   const isLinked = !!member.linked_user_id;
+  const isSpouseRelation = member.relation_type.includes('spouse_of_');
+
+  // Spouse gender is opposite of member's gender
+  const spouseGender: 'male' | 'female' = memberGender === 'male' ? 'female' : 'male';
+  const spouseButtonColor = spouseGender === 'male' ? 'bg-sky-500 hover:bg-sky-600' : 'bg-pink-500 hover:bg-pink-600';
 
   const handleViewProfile = () => {
     if (member.linked_user_id) {
@@ -135,6 +154,32 @@ export const MemberCardDialog = ({
 
           {/* Action buttons */}
           <div className="w-full space-y-2 mt-6">
+            {/* Add spouse button - show if not a spouse relation */}
+            {isOwner && onAddSpouse && !isSpouseRelation && (
+              <>
+                {!hasFirstSpouse && (
+                  <Button
+                    className={cn("w-full text-white", spouseButtonColor)}
+                    onClick={() => onAddSpouse(false)}
+                  >
+                    <Heart className="h-4 w-4 mr-2" />
+                    Juft qo'shish
+                  </Button>
+                )}
+                
+                {hasFirstSpouse && !hasSecondSpouse && (
+                  <Button
+                    variant="outline"
+                    className="w-full"
+                    onClick={() => onAddSpouse(true)}
+                  >
+                    <Plus className="h-4 w-4 mr-2" />
+                    Ikkinchi juft qo'shish
+                  </Button>
+                )}
+              </>
+            )}
+
             {isLinked ? (
               <>
                 <Button

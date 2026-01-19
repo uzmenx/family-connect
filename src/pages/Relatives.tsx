@@ -21,6 +21,7 @@ const Relatives = () => {
     invitations,
     isLoading,
     addMember,
+    addSpouseToMember,
     sendInvitation,
     respondToInvitation,
     linkExistingMemberToUser,
@@ -99,6 +100,12 @@ const Relatives = () => {
     }
   };
 
+  const handleAddSpouse = async (memberId: string, spouseData: { name: string; gender: 'male' | 'female'; avatarUrl?: string }) => {
+    // Check if this is a second spouse
+    const hasFirstSpouse = members.some(m => m.relation_type === `spouse_of_${memberId}`);
+    await addSpouseToMember(memberId, spouseData, hasFirstSpouse);
+  };
+
   // Filter invitations for current user (received ones)
   const receivedInvitations = invitations.filter(inv => inv.receiver_id === user?.id);
 
@@ -145,6 +152,7 @@ const Relatives = () => {
               isOwner={true}
               onSendInvitation={handleSendInvitation}
               onDeleteMember={deleteMember}
+              onAddSpouse={handleAddSpouse}
             />
           )}
         </div>
