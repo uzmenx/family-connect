@@ -1,13 +1,15 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { User as UserIcon, Plus, HelpCircle, Heart, MoreHorizontal, Baby } from 'lucide-react';
+import { User as UserIcon, Plus, HelpCircle, Heart, MoreHorizontal, Baby, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { FamilyMember, FAMILY_LIMITS } from '@/hooks/useFamilyTree';
+import { useZoomPan } from '@/hooks/useZoomPan';
 import { MemberCardDialog } from './MemberCardDialog';
 import { SendInvitationDialog } from './SendInvitationDialog';
 import { AddSpouseDialog } from './AddSpouseDialog';
 import { AddFamilyMemberDialog } from './AddFamilyMemberDialog';
 import { FamilyConnectorLines, useConnectionPositions } from './FamilyConnectorLines';
+import { Button } from '@/components/ui/button';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -99,17 +101,39 @@ export const FamilyTree = ({
   const [addMotherDialogOpen, setAddMotherDialogOpen] = useState(false);
   const [targetMemberForAction, setTargetMemberForAction] = useState<FamilyMember | null>(null);
 
+  // Zoom and Pan state
+  const {
+    scale,
+    translateX,
+    translateY,
+    resetZoom,
+    zoomIn,
+    zoomOut,
+    handlers: zoomPanHandlers,
+    handleWheel,
+  } = useZoomPan({ minScale: 0.2, maxScale: 3, initialScale: 1 });
+
   // Refs for connection lines
   const containerRef = useRef<HTMLDivElement>(null);
+  const zoomContainerRef = useRef<HTMLDivElement>(null);
   const memberElementsRef = useRef<Map<string, HTMLElement | null>>(new Map());
   const heartElementsRef = useRef<Map<string, HTMLElement | null>>(new Map());
   const [renderKey, setRenderKey] = useState(0);
+
+  // Attach wheel event for zoom
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    return () => container.removeEventListener('wheel', handleWheel);
+  }, [handleWheel]);
 
   // Force re-render after members update to recalculate lines
   useEffect(() => {
     const timer = setTimeout(() => setRenderKey(prev => prev + 1), 200);
     return () => clearTimeout(timer);
-  }, [members]);
+  }, [members, scale, translateX, translateY]);
 
   // Ref setter functions
   const setMemberRef = useCallback((id: string, el: HTMLElement | null) => {
@@ -120,9 +144,9 @@ export const FamilyTree = ({
     heartElementsRef.current.set(id, el);
   }, []);
 
-  // Calculate connections
+  // Calculate connections - use zoomContainerRef for accurate positioning
   const connections = useConnectionPositions(
-    containerRef,
+    zoomContainerRef,
     memberElementsRef.current,
     members,
     heartElementsRef.current
@@ -549,98 +573,144 @@ export const FamilyTree = ({
   const topLevelMembers = [...grandparents, ...parents.filter(p => !p.relation_type.includes('_of_')), ...siblings, ...children.filter(c => !c.relation_type.includes('_of_')), ...others];
   
   return (
-    <div ref={containerRef} className="relative min-h-[60vh] flex flex-col items-center py-8">
-      {/* SVG Connection Lines */}
-      <FamilyConnectorLines 
-        key={renderKey}
-        containerRef={containerRef} 
-        connections={connections} 
-      />
+    <div 
+      ref={containerRef} 
+      className="relative min-h-[80vh] overflow-hidden touch-none select-none"
+      {...zoomPanHandlers}
+    >
+      {/* Zoom controls - fixed position */}
+      <div className="fixed top-20 right-4 z-50 flex flex-col gap-2 bg-background/80 backdrop-blur-sm rounded-lg p-2 shadow-lg border border-border/50">
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-10 w-10"
+          onClick={zoomIn}
+          title="Yaqinlashtirish"
+        >
+          <ZoomIn className="h-5 w-5" />
+        </Button>
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-10 w-10"
+          onClick={zoomOut}
+          title="Uzoqlashtirish"
+        >
+          <ZoomOut className="h-5 w-5" />
+        </Button>
+        <div className="h-px bg-border/50" />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-10 w-10"
+          onClick={resetZoom}
+          title="Markazga qaytish"
+        >
+          <RotateCcw className="h-5 w-5" />
+        </Button>
+        <span className="text-[10px] text-center text-muted-foreground">
+          {Math.round(scale * 100)}%
+        </span>
+      </div>
 
-      {/* Dotted background pattern for chess-like feel */}
-      <div 
-        className="absolute inset-0 opacity-20"
+      {/* Zoomable/Pannable container */}
+      <div
+        ref={zoomContainerRef}
+        className="w-full min-h-[80vh] flex flex-col items-center py-8 origin-center transition-transform duration-75 ease-out"
         style={{
-          backgroundImage: 'radial-gradient(circle, currentColor 1px, transparent 1px)',
-          backgroundSize: '20px 20px',
+          transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`,
+          willChange: 'transform',
         }}
-      />
+      >
+        {/* SVG Connection Lines */}
+        <FamilyConnectorLines 
+          key={renderKey}
+          containerRef={zoomContainerRef} 
+          connections={connections} 
+        />
 
-      <div className="relative z-10 w-full space-y-12">
-        {/* Grandparents row */}
-        {grandparents.length > 0 && (
-          <div className="flex justify-center gap-12 flex-wrap px-4">
-            {grandparents.map(member => (
-              <div key={member.id} ref={(el) => setMemberRef(member.id, el)}>
-                {renderMemberWithSpouses(member)}
-              </div>
-            ))}
-          </div>
-        )}
+        {/* Dotted background pattern for chess-like feel */}
+        <div 
+          className="absolute inset-0 opacity-20 pointer-events-none"
+          style={{
+            backgroundImage: 'radial-gradient(circle, currentColor 1px, transparent 1px)',
+            backgroundSize: '20px 20px',
+          }}
+        />
 
-        {/* Parents row - only non-dynamic parents */}
-        {parents.filter(p => !p.relation_type.includes('_of_')).length > 0 && (
-          <div className="flex justify-center gap-12 flex-wrap px-4">
-            {/* Group father and mother together as a couple */}
-            <div className="flex items-center gap-1">
-              {parents.filter(p => !p.relation_type.includes('_of_')).map((parent, index) => (
-                <div key={parent.id} className="flex items-center" ref={(el) => setMemberRef(parent.id, el)}>
-                  {renderSingleMember(parent, true, 0, 0, 0, 0)}
-                  {index === 0 && parents.filter(p => !p.relation_type.includes('_of_')).length > 1 && renderHeartConnector('parents')}
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Current user + spouse + siblings row */}
-        <div className="flex items-start justify-center gap-10 flex-wrap px-4">
-          {/* Siblings on left */}
-          {siblings.length > 0 && (
-            <div className="flex gap-8 items-start">
-              {siblings.map(sibling => (
-                <div key={sibling.id} ref={(el) => setMemberRef(sibling.id, el)}>
-                  {renderMemberWithSpouses(sibling)}
+        <div className="relative z-10 w-full space-y-12">
+          {/* Grandparents row */}
+          {grandparents.length > 0 && (
+            <div className="flex justify-center gap-12 flex-wrap px-4">
+              {grandparents.map(member => (
+                <div key={member.id} ref={(el) => setMemberRef(member.id, el)}>
+                  {renderMemberWithSpouses(member)}
                 </div>
               ))}
             </div>
           )}
 
-          {/* Current user with spouse(s) in center */}
-          {renderCurrentUser()}
-        </div>
-
-        {/* Children row - only non-dynamic children */}
-        {children.filter(c => !c.relation_type.includes('_of_')).length > 0 && (
-          <div className="flex justify-center gap-10 flex-wrap px-4">
-            {children.filter(c => !c.relation_type.includes('_of_')).map(child => (
-              <div key={child.id} ref={(el) => setMemberRef(child.id, el)}>
-                {renderMemberWithSpouses(child)}
+          {/* Parents row - only non-dynamic parents */}
+          {parents.filter(p => !p.relation_type.includes('_of_')).length > 0 && (
+            <div className="flex justify-center gap-12 flex-wrap px-4">
+              {/* Group father and mother together as a couple */}
+              <div className="flex items-center gap-1">
+                {parents.filter(p => !p.relation_type.includes('_of_')).map((parent, index) => (
+                  <div key={parent.id} className="flex items-center" ref={(el) => setMemberRef(parent.id, el)}>
+                    {renderSingleMember(parent, true, 0, 0, 0, 0)}
+                    {index === 0 && parents.filter(p => !p.relation_type.includes('_of_')).length > 1 && renderHeartConnector('parents')}
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        )}
+            </div>
+          )}
 
-        {/* Other relatives */}
-        {others.length > 0 && (
-          <div className="mt-8 pt-8 border-t border-border/30 w-full">
-            <p className="text-sm font-medium text-muted-foreground mb-6 text-center">Boshqa qarindoshlar</p>
+          {/* Current user + spouse + siblings row */}
+          <div className="flex items-start justify-center gap-10 flex-wrap px-4">
+            {/* Siblings on left */}
+            {siblings.length > 0 && (
+              <div className="flex gap-8 items-start">
+                {siblings.map(sibling => (
+                  <div key={sibling.id} ref={(el) => setMemberRef(sibling.id, el)}>
+                    {renderMemberWithSpouses(sibling)}
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Current user with spouse(s) in center */}
+            {renderCurrentUser()}
+          </div>
+
+          {/* Children row - only non-dynamic children */}
+          {children.filter(c => !c.relation_type.includes('_of_')).length > 0 && (
             <div className="flex justify-center gap-10 flex-wrap px-4">
+              {children.filter(c => !c.relation_type.includes('_of_')).map(child => (
+                <div key={child.id} ref={(el) => setMemberRef(child.id, el)}>
+                  {renderMemberWithSpouses(child)}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Other relatives - displayed in open space without separator */}
+          {others.length > 0 && (
+            <div className="flex justify-center gap-10 flex-wrap px-4 mt-12">
               {others.map(other => (
                 <div key={other.id} ref={(el) => setMemberRef(other.id, el)}>
                   {renderMemberWithSpouses(other)}
                 </div>
               ))}
             </div>
-          </div>
-        )}
+          )}
+        </div>
       </div>
 
       {/* Add relative floating button - only show for owner */}
       {isOwner && (
         <button
           onClick={onAddRelative}
-          className="fixed bottom-24 right-4 w-14 h-14 rounded-full bg-sky-500 hover:bg-sky-600 text-white shadow-lg flex items-center justify-center transition-colors z-50"
+          className="fixed bottom-24 right-4 w-14 h-14 rounded-full bg-primary hover:bg-primary/90 text-primary-foreground shadow-lg flex items-center justify-center transition-colors z-50"
         >
           <Plus className="h-6 w-6" />
         </button>
