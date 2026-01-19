@@ -50,6 +50,14 @@ export interface FamilyInvitation {
   member?: FamilyMember | null;
 }
 
+// Relationship limits
+export const FAMILY_LIMITS = {
+  MAX_SPOUSES: 2,
+  MAX_FATHERS: 2,
+  MAX_MOTHERS: 2,
+  MAX_CHILDREN: 8,
+};
+
 export const useFamilyTree = (userId?: string) => {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -565,6 +573,34 @@ export const useFamilyTree = (userId?: string) => {
     if (!user?.id) return false;
 
     try {
+      // Also delete any spouses of this member
+      const spouseRelations = members.filter(m => 
+        m.relation_type === `spouse_of_${memberId}` || 
+        m.relation_type === `spouse_2_of_${memberId}`
+      );
+      
+      // Also delete any children of this member
+      const childRelations = members.filter(m => 
+        m.relation_type === `child_of_${memberId}` ||
+        m.relation_type.startsWith(`child_`) && m.relation_type.includes(memberId)
+      );
+
+      // Delete spouses first
+      for (const spouse of spouseRelations) {
+        await supabase
+          .from('family_tree_members')
+          .delete()
+          .eq('id', spouse.id);
+      }
+
+      // Delete children
+      for (const child of childRelations) {
+        await supabase
+          .from('family_tree_members')
+          .delete()
+          .eq('id', child.id);
+      }
+
       const { error } = await supabase
         .from('family_tree_members')
         .delete()
@@ -590,6 +626,37 @@ export const useFamilyTree = (userId?: string) => {
     }
   };
 
+  // Count spouses for a member
+  const countSpousesForMember = (memberId: string): number => {
+    return members.filter(m => 
+      m.relation_type === `spouse_of_${memberId}` || 
+      m.relation_type === `spouse_2_of_${memberId}`
+    ).length;
+  };
+
+  // Count children for a member
+  const countChildrenForMember = (memberId: string): number => {
+    return members.filter(m => 
+      m.relation_type.startsWith(`child_of_${memberId}`)
+    ).length;
+  };
+
+  // Count parents (fathers) for a member
+  const countFathersForMember = (memberId: string): number => {
+    return members.filter(m => 
+      m.relation_type === `father_of_${memberId}` || 
+      m.relation_type === `father_2_of_${memberId}`
+    ).length;
+  };
+
+  // Count parents (mothers) for a member
+  const countMothersForMember = (memberId: string): number => {
+    return members.filter(m => 
+      m.relation_type === `mother_of_${memberId}` || 
+      m.relation_type === `mother_2_of_${memberId}`
+    ).length;
+  };
+
   // Add spouse to an existing member
   const addSpouseToMember = async (
     memberId: string, 
@@ -597,6 +664,17 @@ export const useFamilyTree = (userId?: string) => {
     isSecondSpouse: boolean = false
   ) => {
     if (!user?.id) return null;
+
+    // Check spouse limit
+    const currentSpouseCount = countSpousesForMember(memberId);
+    if (currentSpouseCount >= FAMILY_LIMITS.MAX_SPOUSES) {
+      toast({
+        title: "Limit",
+        description: `Maksimal ${FAMILY_LIMITS.MAX_SPOUSES} ta juft qo'shish mumkin`,
+        variant: "destructive",
+      });
+      return null;
+    }
 
     try {
       // Ensure user has a network before adding member
@@ -636,6 +714,174 @@ export const useFamilyTree = (userId?: string) => {
     }
   };
 
+  // Add child to a member (requires spouse)
+  const addChildToMember = async (
+    memberId: string,
+    childData: { name: string; gender: 'male' | 'female'; avatarUrl?: string }
+  ) => {
+    if (!user?.id) return null;
+
+    // Check child limit
+    const currentChildCount = countChildrenForMember(memberId);
+    if (currentChildCount >= FAMILY_LIMITS.MAX_CHILDREN) {
+      toast({
+        title: "Limit",
+        description: `Maksimal ${FAMILY_LIMITS.MAX_CHILDREN} ta farzand qo'shish mumkin`,
+        variant: "destructive",
+      });
+      return null;
+    }
+
+    try {
+      await ensureFamilyNetwork(user.id);
+
+      const childNumber = currentChildCount + 1;
+      const relationType = `child_of_${memberId}_${childNumber}`;
+
+      const { data, error } = await supabase
+        .from('family_tree_members')
+        .insert({
+          owner_id: user.id,
+          member_name: childData.name,
+          relation_type: relationType,
+          avatar_url: childData.avatarUrl || null,
+          gender: childData.gender,
+          is_placeholder: true,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      await fetchMembers();
+      toast({
+        title: "Farzand qo'shildi!",
+        description: `${childData.name} farzand sifatida qo'shildi`,
+      });
+
+      return data;
+    } catch (error: any) {
+      toast({
+        title: "Xato",
+        description: error.message,
+        variant: "destructive",
+      });
+      return null;
+    }
+  };
+
+  // Add father to a member
+  const addFatherToMember = async (
+    memberId: string,
+    fatherData: { name: string; avatarUrl?: string }
+  ) => {
+    if (!user?.id) return null;
+
+    // Check father limit
+    const currentFatherCount = countFathersForMember(memberId);
+    if (currentFatherCount >= FAMILY_LIMITS.MAX_FATHERS) {
+      toast({
+        title: "Limit",
+        description: `Maksimal ${FAMILY_LIMITS.MAX_FATHERS} ta ota qo'shish mumkin`,
+        variant: "destructive",
+      });
+      return null;
+    }
+
+    try {
+      await ensureFamilyNetwork(user.id);
+
+      const isSecond = currentFatherCount > 0;
+      const relationType = isSecond ? `father_2_of_${memberId}` : `father_of_${memberId}`;
+
+      const { data, error } = await supabase
+        .from('family_tree_members')
+        .insert({
+          owner_id: user.id,
+          member_name: fatherData.name,
+          relation_type: relationType,
+          avatar_url: fatherData.avatarUrl || null,
+          gender: 'male',
+          is_placeholder: true,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      await fetchMembers();
+      toast({
+        title: "Ota qo'shildi!",
+        description: `${fatherData.name} ota sifatida qo'shildi`,
+      });
+
+      return data;
+    } catch (error: any) {
+      toast({
+        title: "Xato",
+        description: error.message,
+        variant: "destructive",
+      });
+      return null;
+    }
+  };
+
+  // Add mother to a member
+  const addMotherToMember = async (
+    memberId: string,
+    motherData: { name: string; avatarUrl?: string }
+  ) => {
+    if (!user?.id) return null;
+
+    // Check mother limit
+    const currentMotherCount = countMothersForMember(memberId);
+    if (currentMotherCount >= FAMILY_LIMITS.MAX_MOTHERS) {
+      toast({
+        title: "Limit",
+        description: `Maksimal ${FAMILY_LIMITS.MAX_MOTHERS} ta ona qo'shish mumkin`,
+        variant: "destructive",
+      });
+      return null;
+    }
+
+    try {
+      await ensureFamilyNetwork(user.id);
+
+      const isSecond = currentMotherCount > 0;
+      const relationType = isSecond ? `mother_2_of_${memberId}` : `mother_of_${memberId}`;
+
+      const { data, error } = await supabase
+        .from('family_tree_members')
+        .insert({
+          owner_id: user.id,
+          member_name: motherData.name,
+          relation_type: relationType,
+          avatar_url: motherData.avatarUrl || null,
+          gender: 'female',
+          is_placeholder: true,
+        })
+        .select()
+        .single();
+
+      if (error) throw error;
+
+      await fetchMembers();
+      toast({
+        title: "Ona qo'shildi!",
+        description: `${motherData.name} ona sifatida qo'shildi`,
+      });
+
+      return data;
+    } catch (error: any) {
+      toast({
+        title: "Xato",
+        description: error.message,
+        variant: "destructive",
+      });
+      return null;
+    }
+  };
+
   return {
     members,
     invitations,
@@ -643,6 +889,13 @@ export const useFamilyTree = (userId?: string) => {
     networkUsers,
     addMember,
     addSpouseToMember,
+    addChildToMember,
+    addFatherToMember,
+    addMotherToMember,
+    countSpousesForMember,
+    countChildrenForMember,
+    countFathersForMember,
+    countMothersForMember,
     sendInvitation,
     respondToInvitation,
     linkExistingMemberToUser,

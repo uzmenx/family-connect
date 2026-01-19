@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { User as UserIcon, Plus, HelpCircle, Heart, MoreHorizontal } from 'lucide-react';
+import { User as UserIcon, Plus, HelpCircle, Heart, MoreHorizontal, Baby } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { FamilyMember } from '@/hooks/useFamilyTree';
+import { FamilyMember, FAMILY_LIMITS } from '@/hooks/useFamilyTree';
 import { MemberCardDialog } from './MemberCardDialog';
 import { SendInvitationDialog } from './SendInvitationDialog';
 import { AddSpouseDialog } from './AddSpouseDialog';
+import { AddFamilyMemberDialog } from './AddFamilyMemberDialog';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -27,7 +28,14 @@ interface FamilyTreeProps {
   isOwner?: boolean;
   onSendInvitation?: (memberId: string, receiverId: string) => void;
   onDeleteMember?: (memberId: string) => void;
-  onAddSpouse?: (memberId: string, spouseData: { name: string; gender: 'male' | 'female'; avatarUrl?: string }) => void;
+  onAddSpouse?: (memberId: string, spouseData: { name: string; gender: 'male' | 'female'; avatarUrl?: string }, isSecond: boolean) => void;
+  onAddChild?: (memberId: string, childData: { name: string; gender: 'male' | 'female'; avatarUrl?: string }) => void;
+  onAddFather?: (memberId: string, data: { name: string; avatarUrl?: string }) => void;
+  onAddMother?: (memberId: string, data: { name: string; avatarUrl?: string }) => void;
+  countSpousesForMember?: (memberId: string) => number;
+  countChildrenForMember?: (memberId: string) => number;
+  countFathersForMember?: (memberId: string) => number;
+  countMothersForMember?: (memberId: string) => number;
 }
 
 // Relation labels mapping (these are private labels, only shown to profile owner)
@@ -59,11 +67,6 @@ const relationLabels: Record<string, string> = {
   cousin: 'Amakivachcha',
 };
 
-// Helper to find spouse relationships
-const getSpouseRelationType = (memberGender: 'male' | 'female' | null): string => {
-  return memberGender === 'male' ? 'wife' : 'husband';
-};
-
 export const FamilyTree = ({ 
   members, 
   currentUser, 
@@ -73,6 +76,13 @@ export const FamilyTree = ({
   onSendInvitation,
   onDeleteMember,
   onAddSpouse,
+  onAddChild,
+  onAddFather,
+  onAddMother,
+  countSpousesForMember,
+  countChildrenForMember,
+  countFathersForMember,
+  countMothersForMember,
 }: FamilyTreeProps) => {
   const [selectedMember, setSelectedMember] = useState<FamilyMember | null>(null);
   const [memberCardOpen, setMemberCardOpen] = useState(false);
@@ -81,25 +91,31 @@ export const FamilyTree = ({
   const [addSpouseDialogOpen, setAddSpouseDialogOpen] = useState(false);
   const [spouseTargetMember, setSpouseTargetMember] = useState<FamilyMember | null>(null);
   const [isSecondSpouse, setIsSecondSpouse] = useState(false);
+  
+  // New dialog states
+  const [addChildDialogOpen, setAddChildDialogOpen] = useState(false);
+  const [addFatherDialogOpen, setAddFatherDialogOpen] = useState(false);
+  const [addMotherDialogOpen, setAddMotherDialogOpen] = useState(false);
+  const [targetMemberForAction, setTargetMemberForAction] = useState<FamilyMember | null>(null);
 
-  // Categorize members
-  const parents = members.filter(r => ['father', 'mother'].includes(r.relation_type));
+  // Categorize members - include new relation types
+  const parents = members.filter(r => ['father', 'mother'].includes(r.relation_type) || r.relation_type.includes('father_of_') || r.relation_type.includes('mother_of_'));
   const grandparents = members.filter(r => ['grandfather', 'grandmother', 'grandparent'].includes(r.relation_type));
   const siblings = members.filter(r => ['brother', 'younger_brother', 'sister', 'younger_sister', 'sibling'].includes(r.relation_type));
   const spouses = members.filter(r => ['husband', 'wife', 'spouse', 'spouse_2'].includes(r.relation_type));
-  const children = members.filter(r => ['son', 'daughter', 'child'].includes(r.relation_type));
+  const children = members.filter(r => ['son', 'daughter', 'child'].includes(r.relation_type) || r.relation_type.startsWith('child_of_'));
   const others = members.filter(r => 
-    !['father', 'mother', 'grandfather', 'grandmother', 'grandparent', 'brother', 'younger_brother', 'sister', 'younger_sister', 'sibling', 'husband', 'wife', 'spouse', 'spouse_2', 'son', 'daughter', 'child'].includes(r.relation_type)
+    !['father', 'mother', 'grandfather', 'grandmother', 'grandparent', 'brother', 'younger_brother', 'sister', 'younger_sister', 'sibling', 'husband', 'wife', 'spouse', 'spouse_2', 'son', 'daughter', 'child'].includes(r.relation_type) &&
+    !r.relation_type.includes('spouse_of_') &&
+    !r.relation_type.includes('spouse_2_of_') &&
+    !r.relation_type.startsWith('child_of_') &&
+    !r.relation_type.includes('father_of_') &&
+    !r.relation_type.includes('mother_of_')
   );
 
   // Find spouses for a member by linked relationships
   const findSpousesForMember = (memberId: string): FamilyMember[] => {
     return members.filter(m => m.relation_type.includes('spouse_of_') && m.relation_type.endsWith(memberId));
-  };
-
-  // Check if member has a spouse already
-  const hasSpouse = (memberId: string): boolean => {
-    return members.some(m => m.relation_type === `spouse_of_${memberId}` || m.relation_type === `spouse_2_of_${memberId}`);
   };
 
   const hasFirstSpouse = (memberId: string): boolean => {
@@ -113,6 +129,18 @@ export const FamilyTree = ({
   const getSpouseOfMember = (memberId: string, isSecond: boolean = false): FamilyMember | null => {
     const relationType = isSecond ? `spouse_2_of_${memberId}` : `spouse_of_${memberId}`;
     return members.find(m => m.relation_type === relationType) || null;
+  };
+
+  const getChildrenOfMember = (memberId: string): FamilyMember[] => {
+    return members.filter(m => m.relation_type.startsWith(`child_of_${memberId}`));
+  };
+
+  const getFathersOfMember = (memberId: string): FamilyMember[] => {
+    return members.filter(m => m.relation_type === `father_of_${memberId}` || m.relation_type === `father_2_of_${memberId}`);
+  };
+
+  const getMothersOfMember = (memberId: string): FamilyMember[] => {
+    return members.filter(m => m.relation_type === `mother_of_${memberId}` || m.relation_type === `mother_2_of_${memberId}`);
   };
 
   const getGenderColors = (gender: 'male' | 'female' | null | undefined) => {
@@ -169,10 +197,49 @@ export const FamilyTree = ({
 
   const handleSpouseAdded = (spouseData: { name: string; gender: 'male' | 'female'; avatarUrl?: string }) => {
     if (spouseTargetMember && onAddSpouse) {
-      onAddSpouse(spouseTargetMember.id, spouseData);
+      onAddSpouse(spouseTargetMember.id, spouseData, isSecondSpouse);
     }
     setAddSpouseDialogOpen(false);
     setSpouseTargetMember(null);
+  };
+
+  const handleAddChild = (member: FamilyMember) => {
+    setTargetMemberForAction(member);
+    setAddChildDialogOpen(true);
+  };
+
+  const handleChildAdded = (childData: { name: string; gender: 'male' | 'female'; avatarUrl?: string }) => {
+    if (targetMemberForAction && onAddChild) {
+      onAddChild(targetMemberForAction.id, childData);
+    }
+    setAddChildDialogOpen(false);
+    setTargetMemberForAction(null);
+  };
+
+  const handleAddFather = (member: FamilyMember) => {
+    setTargetMemberForAction(member);
+    setAddFatherDialogOpen(true);
+  };
+
+  const handleFatherAdded = (data: { name: string; gender: 'male' | 'female'; avatarUrl?: string }) => {
+    if (targetMemberForAction && onAddFather) {
+      onAddFather(targetMemberForAction.id, { name: data.name, avatarUrl: data.avatarUrl });
+    }
+    setAddFatherDialogOpen(false);
+    setTargetMemberForAction(null);
+  };
+
+  const handleAddMother = (member: FamilyMember) => {
+    setTargetMemberForAction(member);
+    setAddMotherDialogOpen(true);
+  };
+
+  const handleMotherAdded = (data: { name: string; gender: 'male' | 'female'; avatarUrl?: string }) => {
+    if (targetMemberForAction && onAddMother) {
+      onAddMother(targetMemberForAction.id, { name: data.name, avatarUrl: data.avatarUrl });
+    }
+    setAddMotherDialogOpen(false);
+    setTargetMemberForAction(null);
   };
 
   // Render heart connector between couple
@@ -184,31 +251,46 @@ export const FamilyTree = ({
 
   // Render member with spouse(s) as a couple unit
   const renderMemberWithSpouses = (member: FamilyMember, showLabel: boolean = true) => {
-    const displayGender = member.linked_profile?.gender as 'male' | 'female' | null || member.gender;
     const firstSpouse = getSpouseOfMember(member.id, false);
     const secondSpouse = getSpouseOfMember(member.id, true);
-    const memberHasFirstSpouse = !!firstSpouse;
-    const memberHasSecondSpouse = !!secondSpouse;
+    const memberSpouseCount = countSpousesForMember ? countSpousesForMember(member.id) : 0;
+    const memberChildCount = countChildrenForMember ? countChildrenForMember(member.id) : 0;
+    const memberFatherCount = countFathersForMember ? countFathersForMember(member.id) : 0;
+    const memberMotherCount = countMothersForMember ? countMothersForMember(member.id) : 0;
+
+    const memberChildren = getChildrenOfMember(member.id);
 
     return (
-      <div key={member.id} className="flex items-center gap-1">
-        {/* Second spouse on left */}
-        {secondSpouse && (
-          <>
-            {renderSingleMember(secondSpouse, showLabel)}
-            {renderHeartConnector()}
-          </>
-        )}
-        
-        {/* Main member */}
-        {renderSingleMember(member, showLabel, memberHasFirstSpouse, memberHasSecondSpouse)}
-        
-        {/* First spouse on right */}
-        {firstSpouse && (
-          <>
-            {renderHeartConnector()}
-            {renderSingleMember(firstSpouse, showLabel)}
-          </>
+      <div key={member.id} className="flex flex-col items-center gap-4">
+        <div className="flex items-center gap-1">
+          {/* Second spouse on left */}
+          {secondSpouse && (
+            <>
+              {renderSingleMember(secondSpouse, showLabel, 0, 0, 0, 0)}
+              {renderHeartConnector()}
+            </>
+          )}
+          
+          {/* Main member */}
+          {renderSingleMember(member, showLabel, memberSpouseCount, memberChildCount, memberFatherCount, memberMotherCount)}
+          
+          {/* First spouse on right */}
+          {firstSpouse && (
+            <>
+              {renderHeartConnector()}
+              {renderSingleMember(firstSpouse, showLabel, 0, 0, 0, 0)}
+            </>
+          )}
+        </div>
+
+        {/* Children of this member */}
+        {memberChildren.length > 0 && (
+          <div className="flex flex-col items-center gap-2">
+            <div className="w-0.5 h-4 bg-muted-foreground/30"></div>
+            <div className="flex gap-6 flex-wrap justify-center">
+              {memberChildren.map(child => renderMemberWithSpouses(child, true))}
+            </div>
+          </div>
         )}
       </div>
     );
@@ -217,8 +299,10 @@ export const FamilyTree = ({
   const renderSingleMember = (
     member: FamilyMember, 
     showLabel: boolean = true, 
-    hasFirstSpouse: boolean = false, 
-    hasSecondSpouse: boolean = false
+    spouseCount: number = 0, 
+    childCount: number = 0,
+    fatherCount: number = 0,
+    motherCount: number = 0
   ) => {
     const displayGender = member.linked_profile?.gender as 'male' | 'female' | null || member.gender;
     const colors = getGenderColors(displayGender);
@@ -226,9 +310,20 @@ export const FamilyTree = ({
     const displayAvatar = member.linked_profile?.avatar_url || member.avatar_url;
     const isPlaceholder = member.is_placeholder;
     const isSpouseRelation = member.relation_type.includes('spouse_of_');
+    const isChildRelation = member.relation_type.includes('child_of_');
+    const isParentRelation = member.relation_type.includes('father_of_') || member.relation_type.includes('mother_of_');
 
-    // Determine spouse gender for add button (opposite of member's gender)
-    const spouseGender: 'male' | 'female' = displayGender === 'male' ? 'female' : 'male';
+    // Get display label for relation type
+    const getRelationLabel = (relationType: string) => {
+      if (relationType.includes('spouse_of_')) return "Juft";
+      if (relationType.includes('spouse_2_of_')) return "2-juft";
+      if (relationType.includes('child_of_')) return "Farzand";
+      if (relationType.includes('father_of_')) return "Ota";
+      if (relationType.includes('father_2_of_')) return "2-ota";
+      if (relationType.includes('mother_of_')) return "Ona";
+      if (relationType.includes('mother_2_of_')) return "2-ona";
+      return relationLabels[relationType] || relationType;
+    };
     
     return (
       <div
@@ -254,52 +349,13 @@ export const FamilyTree = ({
           </div>
           <div className="text-center max-w-[80px]">
             <p className="font-medium text-xs text-foreground truncate">{displayName}</p>
-            {showLabel && isOwner && !isSpouseRelation && (
+            {showLabel && isOwner && (
               <p className="text-[10px] text-muted-foreground">
-                {relationLabels[member.relation_type] || member.relation_type}
+                {getRelationLabel(member.relation_type)}
               </p>
             )}
           </div>
         </button>
-
-        {/* Add spouse buttons */}
-        {isOwner && !isSpouseRelation && (
-          <div className="flex items-center gap-1 mt-1">
-            {/* First spouse button - always visible if no first spouse */}
-            {!hasFirstSpouse && (
-              <button
-                onClick={() => handleAddSpouse(member, false)}
-                className={cn(
-                  "w-6 h-6 rounded-full flex items-center justify-center transition-all",
-                  spouseGender === 'male' ? 'bg-sky-500 hover:bg-sky-600' : 'bg-pink-500 hover:bg-pink-600',
-                  "text-white shadow-sm"
-                )}
-                title="Juft qo'shish"
-              >
-                <Plus className="h-3 w-3" />
-              </button>
-            )}
-
-            {/* Second spouse button - in dropdown if first spouse exists */}
-            {hasFirstSpouse && !hasSecondSpouse && (
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <button
-                    className="w-6 h-6 rounded-full bg-muted hover:bg-muted/80 flex items-center justify-center transition-all text-muted-foreground"
-                  >
-                    <MoreHorizontal className="h-3 w-3" />
-                  </button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="center">
-                  <DropdownMenuItem onClick={() => handleAddSpouse(member, true)}>
-                    <Plus className="h-4 w-4 mr-2" />
-                    Ikkinchi juft qo'shish
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            )}
-          </div>
-        )}
       </div>
     );
   };
@@ -317,7 +373,7 @@ export const FamilyTree = ({
         {/* Second spouse on left */}
         {secondSpouse && (
           <>
-            {renderSingleMember(secondSpouse, false)}
+            {renderSingleMember(secondSpouse, false, 0, 0, 0, 0)}
             {renderHeartConnector()}
           </>
         )}
@@ -376,15 +432,15 @@ export const FamilyTree = ({
         {currentUserSpouse && (
           <>
             {renderHeartConnector()}
-            {renderSingleMember(currentUserSpouse, false)}
+            {renderSingleMember(currentUserSpouse, false, 0, 0, 0, 0)}
           </>
         )}
       </div>
     );
   };
 
-  // Chess-like grid layout
-  const allMembersForGrid = [...grandparents, ...parents, ...siblings, ...children, ...others];
+  // Filter out members that are shown as spouses/children of other members
+  const topLevelMembers = [...grandparents, ...parents.filter(p => !p.relation_type.includes('_of_')), ...siblings, ...children.filter(c => !c.relation_type.includes('_of_')), ...others];
   
   return (
     <div className="relative min-h-[60vh] flex flex-col items-center py-8">
@@ -412,15 +468,15 @@ export const FamilyTree = ({
           </div>
         )}
 
-        {/* Parents row */}
-        {parents.length > 0 && (
+        {/* Parents row - only non-dynamic parents */}
+        {parents.filter(p => !p.relation_type.includes('_of_')).length > 0 && (
           <div className="flex justify-center gap-12 flex-wrap px-4">
             {/* Group father and mother together as a couple */}
             <div className="flex items-center gap-1">
-              {parents.map((parent, index) => (
+              {parents.filter(p => !p.relation_type.includes('_of_')).map((parent, index) => (
                 <div key={parent.id} className="flex items-center">
-                  {renderSingleMember(parent, true, index === 0 && parents.length > 1, false)}
-                  {index === 0 && parents.length > 1 && renderHeartConnector()}
+                  {renderSingleMember(parent, true, 0, 0, 0, 0)}
+                  {index === 0 && parents.filter(p => !p.relation_type.includes('_of_')).length > 1 && renderHeartConnector()}
                 </div>
               ))}
             </div>
@@ -428,7 +484,7 @@ export const FamilyTree = ({
         )}
 
         {/* Connector line */}
-        {parents.length > 0 && (
+        {parents.filter(p => !p.relation_type.includes('_of_')).length > 0 && (
           <div className="flex justify-center">
             <div className="w-0.5 h-8 bg-muted-foreground/30"></div>
           </div>
@@ -448,16 +504,16 @@ export const FamilyTree = ({
         </div>
 
         {/* Connector line */}
-        {children.length > 0 && (
+        {children.filter(c => !c.relation_type.includes('_of_')).length > 0 && (
           <div className="flex justify-center">
             <div className="w-0.5 h-8 bg-muted-foreground/30"></div>
           </div>
         )}
 
-        {/* Children row */}
-        {children.length > 0 && (
+        {/* Children row - only non-dynamic children */}
+        {children.filter(c => !c.relation_type.includes('_of_')).length > 0 && (
           <div className="flex justify-center gap-10 flex-wrap px-4">
-            {children.map(child => renderMemberWithSpouses(child))}
+            {children.filter(c => !c.relation_type.includes('_of_')).map(child => renderMemberWithSpouses(child))}
           </div>
         )}
 
@@ -496,6 +552,28 @@ export const FamilyTree = ({
             setMemberCardOpen(false);
           }
         }}
+        onAddChild={() => {
+          if (selectedMember) {
+            handleAddChild(selectedMember);
+            setMemberCardOpen(false);
+          }
+        }}
+        onAddFather={() => {
+          if (selectedMember) {
+            handleAddFather(selectedMember);
+            setMemberCardOpen(false);
+          }
+        }}
+        onAddMother={() => {
+          if (selectedMember) {
+            handleAddMother(selectedMember);
+            setMemberCardOpen(false);
+          }
+        }}
+        spouseCount={selectedMember ? (countSpousesForMember ? countSpousesForMember(selectedMember.id) : 0) : 0}
+        childCount={selectedMember ? (countChildrenForMember ? countChildrenForMember(selectedMember.id) : 0) : 0}
+        fatherCount={selectedMember ? (countFathersForMember ? countFathersForMember(selectedMember.id) : 0) : 0}
+        motherCount={selectedMember ? (countMothersForMember ? countMothersForMember(selectedMember.id) : 0) : 0}
       />
 
       {/* Send invitation dialog */}
@@ -512,6 +590,33 @@ export const FamilyTree = ({
         targetMember={spouseTargetMember}
         isSecondSpouse={isSecondSpouse}
         onAddSpouse={handleSpouseAdded}
+      />
+
+      {/* Add child dialog */}
+      <AddFamilyMemberDialog
+        open={addChildDialogOpen}
+        onOpenChange={setAddChildDialogOpen}
+        title="Farzand qo'shish"
+        showGenderSelect={true}
+        onAdd={handleChildAdded}
+      />
+
+      {/* Add father dialog */}
+      <AddFamilyMemberDialog
+        open={addFatherDialogOpen}
+        onOpenChange={setAddFatherDialogOpen}
+        title="Ota qo'shish"
+        gender="male"
+        onAdd={handleFatherAdded}
+      />
+
+      {/* Add mother dialog */}
+      <AddFamilyMemberDialog
+        open={addMotherDialogOpen}
+        onOpenChange={setAddMotherDialogOpen}
+        title="Ona qo'shish"
+        gender="female"
+        onAdd={handleMotherAdded}
       />
     </div>
   );

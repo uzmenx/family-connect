@@ -3,16 +3,10 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
-import { FamilyMember } from '@/hooks/useFamilyTree';
+import { FamilyMember, FAMILY_LIMITS } from '@/hooks/useFamilyTree';
 import { cn } from '@/lib/utils';
-import { Send, Trash2, User, MessageCircle, Link as LinkIcon, Heart, MoreHorizontal, Plus } from 'lucide-react';
+import { Send, Trash2, User, MessageCircle, Link as LinkIcon, Heart, Plus, Baby, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 
 // Relation labels mapping
 const relationLabels: Record<string, string> = {
@@ -51,8 +45,13 @@ interface MemberCardDialogProps {
   onSendInvitation: () => void;
   onDelete: () => void;
   onAddSpouse?: (isSecondSpouse: boolean) => void;
-  hasFirstSpouse?: boolean;
-  hasSecondSpouse?: boolean;
+  onAddChild?: () => void;
+  onAddFather?: () => void;
+  onAddMother?: () => void;
+  spouseCount?: number;
+  childCount?: number;
+  fatherCount?: number;
+  motherCount?: number;
 }
 
 export const MemberCardDialog = ({
@@ -63,8 +62,13 @@ export const MemberCardDialog = ({
   onSendInvitation,
   onDelete,
   onAddSpouse,
-  hasFirstSpouse = false,
-  hasSecondSpouse = false,
+  onAddChild,
+  onAddFather,
+  onAddMother,
+  spouseCount = 0,
+  childCount = 0,
+  fatherCount = 0,
+  motherCount = 0,
 }: MemberCardDialogProps) => {
   const navigate = useNavigate();
 
@@ -84,11 +88,19 @@ export const MemberCardDialog = ({
   const displayName = member.linked_profile?.name || member.member_name;
   const displayAvatar = member.linked_profile?.avatar_url || member.avatar_url;
   const isLinked = !!member.linked_user_id;
-  const isSpouseRelation = member.relation_type.includes('spouse_of_');
+  const isSpouseRelation = member.relation_type.includes('spouse_of_') || member.relation_type.includes('spouse_2_of_');
+  const isChildRelation = member.relation_type.includes('child_of_');
+  const isParentRelation = member.relation_type.includes('father_of_') || member.relation_type.includes('mother_of_');
 
   // Spouse gender is opposite of member's gender
   const spouseGender: 'male' | 'female' = memberGender === 'male' ? 'female' : 'male';
   const spouseButtonColor = spouseGender === 'male' ? 'bg-sky-500 hover:bg-sky-600' : 'bg-pink-500 hover:bg-pink-600';
+
+  // Check if can add more
+  const canAddSpouse = spouseCount < FAMILY_LIMITS.MAX_SPOUSES;
+  const canAddChild = childCount < FAMILY_LIMITS.MAX_CHILDREN && spouseCount > 0;
+  const canAddFather = fatherCount < FAMILY_LIMITS.MAX_FATHERS;
+  const canAddMother = motherCount < FAMILY_LIMITS.MAX_MOTHERS;
 
   const handleViewProfile = () => {
     if (member.linked_user_id) {
@@ -102,6 +114,18 @@ export const MemberCardDialog = ({
       navigate(`/chat/${member.linked_user_id}`);
       onOpenChange(false);
     }
+  };
+
+  // Get display label for relation type
+  const getRelationLabel = (relationType: string) => {
+    if (relationType.includes('spouse_of_')) return "Turmush o'rtog'i";
+    if (relationType.includes('spouse_2_of_')) return "Ikkinchi juft";
+    if (relationType.includes('child_of_')) return "Farzand";
+    if (relationType.includes('father_of_')) return "Ota";
+    if (relationType.includes('father_2_of_')) return "Ikkinchi ota";
+    if (relationType.includes('mother_of_')) return "Ona";
+    if (relationType.includes('mother_2_of_')) return "Ikkinchi ona";
+    return relationLabels[relationType] || relationType;
   };
 
   return (
@@ -129,7 +153,7 @@ export const MemberCardDialog = ({
           <div className="text-center mt-3">
             <h3 className="text-xl font-bold">{displayName}</h3>
             <Badge variant="secondary" className="mt-1">
-              {relationLabels[member.relation_type] || member.relation_type}
+              {getRelationLabel(member.relation_type)}
             </Badge>
             {member.linked_profile?.username && (
               <p className="text-sm text-muted-foreground mt-1">
@@ -154,30 +178,76 @@ export const MemberCardDialog = ({
 
           {/* Action buttons */}
           <div className="w-full space-y-2 mt-6">
-            {/* Add spouse button - show if not a spouse relation */}
-            {isOwner && onAddSpouse && !isSpouseRelation && (
-              <>
-                {!hasFirstSpouse && (
-                  <Button
-                    className={cn("w-full text-white", spouseButtonColor)}
-                    onClick={() => onAddSpouse(false)}
-                  >
-                    <Heart className="h-4 w-4 mr-2" />
-                    Juft qo'shish
-                  </Button>
-                )}
-                
-                {hasFirstSpouse && !hasSecondSpouse && (
+            {/* Family action buttons - show for all members except spouse/child relations */}
+            {isOwner && !isSpouseRelation && !isChildRelation && !isParentRelation && (
+              <div className="grid grid-cols-4 gap-2 mb-4">
+                {/* Add Father button */}
+                {canAddFather && onAddFather && (
                   <Button
                     variant="outline"
-                    className="w-full"
-                    onClick={() => onAddSpouse(true)}
+                    size="sm"
+                    className="flex flex-col h-auto py-2 bg-sky-500/10 hover:bg-sky-500/20 border-sky-500/30"
+                    onClick={() => {
+                      onAddFather();
+                      onOpenChange(false);
+                    }}
                   >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Ikkinchi juft qo'shish
+                    <Plus className="h-4 w-4 text-sky-500" />
+                    <span className="text-[10px] mt-1 text-sky-500">OTA</span>
                   </Button>
                 )}
-              </>
+
+                {/* Add Mother button */}
+                {canAddMother && onAddMother && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex flex-col h-auto py-2 bg-pink-500/10 hover:bg-pink-500/20 border-pink-500/30"
+                    onClick={() => {
+                      onAddMother();
+                      onOpenChange(false);
+                    }}
+                  >
+                    <Plus className="h-4 w-4 text-pink-500" />
+                    <span className="text-[10px] mt-1 text-pink-500">ONA</span>
+                  </Button>
+                )}
+
+                {/* Add Spouse button */}
+                {canAddSpouse && onAddSpouse && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      "flex flex-col h-auto py-2 border-red-500/30",
+                      "bg-red-500/10 hover:bg-red-500/20"
+                    )}
+                    onClick={() => {
+                      onAddSpouse(spouseCount > 0);
+                      onOpenChange(false);
+                    }}
+                  >
+                    <Heart className="h-4 w-4 text-red-500" />
+                    <span className="text-[10px] mt-1 text-red-500">JUFT</span>
+                  </Button>
+                )}
+
+                {/* Add Child button - only if has spouse */}
+                {canAddChild && onAddChild && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex flex-col h-auto py-2 bg-emerald-500/10 hover:bg-emerald-500/20 border-emerald-500/30"
+                    onClick={() => {
+                      onAddChild();
+                      onOpenChange(false);
+                    }}
+                  >
+                    <Baby className="h-4 w-4 text-emerald-500" />
+                    <span className="text-[10px] mt-1 text-emerald-500">FARZAND</span>
+                  </Button>
+                )}
+              </div>
             )}
 
             {isLinked ? (
