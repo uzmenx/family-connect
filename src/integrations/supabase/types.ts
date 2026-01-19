@@ -189,6 +189,21 @@ export type Database = {
           },
         ]
       }
+      family_networks: {
+        Row: {
+          created_at: string
+          id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+        }
+        Relationships: []
+      }
       family_tree_members: {
         Row: {
           avatar_url: string | null
@@ -509,6 +524,7 @@ export type Database = {
           bio: string | null
           created_at: string
           email: string | null
+          family_network_id: string | null
           gender: string | null
           id: string
           name: string | null
@@ -520,6 +536,7 @@ export type Database = {
           bio?: string | null
           created_at?: string
           email?: string | null
+          family_network_id?: string | null
           gender?: string | null
           id: string
           name?: string | null
@@ -531,13 +548,22 @@ export type Database = {
           bio?: string | null
           created_at?: string
           email?: string | null
+          family_network_id?: string | null
           gender?: string | null
           id?: string
           name?: string | null
           updated_at?: string
           username?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_family_network_id_fkey"
+            columns: ["family_network_id"]
+            isOneToOne: false
+            referencedRelation: "family_networks"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       stories: {
         Row: {
