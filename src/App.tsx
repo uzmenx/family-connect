@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { PushNotification } from "@/components/notifications/PushNotification";
 import { useEffect } from "react";
 
 import Home from "./pages/Home";
@@ -77,6 +78,7 @@ const App = () => (
     <TooltipProvider>
       <ThemeInitializer>
         <AuthProvider>
+          <PushNotification />
           <Toaster />
           <Sonner />
           <BrowserRouter>
