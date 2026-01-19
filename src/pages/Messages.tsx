@@ -1,19 +1,21 @@
 import { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { useConversations } from '@/hooks/useConversations';
 import { useGroupChats } from '@/hooks/useGroupChats';
+import { useNotifications } from '@/hooks/useNotifications';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Search, MessageCircle, Users, Megaphone } from 'lucide-react';
+import { ArrowLeft, Search, MessageCircle, Users, Megaphone, Bell } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDistanceToNow } from 'date-fns';
 import { uz } from 'date-fns/locale';
 import { toast } from 'sonner';
+import { NotificationsTab } from '@/components/notifications/NotificationsTab';
 
 // Group components
 import { NewChatMenu } from '@/components/groups/NewChatMenu';
@@ -29,7 +31,7 @@ interface FollowUser {
   avatar_url: string | null;
 }
 
-type TabValue = 'all' | 'groups' | 'channels' | 'followers' | 'following';
+type TabValue = 'all' | 'groups' | 'channels' | 'followers' | 'following' | 'notifications';
 
 interface PendingGroupData {
   name: string;
@@ -40,11 +42,15 @@ interface PendingGroupData {
 
 const Messages = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const { user } = useAuth();
   const { conversations, isLoading: convLoading, totalUnread } = useConversations();
   const { groups, channels, isLoading: groupsLoading, createGroupChat, refetch: refetchGroups } = useGroupChats();
+  const { unreadCount: notifUnreadCount } = useNotifications();
   
-  const [activeTab, setActiveTab] = useState<TabValue>('all');
+  // Check if tab param is set to notifications
+  const initialTab = searchParams.get('tab') === 'notifications' ? 'notifications' : 'all';
+  const [activeTab, setActiveTab] = useState<TabValue>(initialTab);
   const [followers, setFollowers] = useState<FollowUser[]>([]);
   const [following, setFollowing] = useState<FollowUser[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
@@ -309,6 +315,23 @@ const Messages = () => {
               >
                 Kuzatilmoqda
               </Button>
+              <Button
+                variant={activeTab === 'notifications' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setActiveTab('notifications')}
+                className="flex-1 relative"
+              >
+                <Bell className="h-4 w-4 mr-1" />
+                Bildirishnomalar
+                {notifUnreadCount > 0 && (
+                  <Badge 
+                    variant="destructive" 
+                    className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-[10px] min-w-4"
+                  >
+                    {notifUnreadCount > 9 ? '9+' : notifUnreadCount}
+                  </Badge>
+                )}
+              </Button>
             </div>
           </div>
         </div>
@@ -517,6 +540,11 @@ const Messages = () => {
                 ))
               )}
             </>
+          )}
+
+          {/* Notifications */}
+          {activeTab === 'notifications' && (
+            <NotificationsTab />
           )}
         </div>
       </div>

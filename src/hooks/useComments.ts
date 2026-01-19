@@ -157,6 +157,23 @@ export const useComments = (postId: string) => {
 
       if (error) throw error;
 
+      // Get post owner and create notification
+      const { data: post } = await supabase
+        .from('posts')
+        .select('user_id')
+        .eq('id', postId)
+        .single();
+
+      if (post && post.user_id !== userId) {
+        await supabase.from('notifications').insert({
+          user_id: post.user_id,
+          actor_id: userId,
+          type: 'comment',
+          post_id: postId,
+          comment_id: data.id,
+        });
+      }
+
       // Replace temp comment with real one
       const realComment: Comment = {
         ...data,

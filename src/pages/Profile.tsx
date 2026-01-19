@@ -5,10 +5,10 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Settings, Edit, Grid3X3, Bookmark, MessageCircle } from 'lucide-react';
+import { Settings, Edit, Grid3X3, Bookmark, Bell } from 'lucide-react';
 import { useUserPosts } from '@/hooks/useUserPosts';
 import { useFollow } from '@/hooks/useFollow';
-import { useConversations } from '@/hooks/useConversations';
+import { useNotifications } from '@/hooks/useNotifications';
 import { PostCard } from '@/components/feed/PostCard';
 import { FullScreenViewer } from '@/components/feed/FullScreenViewer';
 import { PullToRefresh } from '@/components/feed/PullToRefresh';
@@ -22,7 +22,7 @@ const Profile = () => {
   const navigate = useNavigate();
   const { posts, isLoading, postsCount, refetch, removePost } = useUserPosts(user?.id);
   const { followersCount, followingCount } = useFollow(user?.id);
-  const { totalUnread } = useConversations();
+  const { unreadCount } = useNotifications();
   const [activeTab, setActiveTab] = useState<'posts' | 'saved'>('posts');
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
@@ -65,16 +65,16 @@ const Profile = () => {
               <Button 
                 variant="outline" 
                 size="icon"
-                onClick={() => navigate('/messages')}
+                onClick={() => navigate('/messages?tab=notifications')}
                 className="relative"
               >
-                <MessageCircle className="h-4 w-4" />
-                {totalUnread > 0 && (
+                <Bell className="h-4 w-4" />
+                {unreadCount > 0 && (
                   <Badge 
                     variant="destructive" 
                     className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs"
                   >
-                    {totalUnread > 9 ? '9+' : totalUnread}
+                    {unreadCount > 9 ? '9+' : unreadCount}
                   </Badge>
                 )}
               </Button>

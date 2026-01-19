@@ -1,10 +1,13 @@
-import { useState, useEffect } from 'react';
+import { useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Bell, Users } from 'lucide-react';
 import { useFamilyTree } from '@/hooks/useFamilyTree';
 import { useAuth } from '@/contexts/AuthContext';
 import { InvitationCard } from '@/components/family/InvitationCard';
+import { NotificationsTab } from '@/components/notifications/NotificationsTab';
+import { useState } from 'react';
 
 const Notifications = () => {
   const { user } = useAuth();
@@ -26,8 +29,6 @@ const Notifications = () => {
     setLoadingInvitation(null);
   };
 
-  const hasNotifications = receivedInvitations.length > 0;
-
   return (
     <AppLayout>
       <div className="max-w-lg mx-auto">
@@ -35,10 +36,10 @@ const Notifications = () => {
           <h1 className="text-xl font-bold">Bildirishnomalar</h1>
         </header>
         
-        <div className="p-4 space-y-4">
+        <div className="space-y-0">
           {/* Family invitations section */}
           {receivedInvitations.length > 0 && (
-            <div>
+            <div className="p-4 border-b border-border">
               <div className="flex items-center gap-2 mb-3">
                 <Users className="h-5 w-5 text-primary" />
                 <h2 className="font-semibold">Oila daraxti taklifnomalari</h2>
@@ -57,15 +58,8 @@ const Notifications = () => {
             </div>
           )}
 
-          {/* Empty state */}
-          {!hasNotifications && (
-            <Card>
-              <CardContent className="flex flex-col items-center justify-center py-12">
-                <Bell className="h-12 w-12 text-muted-foreground mb-4" />
-                <p className="text-muted-foreground">Hozircha bildirishnomalar yo'q</p>
-              </CardContent>
-            </Card>
-          )}
+          {/* General notifications */}
+          <NotificationsTab />
         </div>
       </div>
     </AppLayout>
