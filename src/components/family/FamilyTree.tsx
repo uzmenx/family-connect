@@ -272,7 +272,25 @@ export const FamilyTree = ({
     setTargetMemberForAction(null);
   };
 
-  // Render heart connector between couple - with ref for line connections
+  // Render half-heart SVG icon (left or right half)
+  const HalfHeartIcon = ({ side }: { side: 'left' | 'right' }) => (
+    <svg 
+      width="10" 
+      height="16" 
+      viewBox="0 0 10 16"
+      className="fill-red-500"
+    >
+      {side === 'left' ? (
+        // Left half of heart
+        <path d="M10 4.5C10 2 8 0 5.5 0C3.5 0 2 1.2 0.5 3L0 16C3 13 10 8 10 4.5Z" />
+      ) : (
+        // Right half of heart
+        <path d="M0 4.5C0 2 2 0 4.5 0C6.5 0 8 1.2 9.5 3L10 16C7 13 0 8 0 4.5Z" />
+      )}
+    </svg>
+  );
+
+  // Render full heart connector between couple - with ref for line connections
   const renderHeartConnector = (memberId: string) => (
     <div 
       className="flex items-center justify-center mx-1"
@@ -298,20 +316,42 @@ export const FamilyTree = ({
     const hasSpouse = firstSpouse || secondSpouse;
 
     return (
-      <div key={member.id} className="flex flex-col items-center gap-6">
-        {/* Parents row (fathers and mothers) */}
+      <div key={member.id} className="flex flex-col items-center gap-4">
+        {/* Parents row ABOVE member (fathers and mothers) */}
         {(memberFathers.length > 0 || memberMothers.length > 0) && (
-          <div className="flex gap-8 flex-wrap justify-center mb-2">
-            {memberFathers.map(father => (
-              <div key={father.id} ref={(el) => setMemberRef(father.id, el)}>
-                {renderSingleMember(father, showLabel, 0, 0, 0, 0)}
+          <div className="flex flex-col items-center gap-2">
+            <div className="flex items-center gap-0 justify-center">
+              {/* Fathers on left */}
+              {memberFathers.map((father) => (
+                <div key={father.id} className="flex items-center" ref={(el) => setMemberRef(father.id, el)}>
+                  {renderSingleMember(father, showLabel, 0, 0, 0, 0)}
+                </div>
+              ))}
+              
+              {/* Heart connector between parents */}
+              <div 
+                className="flex items-center justify-center mx-1"
+                ref={(el) => setHeartRef(`parents-of-${member.id}`, el)}
+              >
+                {memberFathers.length > 0 && memberMothers.length > 0 ? (
+                  // Full heart when both parents exist
+                  <Heart className="h-5 w-5 text-red-500 fill-red-500" />
+                ) : memberFathers.length > 0 ? (
+                  // Left half heart (father only)
+                  <HalfHeartIcon side="left" />
+                ) : (
+                  // Right half heart (mother only)
+                  <HalfHeartIcon side="right" />
+                )}
               </div>
-            ))}
-            {memberMothers.map(mother => (
-              <div key={mother.id} ref={(el) => setMemberRef(mother.id, el)}>
-                {renderSingleMember(mother, showLabel, 0, 0, 0, 0)}
-              </div>
-            ))}
+              
+              {/* Mothers on right */}
+              {memberMothers.map((mother) => (
+                <div key={mother.id} className="flex items-center" ref={(el) => setMemberRef(mother.id, el)}>
+                  {renderSingleMember(mother, showLabel, 0, 0, 0, 0)}
+                </div>
+              ))}
+            </div>
           </div>
         )}
 
