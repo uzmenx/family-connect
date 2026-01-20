@@ -136,7 +136,8 @@ const handler = async (req: Request): Promise<Response> => {
 
     // Get Eskiz token and send SMS
     const token = await getEskizToken();
-    await sendSMS(cleanPhone, `Oilaviy tasdiqlash kodi: ${otp}`, token);
+    // Eskiz test mode only allows specific messages, append OTP to allowed text
+    await sendSMS(cleanPhone, `Bu Eskiz dan test. Kod: ${otp}`, token);
 
     console.log(`OTP sent to ${cleanPhone}`);
 
