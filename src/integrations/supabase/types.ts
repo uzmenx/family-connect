@@ -456,6 +456,33 @@ export type Database = {
         }
         Relationships: []
       }
+      phone_otp_codes: {
+        Row: {
+          created_at: string
+          expires_at: string
+          id: string
+          otp_hash: string
+          phone_number: string
+          verified: boolean
+        }
+        Insert: {
+          created_at?: string
+          expires_at: string
+          id?: string
+          otp_hash: string
+          phone_number: string
+          verified?: boolean
+        }
+        Update: {
+          created_at?: string
+          expires_at?: string
+          id?: string
+          otp_hash?: string
+          phone_number?: string
+          verified?: boolean
+        }
+        Relationships: []
+      }
       post_likes: {
         Row: {
           created_at: string
