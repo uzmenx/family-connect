@@ -14,3 +14,9 @@ verify_jwt = false
 
 [functions.calculate-family-lines]
 verify_jwt = false
+
+[functions.send-phone-otp]
+verify_jwt = false
+
+[functions.verify-phone-otp]
+verify_jwt = false

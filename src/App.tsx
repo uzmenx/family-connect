@@ -11,6 +11,7 @@ import Home from "./pages/Home";
 import AuthLogin from "./pages/AuthLogin";
 import Signup from "./pages/Signup";
 import VerifyOtp from "./pages/VerifyOtp";
+import PhoneAuth from "./pages/PhoneAuth";
 import Profile from "./pages/Profile";
 import EditProfile from "./pages/EditProfile";
 import Settings from "./pages/Settings";
@@ -83,9 +84,10 @@ const App = () => (
           <BrowserRouter>
             <PushNotification />
             <Routes>
-              <Route path="/auth" element={<PublicRoute><AuthLogin /></PublicRoute>} />
+<Route path="/auth" element={<PublicRoute><AuthLogin /></PublicRoute>} />
               <Route path="/signup" element={<PublicRoute><Signup /></PublicRoute>} />
               <Route path="/verify-otp" element={<PublicRoute><VerifyOtp /></PublicRoute>} />
+              <Route path="/phone-auth" element={<PublicRoute><PhoneAuth /></PublicRoute>} />
               <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
               <Route path="/edit-profile" element={<ProtectedRoute><EditProfile /></ProtectedRoute>} />
