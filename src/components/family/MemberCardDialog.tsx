@@ -69,7 +69,8 @@ export const MemberCardDialog = ({
   childCount = 0,
   fatherCount = 0,
   motherCount = 0,
-}: MemberCardDialogProps) => {
+  members = [],
+}: MemberCardDialogProps & { members?: FamilyMember[] }) => {
   const navigate = useNavigate();
 
   if (!member) return null;
@@ -116,15 +117,52 @@ export const MemberCardDialog = ({
     }
   };
 
-  // Get display label for relation type
+  // Get display label for relation type - includes parent member name for context
   const getRelationLabel = (relationType: string) => {
-    if (relationType.includes('spouse_of_')) return "Turmush o'rtog'i";
-    if (relationType.includes('spouse_2_of_')) return "Ikkinchi juft";
-    if (relationType.includes('child_of_')) return "Farzand";
-    if (relationType.includes('father_of_')) return "Ota";
-    if (relationType.includes('father_2_of_')) return "Ikkinchi ota";
-    if (relationType.includes('mother_of_')) return "Ona";
-    if (relationType.includes('mother_2_of_')) return "Ikkinchi ona";
+    // Find parent member name for contextual label
+    const extractParentId = (type: string): string | null => {
+      const patterns = [
+        /spouse_of_(.+)$/,
+        /spouse_2_of_(.+)$/,
+        /child_of_(.+?)_\d+$/,
+        /child_of_(.+)$/,
+        /father_of_(.+)$/,
+        /father_2_of_(.+)$/,
+        /mother_of_(.+)$/,
+        /mother_2_of_(.+)$/,
+      ];
+      for (const pattern of patterns) {
+        const match = type.match(pattern);
+        if (match) return match[1];
+      }
+      return null;
+    };
+
+    const parentId = extractParentId(relationType);
+    const parentMember = parentId ? members.find(m => m.id === parentId) : null;
+    const parentName = parentMember?.member_name || parentMember?.linked_profile?.name;
+
+    if (relationType.includes('spouse_2_of_')) {
+      return parentName ? `${parentName}ning 2-jufti` : "Ikkinchi juft";
+    }
+    if (relationType.includes('spouse_of_')) {
+      return parentName ? `${parentName}ning jufti` : "Turmush o'rtog'i";
+    }
+    if (relationType.includes('child_of_')) {
+      return parentName ? `${parentName}ning farzandi` : "Farzand";
+    }
+    if (relationType.includes('father_2_of_')) {
+      return parentName ? `${parentName}ning 2-otasi` : "Ikkinchi ota";
+    }
+    if (relationType.includes('father_of_')) {
+      return parentName ? `${parentName}ning otasi` : "Ota";
+    }
+    if (relationType.includes('mother_2_of_')) {
+      return parentName ? `${parentName}ning 2-onasi` : "Ikkinchi ona";
+    }
+    if (relationType.includes('mother_of_')) {
+      return parentName ? `${parentName}ning onasi` : "Ona";
+    }
     return relationLabels[relationType] || relationType;
   };
 
