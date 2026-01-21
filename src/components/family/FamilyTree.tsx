@@ -343,11 +343,11 @@ export const FamilyTree = ({
     const hasSpouse = firstSpouse || secondSpouse;
 
     return (
-      <div key={member.id} className="flex flex-col items-center gap-4">
+      <div key={member.id} className="flex flex-col items-center gap-8">
         {/* Parents row ABOVE member (fathers and mothers) */}
         {(memberFathers.length > 0 || memberMothers.length > 0) && (
-          <div className="flex flex-col items-center gap-2">
-            <div className="flex items-center gap-0 justify-center">
+          <div className="flex flex-col items-center gap-4">
+            <div className="flex items-center gap-6 justify-center">
               {/* Fathers on left */}
               {memberFathers.map((father) => (
                 <div key={father.id} className="flex items-center" ref={(el) => setMemberRef(father.id, el)}>
@@ -357,12 +357,12 @@ export const FamilyTree = ({
               
               {/* Heart connector between parents */}
               <div 
-                className="flex items-center justify-center mx-1"
+                className="flex items-center justify-center mx-3"
                 ref={(el) => setHeartRef(`parents-of-${member.id}`, el)}
               >
                 {memberFathers.length > 0 && memberMothers.length > 0 ? (
                   // Full heart when both parents exist
-                  <Heart className="h-5 w-5 text-red-500 fill-red-500" />
+                  <Heart className="h-6 w-6 text-red-500 fill-red-500" />
                 ) : memberFathers.length > 0 ? (
                   // Left half heart (father only)
                   <HalfHeartIcon side="left" />
@@ -383,7 +383,7 @@ export const FamilyTree = ({
         )}
 
         {/* Main member with spouses */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-6">
           {/* Second spouse on left */}
           {secondSpouse && (
             <>
@@ -412,8 +412,8 @@ export const FamilyTree = ({
 
         {/* Children of this member */}
         {memberChildren.length > 0 && (
-          <div className="flex flex-col items-center gap-4">
-            <div className="flex gap-8 flex-wrap justify-center">
+          <div className="flex flex-col items-center gap-8">
+            <div className="flex gap-16 flex-wrap justify-center">
               {memberChildren.map(child => (
                 <div key={child.id} ref={(el) => setMemberRef(child.id, el)}>
                   {renderMemberWithSpouses(child, true)}
@@ -443,15 +443,52 @@ export const FamilyTree = ({
     const isChildRelation = member.relation_type.includes('child_of_');
     const isParentRelation = member.relation_type.includes('father_of_') || member.relation_type.includes('mother_of_');
 
-    // Get display label for relation type
+    // Get display label for relation type - includes parent member name for context
     const getRelationLabel = (relationType: string) => {
-      if (relationType.includes('spouse_of_')) return "Juft";
-      if (relationType.includes('spouse_2_of_')) return "2-juft";
-      if (relationType.includes('child_of_')) return "Farzand";
-      if (relationType.includes('father_of_')) return "Ota";
-      if (relationType.includes('father_2_of_')) return "2-ota";
-      if (relationType.includes('mother_of_')) return "Ona";
-      if (relationType.includes('mother_2_of_')) return "2-ona";
+      // Find parent member name for contextual label
+      const extractParentId = (type: string): string | null => {
+        const patterns = [
+          /spouse_of_(.+)$/,
+          /spouse_2_of_(.+)$/,
+          /child_of_(.+?)_\d+$/,
+          /child_of_(.+)$/,
+          /father_of_(.+)$/,
+          /father_2_of_(.+)$/,
+          /mother_of_(.+)$/,
+          /mother_2_of_(.+)$/,
+        ];
+        for (const pattern of patterns) {
+          const match = type.match(pattern);
+          if (match) return match[1];
+        }
+        return null;
+      };
+
+      const parentId = extractParentId(relationType);
+      const parentMember = parentId ? members.find(m => m.id === parentId) : null;
+      const parentName = parentMember?.member_name || parentMember?.linked_profile?.name;
+
+      if (relationType.includes('spouse_2_of_')) {
+        return parentName ? `${parentName}ning 2-jufti` : "2-juft";
+      }
+      if (relationType.includes('spouse_of_')) {
+        return parentName ? `${parentName}ning jufti` : "Juft";
+      }
+      if (relationType.includes('child_of_')) {
+        return parentName ? `${parentName}ning farzandi` : "Farzand";
+      }
+      if (relationType.includes('father_2_of_')) {
+        return parentName ? `${parentName}ning 2-otasi` : "2-ota";
+      }
+      if (relationType.includes('father_of_')) {
+        return parentName ? `${parentName}ning otasi` : "Ota";
+      }
+      if (relationType.includes('mother_2_of_')) {
+        return parentName ? `${parentName}ning 2-onasi` : "2-ona";
+      }
+      if (relationType.includes('mother_of_')) {
+        return parentName ? `${parentName}ning onasi` : "Ona";
+      }
       return relationLabels[relationType] || relationType;
     };
     
@@ -463,23 +500,23 @@ export const FamilyTree = ({
           onClick={() => handleMemberClick(member)}
           className="flex flex-col items-center gap-1"
         >
-          <div className={cn("rounded-full p-0.5 relative", colors.ring, "ring-2")}>
-            <Avatar className={cn("h-14 w-14 border-2", colors.border)}>
+          <div className={cn("rounded-full p-1 relative", colors.ring, "ring-3")}>
+            <Avatar className={cn("h-20 w-20 border-2", colors.border)}>
               <AvatarImage src={displayAvatar || undefined} />
-              <AvatarFallback className={cn(colors.bg, "text-white text-lg")}>
+              <AvatarFallback className={cn(colors.bg, "text-white text-2xl")}>
                 {displayName.charAt(0).toUpperCase()}
               </AvatarFallback>
             </Avatar>
             {isPlaceholder && (
-              <div className="absolute -top-1 -right-1 h-5 w-5 rounded-full bg-amber-500 flex items-center justify-center">
-                <HelpCircle className="h-3 w-3 text-white" />
+              <div className="absolute -top-1 -right-1 h-6 w-6 rounded-full bg-amber-500 flex items-center justify-center">
+                <HelpCircle className="h-4 w-4 text-white" />
               </div>
             )}
           </div>
-          <div className="text-center max-w-[80px]">
-            <p className="font-medium text-xs text-foreground truncate">{displayName}</p>
+          <div className="text-center max-w-[120px]">
+            <p className="font-semibold text-sm text-foreground truncate">{displayName}</p>
             {showLabel && isOwner && (
-              <p className="text-[10px] text-muted-foreground">
+              <p className="text-xs text-muted-foreground truncate">
                 {getRelationLabel(member.relation_type)}
               </p>
             )}
@@ -498,7 +535,7 @@ export const FamilyTree = ({
     const spouseGender: 'male' | 'female' = userGender === 'male' ? 'female' : 'male';
     
     return (
-      <div className="flex items-center gap-1">
+      <div className="flex items-center gap-6">
         {/* Second spouse on left */}
         {secondSpouse && (
           <>
@@ -510,18 +547,18 @@ export const FamilyTree = ({
         )}
 
         {/* Current user */}
-        <div className="flex flex-col items-center gap-2">
-          <div className={cn("rounded-full p-1", colors.ring, "ring-4")}>
-            <Avatar className={cn("h-16 w-16 border-2", colors.border)}>
+        <div className="flex flex-col items-center gap-3">
+          <div className={cn("rounded-full p-1.5", colors.ring, "ring-4")}>
+            <Avatar className={cn("h-24 w-24 border-3", colors.border)}>
               <AvatarImage src={currentUser?.avatar_url} />
-              <AvatarFallback className={cn(colors.bg, "text-white text-xl")}>
-                {currentUser?.full_name ? currentUser.full_name.charAt(0).toUpperCase() : <UserIcon className="h-8 w-8" />}
+              <AvatarFallback className={cn(colors.bg, "text-white text-2xl")}>
+                {currentUser?.full_name ? currentUser.full_name.charAt(0).toUpperCase() : <UserIcon className="h-10 w-10" />}
               </AvatarFallback>
             </Avatar>
           </div>
           <div className="text-center">
-            <p className="font-bold text-sm text-foreground">{currentUser?.full_name || 'Siz'}</p>
-            <p className="text-[10px] text-muted-foreground">Siz</p>
+            <p className="font-bold text-base text-foreground">{currentUser?.full_name || 'Siz'}</p>
+            <p className="text-xs text-muted-foreground">Siz</p>
           </div>
 
           {/* Add spouse button for current user */}
@@ -529,13 +566,13 @@ export const FamilyTree = ({
             <button
               onClick={onAddRelative}
               className={cn(
-                "w-6 h-6 rounded-full flex items-center justify-center transition-all",
+                "w-8 h-8 rounded-full flex items-center justify-center transition-all",
                 spouseGender === 'male' ? 'bg-sky-500 hover:bg-sky-600' : 'bg-pink-500 hover:bg-pink-600',
                 "text-white shadow-sm"
               )}
               title="Juft qo'shish"
             >
-              <Plus className="h-3 w-3" />
+              <Plus className="h-4 w-4" />
             </button>
           )}
           
@@ -544,9 +581,9 @@ export const FamilyTree = ({
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <button
-                  className="w-6 h-6 rounded-full bg-muted hover:bg-muted/80 flex items-center justify-center transition-all text-muted-foreground"
+                  className="w-8 h-8 rounded-full bg-muted hover:bg-muted/80 flex items-center justify-center transition-all text-muted-foreground"
                 >
-                  <MoreHorizontal className="h-3 w-3" />
+                  <MoreHorizontal className="h-4 w-4" />
                 </button>
               </DropdownMenuTrigger>
               <DropdownMenuContent align="center">
@@ -633,10 +670,10 @@ export const FamilyTree = ({
         </span>
       </div>
 
-      {/* Zoomable/Pannable container */}
+      {/* Zoomable/Pannable container - no width constraints for horizontal spread */}
       <div
         ref={zoomContainerRef}
-        className="w-full min-h-[80vh] flex flex-col items-center py-8 origin-center transition-transform duration-75 ease-out"
+        className="min-w-max min-h-[80vh] flex flex-col items-center py-12 origin-center transition-transform duration-75 ease-out"
         style={{
           transform: `translate(${translateX}px, ${translateY}px) scale(${scale})`,
           willChange: 'transform',
@@ -654,14 +691,14 @@ export const FamilyTree = ({
           className="absolute inset-0 opacity-20 pointer-events-none"
           style={{
             backgroundImage: 'radial-gradient(circle, currentColor 1px, transparent 1px)',
-            backgroundSize: '20px 20px',
+            backgroundSize: '24px 24px',
           }}
         />
 
-        <div className="relative z-10 w-full space-y-12">
+        <div className="relative z-10 min-w-max space-y-16 px-16">
           {/* Grandparents row */}
           {grandparents.length > 0 && (
-            <div className="flex justify-center gap-12 flex-wrap px-4">
+            <div className="flex justify-center gap-20">
               {grandparents.map(member => (
                 <div key={member.id} ref={(el) => setMemberRef(member.id, el)}>
                   {renderMemberWithSpouses(member)}
@@ -672,9 +709,9 @@ export const FamilyTree = ({
 
           {/* Parents row - only non-dynamic parents */}
           {parents.filter(p => !p.relation_type.includes('_of_')).length > 0 && (
-            <div className="flex justify-center gap-12 flex-wrap px-4">
+            <div className="flex justify-center gap-20">
               {/* Group father and mother together as a couple */}
-              <div className="flex items-center gap-1">
+              <div className="flex items-center gap-6">
                 {parents.filter(p => !p.relation_type.includes('_of_')).map((parent, index) => (
                   <div key={parent.id} className="flex items-center" ref={(el) => setMemberRef(parent.id, el)}>
                     {renderSingleMember(parent, true, 0, 0, 0, 0)}
@@ -686,10 +723,10 @@ export const FamilyTree = ({
           )}
 
           {/* Current user + spouse + siblings row */}
-          <div className="flex items-start justify-center gap-10 flex-wrap px-4">
+          <div className="flex items-start justify-center gap-20">
             {/* Siblings on left */}
             {siblings.length > 0 && (
-              <div className="flex gap-8 items-start">
+              <div className="flex gap-16 items-start">
                 {siblings.map(sibling => (
                   <div key={sibling.id} ref={(el) => setMemberRef(sibling.id, el)}>
                     {renderMemberWithSpouses(sibling)}
@@ -704,7 +741,7 @@ export const FamilyTree = ({
 
           {/* Children row - only non-dynamic children */}
           {children.filter(c => !c.relation_type.includes('_of_')).length > 0 && (
-            <div className="flex justify-center gap-10 flex-wrap px-4">
+            <div className="flex justify-center gap-20">
               {children.filter(c => !c.relation_type.includes('_of_')).map(child => (
                 <div key={child.id} ref={(el) => setMemberRef(child.id, el)}>
                   {renderMemberWithSpouses(child)}
@@ -715,7 +752,7 @@ export const FamilyTree = ({
 
           {/* Other relatives - displayed in open space without separator */}
           {others.length > 0 && (
-            <div className="flex justify-center gap-10 flex-wrap px-4 mt-12">
+            <div className="flex justify-center gap-20 mt-16">
               {others.map(other => (
                 <div key={other.id} ref={(el) => setMemberRef(other.id, el)}>
                   {renderMemberWithSpouses(other)}
@@ -772,6 +809,7 @@ export const FamilyTree = ({
         childCount={selectedMember ? (countChildrenForMember ? countChildrenForMember(selectedMember.id) : 0) : 0}
         fatherCount={selectedMember ? (countFathersForMember ? countFathersForMember(selectedMember.id) : 0) : 0}
         motherCount={selectedMember ? (countMothersForMember ? countMothersForMember(selectedMember.id) : 0) : 0}
+        members={members}
       />
 
       {/* Send invitation dialog */}
