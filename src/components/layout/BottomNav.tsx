@@ -26,7 +26,7 @@ export const BottomNav = () => {
 
   return (
     <nav className="fixed bottom-4 left-4 right-4 z-50">
-      <div className="flex justify-around items-center h-16 max-w-lg mx-auto rounded-2xl bg-background/60 backdrop-blur-xl border border-border/30 shadow-lg">
+      <div className="flex justify-around items-center h-16 max-w-lg mx-auto rounded-2xl bg-background/10 backdrop-blur-xl border border-border/20 shadow-lg">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;
           const badgeCount = getBadgeCount(item.badgeType);
@@ -37,11 +37,14 @@ export const BottomNav = () => {
               className={cn(
                 "flex flex-col items-center gap-1 p-2 rounded-xl transition-all duration-200 relative",
                 isActive 
-                  ? "text-primary" 
+                  ? "text-primary drop-shadow-[0_0_8px_hsl(var(--primary)/0.6)]" 
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              <div className="relative">
+              <div className={cn(
+                "relative transition-all duration-200",
+                isActive && "drop-shadow-[0_0_12px_hsl(var(--primary)/0.8)]"
+              )}>
                 <item.icon 
                   className={cn(
                     "h-6 w-6 transition-transform duration-200", 
@@ -52,7 +55,7 @@ export const BottomNav = () => {
                 {badgeCount > 0 && (
                   <Badge 
                     variant="destructive" 
-                    className="absolute -top-2 -right-2 h-4 w-4 p-0 flex items-center justify-center text-[10px] min-w-4 border-2 border-background/60"
+                    className="absolute -top-2 -right-2 h-4 w-4 p-0 flex items-center justify-center text-[10px] min-w-4 border-2 border-background/20"
                   >
                     {badgeCount > 9 ? '9+' : badgeCount}
                   </Badge>
