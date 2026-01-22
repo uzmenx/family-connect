@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Heart, MessageCircle, Send, Bookmark } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePostLikes } from '@/hooks/usePostLikes';
+import { useSavedPosts } from '@/hooks/useSavedPosts';
 import { LikersDialog } from './LikersDialog';
 import { CommentsSheet } from './CommentsSheet';
 import { ShareDialog } from './ShareDialog';
@@ -19,11 +20,17 @@ export const FullscreenActions = ({
   initialCommentsCount = 0
 }: FullscreenActionsProps) => {
   const { isLiked, likesCount, likedUsers, toggleLike, fetchLikedUsers, isLoading } = usePostLikes(postId);
+  const { isPostSaved, toggleSavePost } = useSavedPosts();
   const [showLikers, setShowLikers] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    setIsSaved(isPostSaved(postId));
+  }, [isPostSaved, postId]);
 
   const displayLikesCount = likesCount || initialLikesCount;
 
@@ -52,9 +59,14 @@ export const FullscreenActions = ({
     setShowShare(true);
   };
 
-  const handleSaveClick = (e: React.MouseEvent) => {
+  const handleSaveClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    setIsSaved(!isSaved);
+    if (isSaving) return;
+    
+    setIsSaving(true);
+    const result = await toggleSavePost(postId);
+    setIsSaved(result);
+    setIsSaving(false);
   };
 
   const ActionButton = ({ 

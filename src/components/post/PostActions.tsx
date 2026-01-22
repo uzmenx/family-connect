@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Heart, MessageCircle, Share2, Bookmark } from 'lucide-react';
 import { usePostLikes } from '@/hooks/usePostLikes';
+import { useSavedPosts } from '@/hooks/useSavedPosts';
 import { LikersDialog } from './LikersDialog';
 import { CommentsSheet } from './CommentsSheet';
 import { ShareDialog } from './ShareDialog';
@@ -19,10 +20,27 @@ export const PostActions = ({
   initialCommentsCount = 0
 }: PostActionsProps) => {
   const { isLiked, likesCount, likedUsers, toggleLike, fetchLikedUsers, isLoading } = usePostLikes(postId);
+  const { isPostSaved, toggleSavePost } = useSavedPosts();
   const [showLikers, setShowLikers] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
+  const [isSaved, setIsSaved] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    setIsSaved(isPostSaved(postId));
+  }, [isPostSaved, postId]);
+
+  const handleSaveClick = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (isSaving) return;
+    
+    setIsSaving(true);
+    const result = await toggleSavePost(postId);
+    setIsSaved(result);
+    setIsSaving(false);
+  };
 
   const handleLikeClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -89,9 +107,13 @@ export const PostActions = ({
         
         <button 
           className="ml-auto transition-colors"
-          onClick={(e) => e.stopPropagation()}
+          onClick={handleSaveClick}
+          disabled={isSaving}
         >
-          <Bookmark className="h-6 w-6" />
+          <Bookmark className={cn(
+            "h-6 w-6 transition-all",
+            isSaved && "fill-primary text-primary"
+          )} />
         </button>
       </div>
 
