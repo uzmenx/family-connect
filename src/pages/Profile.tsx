@@ -7,6 +7,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Settings, Edit, Grid3X3, Bookmark, Bell } from 'lucide-react';
 import { useUserPosts } from '@/hooks/useUserPosts';
+import { useSavedPosts } from '@/hooks/useSavedPosts';
 import { useFollow } from '@/hooks/useFollow';
 import { useNotifications } from '@/hooks/useNotifications';
 import { PostCard } from '@/components/feed/PostCard';
@@ -21,19 +22,22 @@ const Profile = () => {
   const { profile, user } = useAuth();
   const navigate = useNavigate();
   const { posts, isLoading, postsCount, refetch, removePost } = useUserPosts(user?.id);
+  const { savedPosts, isLoading: savedLoading, fetchSavedPosts } = useSavedPosts();
   const { followersCount, followingCount } = useFollow(user?.id);
   const { unreadCount } = useNotifications();
   const [activeTab, setActiveTab] = useState<'posts' | 'saved'>('posts');
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
+  const [viewerPosts, setViewerPosts] = useState<typeof posts>([]);
 
   const getInitials = (name: string | null | undefined) => {
     if (!name) return 'U';
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
-  const openViewer = (index: number) => {
+  const openViewer = (index: number, postsList: typeof posts) => {
     setViewerInitialIndex(index);
+    setViewerPosts(postsList);
     setViewerOpen(true);
   };
 
@@ -162,7 +166,7 @@ const Profile = () => {
             ) : (
               <div className="space-y-4 px-0 md:px-4">
                 {posts.map((post, index) => (
-                  <div key={post.id} onClick={() => openViewer(index)} className="cursor-pointer">
+                  <div key={post.id} onClick={() => openViewer(index, posts)} className="cursor-pointer">
                     <PostCard 
                       post={post} 
                       onDelete={() => removePost(post.id)}
@@ -176,16 +180,34 @@ const Profile = () => {
         )}
 
         {activeTab === 'saved' && (
-          <div className="text-center py-12 px-4">
-            <Bookmark className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
-            <p className="text-muted-foreground">Saqlangan postlar yo'q</p>
-          </div>
+          <PullToRefresh onRefresh={fetchSavedPosts}>
+            {savedLoading ? (
+              <div className="text-center py-12">
+                <p className="text-muted-foreground">Yuklanmoqda...</p>
+              </div>
+            ) : savedPosts.length === 0 ? (
+              <div className="text-center py-12 px-4">
+                <Bookmark className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
+                <p className="text-muted-foreground">Saqlangan postlar yo'q</p>
+                <p className="text-sm text-muted-foreground mt-1">Postlarni saqlash uchun bookmark tugmasini bosing</p>
+              </div>
+            ) : (
+              <div className="space-y-4 px-0 md:px-4">
+                {savedPosts.map((post, index) => (
+                  <div key={post.id} onClick={() => openViewer(index, savedPosts)} className="cursor-pointer">
+                    <PostCard post={post} />
+                  </div>
+                ))}
+                <EndOfFeed />
+              </div>
+            )}
+          </PullToRefresh>
         )}
 
         {/* Full screen viewer */}
-        {viewerOpen && (
+        {viewerOpen && viewerPosts.length > 0 && (
           <FullScreenViewer
-            posts={posts}
+            posts={viewerPosts}
             initialIndex={viewerInitialIndex}
             onClose={() => setViewerOpen(false)}
           />

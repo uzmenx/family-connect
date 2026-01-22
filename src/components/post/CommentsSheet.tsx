@@ -1,8 +1,7 @@
-import { useState } from 'react';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
+import { useState, useRef } from 'react';
+import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Heart, Send, Trash2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
@@ -22,6 +21,8 @@ export const CommentsSheet = ({ open, onOpenChange, postId }: CommentsSheetProps
   const [newComment, setNewComment] = useState('');
   const [replyTo, setReplyTo] = useState<{ id: string; name: string } | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isInputFocused, setIsInputFocused] = useState(false);
+  const inputRef = useRef<HTMLTextAreaElement>(null);
 
   // ALWAYS fetch fresh comments when sheet opens
   const handleOpenChange = (isOpen: boolean) => {
@@ -29,6 +30,11 @@ export const CommentsSheet = ({ open, onOpenChange, postId }: CommentsSheetProps
     if (isOpen) {
       // Force fresh fetch every time sheet opens
       fetchComments();
+    } else {
+      // Reset input state when closing
+      setIsInputFocused(false);
+      setNewComment('');
+      setReplyTo(null);
     }
   };
 
@@ -40,6 +46,8 @@ export const CommentsSheet = ({ open, onOpenChange, postId }: CommentsSheetProps
     setNewComment('');
     setReplyTo(null);
     setIsSubmitting(false);
+    setIsInputFocused(false);
+    inputRef.current?.blur();
   };
 
   const handleKeyPress = (e: React.KeyboardEvent) => {
@@ -47,6 +55,13 @@ export const CommentsSheet = ({ open, onOpenChange, postId }: CommentsSheetProps
       e.preventDefault();
       handleSubmit();
     }
+  };
+
+  const handleInputButtonClick = () => {
+    setIsInputFocused(true);
+    setTimeout(() => {
+      inputRef.current?.focus();
+    }, 100);
   };
 
   const CommentItem = ({ comment, isReply = false }: { comment: Comment; isReply?: boolean }) => {
@@ -111,18 +126,21 @@ export const CommentsSheet = ({ open, onOpenChange, postId }: CommentsSheetProps
   };
 
   return (
-    <Sheet open={open} onOpenChange={handleOpenChange}>
-      <SheetContent side="bottom" className="h-[80vh] rounded-t-2xl flex flex-col">
-        <SheetHeader className="flex-shrink-0">
-          <SheetTitle className="flex items-center gap-2">
+    <Drawer open={open} onOpenChange={handleOpenChange}>
+      <DrawerContent className="h-[85vh] max-h-[85vh] flex flex-col">
+        {/* Drag handle */}
+        <div className="mx-auto w-12 h-1.5 flex-shrink-0 rounded-full bg-muted my-3" />
+        
+        <DrawerHeader className="flex-shrink-0 px-6 pb-3 pt-0">
+          <DrawerTitle className="flex items-center gap-2 text-center justify-center">
             Izohlar
             <span className="bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full">
               {commentsCount}
             </span>
-          </SheetTitle>
-        </SheetHeader>
+          </DrawerTitle>
+        </DrawerHeader>
         
-        <ScrollArea className="flex-1 -mx-6 px-6">
+        <ScrollArea className="flex-1 px-6">
           {isLoading ? (
             <div className="text-center py-8 text-muted-foreground">
               Yuklanmoqda...
@@ -150,7 +168,7 @@ export const CommentsSheet = ({ open, onOpenChange, postId }: CommentsSheetProps
         </ScrollArea>
         
         {/* Input area */}
-        <div className="flex-shrink-0 border-t pt-4 -mx-6 px-6">
+        <div className="flex-shrink-0 border-t pt-4 px-6 pb-6">
           {replyTo && (
             <div className="flex items-center justify-between bg-muted/50 px-3 py-2 rounded-lg mb-2 text-sm">
               <span>
@@ -168,18 +186,35 @@ export const CommentsSheet = ({ open, onOpenChange, postId }: CommentsSheetProps
           
           {user ? (
             <div className="flex items-center gap-2">
-              <Input
-                value={newComment}
-                onChange={(e) => setNewComment(e.target.value)}
-                onKeyPress={handleKeyPress}
-                placeholder="Izoh yozing..."
-                className="flex-1"
-                disabled={isSubmitting}
-              />
+              {!isInputFocused ? (
+                <button
+                  onClick={handleInputButtonClick}
+                  className="flex-1 text-left px-4 py-3 bg-muted/50 rounded-full text-muted-foreground text-sm"
+                >
+                  Izoh yozing...
+                </button>
+              ) : (
+                <textarea
+                  ref={inputRef}
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  onKeyPress={handleKeyPress}
+                  onBlur={() => {
+                    if (!newComment.trim()) {
+                      setTimeout(() => setIsInputFocused(false), 100);
+                    }
+                  }}
+                  placeholder="Izoh yozing..."
+                  className="flex-1 resize-none bg-muted/50 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px] max-h-[120px]"
+                  rows={1}
+                  disabled={isSubmitting}
+                />
+              )}
               <Button 
                 size="icon" 
                 onClick={handleSubmit}
                 disabled={!newComment.trim() || isSubmitting}
+                className="rounded-full h-10 w-10 flex-shrink-0"
               >
                 <Send className="h-4 w-4" />
               </Button>
@@ -190,7 +225,7 @@ export const CommentsSheet = ({ open, onOpenChange, postId }: CommentsSheetProps
             </p>
           )}
         </div>
-      </SheetContent>
-    </Sheet>
+      </DrawerContent>
+    </Drawer>
   );
 };
