@@ -170,34 +170,29 @@ export const FamilyTree = ({
     !r.relation_type.includes('mother_of_')
   );
 
-  // Find spouses for a member by linked relationships
+  // Find spouses for a member by linked relationships (faqat birinchi juft)
   const findSpousesForMember = (memberId: string): FamilyMember[] => {
-    return members.filter(m => m.relation_type.includes('spouse_of_') && m.relation_type.endsWith(memberId));
+    return members.filter(m => m.relation_type === `spouse_of_${memberId}`);
   };
 
-  const hasFirstSpouse = (memberId: string): boolean => {
+  const hasSpouse = (memberId: string): boolean => {
     return members.some(m => m.relation_type === `spouse_of_${memberId}`);
   };
 
-  const hasSecondSpouse = (memberId: string): boolean => {
-    return members.some(m => m.relation_type === `spouse_2_of_${memberId}`);
-  };
-
-  const getSpouseOfMember = (memberId: string, isSecond: boolean = false): FamilyMember | null => {
-    const relationType = isSecond ? `spouse_2_of_${memberId}` : `spouse_of_${memberId}`;
-    return members.find(m => m.relation_type === relationType) || null;
+  const getSpouseOfMember = (memberId: string): FamilyMember | null => {
+    return members.find(m => m.relation_type === `spouse_of_${memberId}`) || null;
   };
 
   const getChildrenOfMember = (memberId: string): FamilyMember[] => {
     return members.filter(m => m.relation_type.startsWith(`child_of_${memberId}`));
   };
 
-  const getFathersOfMember = (memberId: string): FamilyMember[] => {
-    return members.filter(m => m.relation_type === `father_of_${memberId}` || m.relation_type === `father_2_of_${memberId}`);
+  const getFatherOfMember = (memberId: string): FamilyMember | null => {
+    return members.find(m => m.relation_type === `father_of_${memberId}`) || null;
   };
 
-  const getMothersOfMember = (memberId: string): FamilyMember[] => {
-    return members.filter(m => m.relation_type === `mother_of_${memberId}` || m.relation_type === `mother_2_of_${memberId}`);
+  const getMotherOfMember = (memberId: string): FamilyMember | null => {
+    return members.find(m => m.relation_type === `mother_of_${memberId}`) || null;
   };
 
   const getGenderColors = (gender: 'male' | 'female' | null | undefined) => {
@@ -327,43 +322,42 @@ export const FamilyTree = ({
     </div>
   );
 
-  // Render member with spouse(s) as a couple unit
+  // Render member with spouse as a couple unit (faqat bitta juft)
   const renderMemberWithSpouses = (member: FamilyMember, showLabel: boolean = true) => {
-    const firstSpouse = getSpouseOfMember(member.id, false);
-    const secondSpouse = getSpouseOfMember(member.id, true);
+    const spouse = getSpouseOfMember(member.id);
     const memberSpouseCount = countSpousesForMember ? countSpousesForMember(member.id) : 0;
     const memberChildCount = countChildrenForMember ? countChildrenForMember(member.id) : 0;
     const memberFatherCount = countFathersForMember ? countFathersForMember(member.id) : 0;
     const memberMotherCount = countMothersForMember ? countMothersForMember(member.id) : 0;
 
     const memberChildren = getChildrenOfMember(member.id);
-    const memberFathers = getFathersOfMember(member.id);
-    const memberMothers = getMothersOfMember(member.id);
+    const father = getFatherOfMember(member.id);
+    const mother = getMotherOfMember(member.id);
 
-    const hasSpouse = firstSpouse || secondSpouse;
+    const hasParents = father || mother;
 
     return (
       <div key={member.id} className="flex flex-col items-center gap-8">
-        {/* Parents row ABOVE member (fathers and mothers) */}
-        {(memberFathers.length > 0 || memberMothers.length > 0) && (
+        {/* Parents row ABOVE member (ota va ona) */}
+        {hasParents && (
           <div className="flex flex-col items-center gap-4">
             <div className="flex items-center gap-6 justify-center">
-              {/* Fathers on left */}
-              {memberFathers.map((father) => (
-                <div key={father.id} className="flex items-center" ref={(el) => setMemberRef(father.id, el)}>
+              {/* Father on left */}
+              {father && (
+                <div className="flex items-center" ref={(el) => setMemberRef(father.id, el)}>
                   {renderSingleMember(father, showLabel, 0, 0, 0, 0)}
                 </div>
-              ))}
+              )}
               
               {/* Heart connector between parents */}
               <div 
                 className="flex items-center justify-center mx-3"
                 ref={(el) => setHeartRef(`parents-of-${member.id}`, el)}
               >
-                {memberFathers.length > 0 && memberMothers.length > 0 ? (
+                {father && mother ? (
                   // Full heart when both parents exist
                   <Heart className="h-6 w-6 text-red-500 fill-red-500" />
-                ) : memberFathers.length > 0 ? (
+                ) : father ? (
                   // Left half heart (father only)
                   <HalfHeartIcon side="left" />
                 ) : (
@@ -372,39 +366,29 @@ export const FamilyTree = ({
                 )}
               </div>
               
-              {/* Mothers on right */}
-              {memberMothers.map((mother) => (
-                <div key={mother.id} className="flex items-center" ref={(el) => setMemberRef(mother.id, el)}>
+              {/* Mother on right */}
+              {mother && (
+                <div className="flex items-center" ref={(el) => setMemberRef(mother.id, el)}>
                   {renderSingleMember(mother, showLabel, 0, 0, 0, 0)}
                 </div>
-              ))}
+              )}
             </div>
           </div>
         )}
 
-        {/* Main member with spouses */}
+        {/* Main member with spouse */}
         <div className="flex items-center gap-6">
-          {/* Second spouse on left */}
-          {secondSpouse && (
-            <>
-              <div ref={(el) => setMemberRef(secondSpouse.id, el)}>
-                {renderSingleMember(secondSpouse, showLabel, 0, 0, 0, 0)}
-              </div>
-              {renderHeartConnector(member.id)}
-            </>
-          )}
-          
           {/* Main member */}
           <div ref={(el) => setMemberRef(member.id, el)}>
             {renderSingleMember(member, showLabel, memberSpouseCount, memberChildCount, memberFatherCount, memberMotherCount)}
           </div>
           
-          {/* First spouse on right */}
-          {firstSpouse && (
+          {/* Spouse on right */}
+          {spouse && (
             <>
               {renderHeartConnector(member.id)}
-              <div ref={(el) => setMemberRef(firstSpouse.id, el)}>
-                {renderSingleMember(firstSpouse, showLabel, 0, 0, 0, 0)}
+              <div ref={(el) => setMemberRef(spouse.id, el)}>
+                {renderSingleMember(spouse, showLabel, 0, 0, 0, 0)}
               </div>
             </>
           )}

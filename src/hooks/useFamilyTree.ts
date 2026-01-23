@@ -50,11 +50,11 @@ export interface FamilyInvitation {
   member?: FamilyMember | null;
 }
 
-// Relationship limits
+// Relationship limits - vaqtinchalik 1 ta ota, 1 ta ona, 1 ta juft
 export const FAMILY_LIMITS = {
-  MAX_SPOUSES: 2,
-  MAX_FATHERS: 2,
-  MAX_MOTHERS: 2,
+  MAX_SPOUSES: 1,
+  MAX_FATHERS: 1,
+  MAX_MOTHERS: 1,
   MAX_CHILDREN: 8,
 };
 
@@ -626,11 +626,10 @@ export const useFamilyTree = (userId?: string) => {
     }
   };
 
-  // Count spouses for a member
+  // Count spouses for a member (faqat birinchi juft)
   const countSpousesForMember = (memberId: string): number => {
     return members.filter(m => 
-      m.relation_type === `spouse_of_${memberId}` || 
-      m.relation_type === `spouse_2_of_${memberId}`
+      m.relation_type === `spouse_of_${memberId}`
     ).length;
   };
 
@@ -641,19 +640,17 @@ export const useFamilyTree = (userId?: string) => {
     ).length;
   };
 
-  // Count parents (fathers) for a member
+  // Count parents (fathers) for a member (faqat birinchi ota)
   const countFathersForMember = (memberId: string): number => {
     return members.filter(m => 
-      m.relation_type === `father_of_${memberId}` || 
-      m.relation_type === `father_2_of_${memberId}`
+      m.relation_type === `father_of_${memberId}`
     ).length;
   };
 
-  // Count parents (mothers) for a member
+  // Count parents (mothers) for a member (faqat birinchi ona)
   const countMothersForMember = (memberId: string): number => {
     return members.filter(m => 
-      m.relation_type === `mother_of_${memberId}` || 
-      m.relation_type === `mother_2_of_${memberId}`
+      m.relation_type === `mother_of_${memberId}`
     ).length;
   };
 
@@ -770,7 +767,7 @@ export const useFamilyTree = (userId?: string) => {
     }
   };
 
-  // Add father to a member
+  // Add father to a member (faqat bitta ota)
   const addFatherToMember = async (
     memberId: string,
     fatherData: { name: string; avatarUrl?: string }
@@ -783,7 +780,7 @@ export const useFamilyTree = (userId?: string) => {
         .from('family_tree_members')
         .select('id, relation_type')
         .eq('owner_id', user.id)
-        .or(`relation_type.eq.father_of_${memberId},relation_type.eq.father_2_of_${memberId}`);
+        .eq('relation_type', `father_of_${memberId}`);
 
       if (countError) throw countError;
 
@@ -800,9 +797,7 @@ export const useFamilyTree = (userId?: string) => {
 
       await ensureFamilyNetwork(user.id);
 
-      // Check if first father exists
-      const hasFirstFather = existingFathers?.some(f => f.relation_type === `father_of_${memberId}`);
-      const relationType = hasFirstFather ? `father_2_of_${memberId}` : `father_of_${memberId}`;
+      const relationType = `father_of_${memberId}`;
 
       const { data, error } = await supabase
         .from('family_tree_members')
@@ -822,7 +817,7 @@ export const useFamilyTree = (userId?: string) => {
       await fetchMembers();
       toast({
         title: "Ota qo'shildi!",
-        description: `${fatherData.name} ${hasFirstFather ? 'ikkinchi ' : ''}ota sifatida qo'shildi`,
+        description: `${fatherData.name} ota sifatida qo'shildi`,
       });
 
       return data;
@@ -836,7 +831,7 @@ export const useFamilyTree = (userId?: string) => {
     }
   };
 
-  // Add mother to a member
+  // Add mother to a member (faqat bitta ona)
   const addMotherToMember = async (
     memberId: string,
     motherData: { name: string; avatarUrl?: string }
@@ -849,7 +844,7 @@ export const useFamilyTree = (userId?: string) => {
         .from('family_tree_members')
         .select('id, relation_type')
         .eq('owner_id', user.id)
-        .or(`relation_type.eq.mother_of_${memberId},relation_type.eq.mother_2_of_${memberId}`);
+        .eq('relation_type', `mother_of_${memberId}`);
 
       if (countError) throw countError;
 
@@ -866,9 +861,7 @@ export const useFamilyTree = (userId?: string) => {
 
       await ensureFamilyNetwork(user.id);
 
-      // Check if first mother exists
-      const hasFirstMother = existingMothers?.some(m => m.relation_type === `mother_of_${memberId}`);
-      const relationType = hasFirstMother ? `mother_2_of_${memberId}` : `mother_of_${memberId}`;
+      const relationType = `mother_of_${memberId}`;
 
       const { data, error } = await supabase
         .from('family_tree_members')
@@ -888,7 +881,7 @@ export const useFamilyTree = (userId?: string) => {
       await fetchMembers();
       toast({
         title: "Ona qo'shildi!",
-        description: `${motherData.name} ${hasFirstMother ? 'ikkinchi ' : ''}ona sifatida qo'shildi`,
+        description: `${motherData.name} ona sifatida qo'shildi`,
       });
 
       return data;
