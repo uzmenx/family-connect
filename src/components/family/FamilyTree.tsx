@@ -187,11 +187,25 @@ export const FamilyTree = ({
     return members.filter(m => m.relation_type.startsWith(`child_of_${memberId}`));
   };
 
+  // Get father of member - supports both legacy "father" type and dynamic "father_of_MEMBER_ID"
   const getFatherOfMember = (memberId: string): FamilyMember | null => {
+    // For "self" (current user), check legacy "father" relation type first
+    if (memberId === 'self') {
+      const legacyFather = members.find(m => m.relation_type === 'father');
+      if (legacyFather) return legacyFather;
+    }
+    // Then check dynamic relation type
     return members.find(m => m.relation_type === `father_of_${memberId}`) || null;
   };
 
+  // Get mother of member - supports both legacy "mother" type and dynamic "mother_of_MEMBER_ID"
   const getMotherOfMember = (memberId: string): FamilyMember | null => {
+    // For "self" (current user), check legacy "mother" relation type first
+    if (memberId === 'self') {
+      const legacyMother = members.find(m => m.relation_type === 'mother');
+      if (legacyMother) return legacyMother;
+    }
+    // Then check dynamic relation type
     return members.find(m => m.relation_type === `mother_of_${memberId}`) || null;
   };
 
@@ -322,8 +336,82 @@ export const FamilyTree = ({
     </div>
   );
 
+  // RECURSIVE render of parents chain (going up infinitely)
+  const renderParentsChain = (memberId: string, showLabel: boolean = true, depth: number = 0): React.ReactNode => {
+    const father = getFatherOfMember(memberId);
+    const mother = getMotherOfMember(memberId);
+    
+    if (!father && !mother) return null;
+
+    // Get parents of parents (recursive up)
+    const fatherParentsChain = father ? renderParentsChain(father.id, showLabel, depth + 1) : null;
+    const motherParentsChain = mother ? renderParentsChain(mother.id, showLabel, depth + 1) : null;
+
+    return (
+      <div className="flex flex-col items-center gap-8">
+        {/* Parents of father and mother (grandparents row) */}
+        {(fatherParentsChain || motherParentsChain) && (
+          <div className="flex items-start gap-20 justify-center">
+            {fatherParentsChain && (
+              <div className="flex flex-col items-center">
+                {fatherParentsChain}
+              </div>
+            )}
+            {motherParentsChain && (
+              <div className="flex flex-col items-center">
+                {motherParentsChain}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Current parents row (father and mother as couple) */}
+        <div className="flex items-center gap-6 justify-center">
+          {/* Father on left */}
+          {father && (
+            <div className="flex flex-col items-center" ref={(el) => setMemberRef(father.id, el)}>
+              {renderSingleMember(father, showLabel, 
+                countSpousesForMember ? countSpousesForMember(father.id) : 0,
+                countChildrenForMember ? countChildrenForMember(father.id) : 0,
+                countFathersForMember ? countFathersForMember(father.id) : 0,
+                countMothersForMember ? countMothersForMember(father.id) : 0
+              )}
+            </div>
+          )}
+          
+          {/* Heart connector between parents */}
+          <div 
+            className="flex items-center justify-center mx-3"
+            ref={(el) => setHeartRef(`parents-of-${memberId}`, el)}
+          >
+            {father && mother ? (
+              <Heart className="h-6 w-6 text-red-500 fill-red-500" />
+            ) : father ? (
+              <HalfHeartIcon side="left" />
+            ) : (
+              <HalfHeartIcon side="right" />
+            )}
+          </div>
+          
+          {/* Mother on right */}
+          {mother && (
+            <div className="flex flex-col items-center" ref={(el) => setMemberRef(mother.id, el)}>
+              {renderSingleMember(mother, showLabel,
+                countSpousesForMember ? countSpousesForMember(mother.id) : 0,
+                countChildrenForMember ? countChildrenForMember(mother.id) : 0,
+                countFathersForMember ? countFathersForMember(mother.id) : 0,
+                countMothersForMember ? countMothersForMember(mother.id) : 0
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   // Render member with spouse as a couple unit (faqat bitta juft)
-  const renderMemberWithSpouses = (member: FamilyMember, showLabel: boolean = true) => {
+  // Children rendered below, parents rendered above (via separate chain)
+  const renderMemberWithSpouses = (member: FamilyMember, showLabel: boolean = true, showParents: boolean = true) => {
     const spouse = getSpouseOfMember(member.id);
     const memberSpouseCount = countSpousesForMember ? countSpousesForMember(member.id) : 0;
     const memberChildCount = countChildrenForMember ? countChildrenForMember(member.id) : 0;
@@ -331,50 +419,14 @@ export const FamilyTree = ({
     const memberMotherCount = countMothersForMember ? countMothersForMember(member.id) : 0;
 
     const memberChildren = getChildrenOfMember(member.id);
-    const father = getFatherOfMember(member.id);
-    const mother = getMotherOfMember(member.id);
-
-    const hasParents = father || mother;
+    
+    // Get parents chain only if showParents is true
+    const parentsChain = showParents ? renderParentsChain(member.id, showLabel) : null;
 
     return (
       <div key={member.id} className="flex flex-col items-center gap-8">
-        {/* Parents row ABOVE member (ota va ona) */}
-        {hasParents && (
-          <div className="flex flex-col items-center gap-4">
-            <div className="flex items-center gap-6 justify-center">
-              {/* Father on left */}
-              {father && (
-                <div className="flex items-center" ref={(el) => setMemberRef(father.id, el)}>
-                  {renderSingleMember(father, showLabel, 0, 0, 0, 0)}
-                </div>
-              )}
-              
-              {/* Heart connector between parents */}
-              <div 
-                className="flex items-center justify-center mx-3"
-                ref={(el) => setHeartRef(`parents-of-${member.id}`, el)}
-              >
-                {father && mother ? (
-                  // Full heart when both parents exist
-                  <Heart className="h-6 w-6 text-red-500 fill-red-500" />
-                ) : father ? (
-                  // Left half heart (father only)
-                  <HalfHeartIcon side="left" />
-                ) : (
-                  // Right half heart (mother only)
-                  <HalfHeartIcon side="right" />
-                )}
-              </div>
-              
-              {/* Mother on right */}
-              {mother && (
-                <div className="flex items-center" ref={(el) => setMemberRef(mother.id, el)}>
-                  {renderSingleMember(mother, showLabel, 0, 0, 0, 0)}
-                </div>
-              )}
-            </div>
-          </div>
-        )}
+        {/* Parents chain ABOVE member (recursive going up) */}
+        {parentsChain}
 
         {/* Main member with spouse */}
         <div className="flex items-center gap-6">
@@ -388,19 +440,25 @@ export const FamilyTree = ({
             <>
               {renderHeartConnector(member.id)}
               <div ref={(el) => setMemberRef(spouse.id, el)}>
-                {renderSingleMember(spouse, showLabel, 0, 0, 0, 0)}
+                {renderSingleMember(spouse, showLabel, 
+                  countSpousesForMember ? countSpousesForMember(spouse.id) : 0,
+                  countChildrenForMember ? countChildrenForMember(spouse.id) : 0,
+                  countFathersForMember ? countFathersForMember(spouse.id) : 0,
+                  countMothersForMember ? countMothersForMember(spouse.id) : 0
+                )}
               </div>
             </>
           )}
         </div>
 
-        {/* Children of this member */}
+        {/* Children of this member (recursive going down) */}
         {memberChildren.length > 0 && (
           <div className="flex flex-col items-center gap-8">
             <div className="flex gap-16 flex-wrap justify-center">
               {memberChildren.map(child => (
-                <div key={child.id} ref={(el) => setMemberRef(child.id, el)}>
-                  {renderMemberWithSpouses(child, true)}
+                <div key={child.id}>
+                  {/* Child with their own parents is false since we're going DOWN */}
+                  {renderMemberWithSpouses(child, true, false)}
                 </div>
               ))}
             </div>
@@ -680,66 +738,46 @@ export const FamilyTree = ({
         />
 
         <div className="relative z-10 min-w-max space-y-16 px-16">
-          {/* Grandparents row */}
-          {grandparents.length > 0 && (
-            <div className="flex justify-center gap-20">
-              {grandparents.map(member => (
-                <div key={member.id} ref={(el) => setMemberRef(member.id, el)}>
-                  {renderMemberWithSpouses(member)}
+          {/* Current user with full parent chain above and children below */}
+          <div className="flex flex-col items-center gap-8">
+            {/* Parents chain of current user (recursive upward) */}
+            {currentUser && renderParentsChain('self', true)}
+            
+            {/* Current user + spouse + siblings row */}
+            <div className="flex items-start justify-center gap-20">
+              {/* Siblings on left */}
+              {siblings.length > 0 && (
+                <div className="flex gap-16 items-start">
+                  {siblings.map(sibling => (
+                    <div key={sibling.id}>
+                      {renderMemberWithSpouses(sibling, true, true)}
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          )}
+              )}
 
-          {/* Parents row - only non-dynamic parents */}
-          {parents.filter(p => !p.relation_type.includes('_of_')).length > 0 && (
-            <div className="flex justify-center gap-20">
-              {/* Group father and mother together as a couple */}
-              <div className="flex items-center gap-6">
-                {parents.filter(p => !p.relation_type.includes('_of_')).map((parent, index) => (
-                  <div key={parent.id} className="flex items-center" ref={(el) => setMemberRef(parent.id, el)}>
-                    {renderSingleMember(parent, true, 0, 0, 0, 0)}
-                    {index === 0 && parents.filter(p => !p.relation_type.includes('_of_')).length > 1 && renderHeartConnector('parents')}
-                  </div>
-                ))}
-              </div>
+              {/* Current user with spouse(s) in center */}
+              {renderCurrentUser()}
             </div>
-          )}
 
-          {/* Current user + spouse + siblings row */}
-          <div className="flex items-start justify-center gap-20">
-            {/* Siblings on left */}
-            {siblings.length > 0 && (
-              <div className="flex gap-16 items-start">
-                {siblings.map(sibling => (
-                  <div key={sibling.id} ref={(el) => setMemberRef(sibling.id, el)}>
-                    {renderMemberWithSpouses(sibling)}
+            {/* Children of current user (direct, not dynamic) */}
+            {children.filter(c => !c.relation_type.includes('_of_')).length > 0 && (
+              <div className="flex justify-center gap-20">
+                {children.filter(c => !c.relation_type.includes('_of_')).map(child => (
+                  <div key={child.id}>
+                    {renderMemberWithSpouses(child, true, true)}
                   </div>
                 ))}
               </div>
             )}
-
-            {/* Current user with spouse(s) in center */}
-            {renderCurrentUser()}
           </div>
-
-          {/* Children row - only non-dynamic children */}
-          {children.filter(c => !c.relation_type.includes('_of_')).length > 0 && (
-            <div className="flex justify-center gap-20">
-              {children.filter(c => !c.relation_type.includes('_of_')).map(child => (
-                <div key={child.id} ref={(el) => setMemberRef(child.id, el)}>
-                  {renderMemberWithSpouses(child)}
-                </div>
-              ))}
-            </div>
-          )}
 
           {/* Other relatives - displayed in open space without separator */}
           {others.length > 0 && (
             <div className="flex justify-center gap-20 mt-16">
               {others.map(other => (
-                <div key={other.id} ref={(el) => setMemberRef(other.id, el)}>
-                  {renderMemberWithSpouses(other)}
+                <div key={other.id}>
+                  {renderMemberWithSpouses(other, true, true)}
                 </div>
               ))}
             </div>
