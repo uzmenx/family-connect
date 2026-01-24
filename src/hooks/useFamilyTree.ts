@@ -627,9 +627,10 @@ export const useFamilyTree = (userId?: string) => {
   };
 
   // Count spouses for a member
-  // Ikkala yo'nalishni tekshiradi:
+  // Barcha holatlarni tekshiradi:
   // 1. Bu profilga juft qo'shilganmi (spouse_of_${memberId})
-  // 2. Bu profil o'zi boshqa profilga juft sifatida qo'shilganmi (relation_type === spouse_of_...)
+  // 2. Bu profil o'zi boshqa profilga juft sifatida qo'shilganmi
+  // 3. Bu profil ota bo'lsa va shu farzandning onasi ham bormi (yoki aksincha)
   const countSpousesForMember = (memberId: string): number => {
     // Tekshirish 1: bu profilga juft qo'shilganmi
     const spousesAdded = members.filter(m => 
@@ -638,10 +639,31 @@ export const useFamilyTree = (userId?: string) => {
     
     if (spousesAdded > 0) return spousesAdded;
     
-    // Tekshirish 2: bu profil o'zi boshqa profilga juft sifatida qo'shilganmi
     const memberSelf = members.find(m => m.id === memberId);
-    if (memberSelf && memberSelf.relation_type.startsWith('spouse_of_')) {
-      return 1; // Bu profil kimningdir jufti, demak jufti bor
+    if (!memberSelf) return 0;
+    
+    // Tekshirish 2: bu profil o'zi boshqa profilga juft sifatida qo'shilganmi
+    if (memberSelf.relation_type.startsWith('spouse_of_')) {
+      return 1;
+    }
+    
+    // Tekshirish 3: Bu profil ota yoki ona bo'lsa, juftini tekshir
+    // father_of_CHILD_ID formatidan CHILD_ID ni olish
+    const fatherMatch = memberSelf.relation_type.match(/^father_of_(.+)$/);
+    if (fatherMatch) {
+      const childId = fatherMatch[1];
+      // Shu farzandning onasi bormi?
+      const hasMotherPair = members.some(m => m.relation_type === `mother_of_${childId}`);
+      if (hasMotherPair) return 1;
+    }
+    
+    // mother_of_CHILD_ID formatidan CHILD_ID ni olish
+    const motherMatch = memberSelf.relation_type.match(/^mother_of_(.+)$/);
+    if (motherMatch) {
+      const childId = motherMatch[1];
+      // Shu farzandning otasi bormi?
+      const hasFatherPair = members.some(m => m.relation_type === `father_of_${childId}`);
+      if (hasFatherPair) return 1;
     }
     
     return 0;
