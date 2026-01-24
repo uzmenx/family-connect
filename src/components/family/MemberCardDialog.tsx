@@ -98,8 +98,10 @@ export const MemberCardDialog = ({
   const spouseButtonColor = spouseGender === 'male' ? 'bg-sky-500 hover:bg-sky-600' : 'bg-pink-500 hover:bg-pink-600';
 
   // Check if can add more
+  // Agar jufti bor bo'lsa (spouseCount > 0), JUFT o'rniga FARZAND ko'rsatiladi
+  const hasSpouse = spouseCount > 0;
   const canAddSpouse = spouseCount < FAMILY_LIMITS.MAX_SPOUSES;
-  const canAddChild = childCount < FAMILY_LIMITS.MAX_CHILDREN && spouseCount > 0;
+  const canAddChild = childCount < FAMILY_LIMITS.MAX_CHILDREN && hasSpouse;
   const canAddFather = fatherCount < FAMILY_LIMITS.MAX_FATHERS;
   const canAddMother = motherCount < FAMILY_LIMITS.MAX_MOTHERS;
 
@@ -218,7 +220,7 @@ export const MemberCardDialog = ({
           <div className="w-full space-y-2 mt-6">
             {/* Family action buttons - show for ALL members */}
             {isOwner && (
-              <div className="grid grid-cols-4 gap-2 mb-4">
+              <div className="grid grid-cols-3 gap-2 mb-4">
                 {/* Add Father button */}
                 {canAddFather && onAddFather && (
                   <Button
@@ -251,8 +253,8 @@ export const MemberCardDialog = ({
                   </Button>
                 )}
 
-                {/* Add Spouse button */}
-                {canAddSpouse && onAddSpouse && (
+                {/* Add Spouse button - faqat jufti yo'q bo'lsa ko'rsatiladi */}
+                {!hasSpouse && canAddSpouse && onAddSpouse && (
                   <Button
                     variant="outline"
                     size="sm"
@@ -261,7 +263,7 @@ export const MemberCardDialog = ({
                       "bg-red-500/10 hover:bg-red-500/20"
                     )}
                     onClick={() => {
-                      onAddSpouse(spouseCount > 0);
+                      onAddSpouse(false);
                       onOpenChange(false);
                     }}
                   >
@@ -270,8 +272,8 @@ export const MemberCardDialog = ({
                   </Button>
                 )}
 
-                {/* Add Child button - only if has spouse */}
-                {canAddChild && onAddChild && (
+                {/* Add Child button - faqat jufti bor bo'lsa ko'rsatiladi (JUFT o'rniga) */}
+                {hasSpouse && canAddChild && onAddChild && (
                   <Button
                     variant="outline"
                     size="sm"
