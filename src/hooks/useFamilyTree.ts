@@ -626,11 +626,25 @@ export const useFamilyTree = (userId?: string) => {
     }
   };
 
-  // Count spouses for a member (faqat birinchi juft)
+  // Count spouses for a member
+  // Ikkala yo'nalishni tekshiradi:
+  // 1. Bu profilga juft qo'shilganmi (spouse_of_${memberId})
+  // 2. Bu profil o'zi boshqa profilga juft sifatida qo'shilganmi (relation_type === spouse_of_...)
   const countSpousesForMember = (memberId: string): number => {
-    return members.filter(m => 
+    // Tekshirish 1: bu profilga juft qo'shilganmi
+    const spousesAdded = members.filter(m => 
       m.relation_type === `spouse_of_${memberId}`
     ).length;
+    
+    if (spousesAdded > 0) return spousesAdded;
+    
+    // Tekshirish 2: bu profil o'zi boshqa profilga juft sifatida qo'shilganmi
+    const memberSelf = members.find(m => m.id === memberId);
+    if (memberSelf && memberSelf.relation_type.startsWith('spouse_of_')) {
+      return 1; // Bu profil kimningdir jufti, demak jufti bor
+    }
+    
+    return 0;
   };
 
   // Count children for a member
