@@ -139,6 +139,33 @@ export const useFamilyTree = (userId?: string) => {
     }
   }, [targetUserId]);
 
+  // Get network users for current user - helper for add functions
+  const getNetworkUsersForCurrentUser = useCallback(async (): Promise<string[]> => {
+    if (!user?.id) return [];
+    
+    try {
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('family_network_id')
+        .eq('id', user.id)
+        .single();
+
+      if (!profile?.family_network_id) {
+        return [user.id];
+      }
+
+      const { data: networkProfiles } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('family_network_id', profile.family_network_id);
+
+      return networkProfiles?.map(p => p.id) || [user.id];
+    } catch (error) {
+      console.error('Error fetching network users:', error);
+      return [user.id];
+    }
+  }, [user?.id]);
+
   // Merge two family networks when invitation is accepted
   const mergeNetworks = useCallback(async (user1Id: string, user2Id: string): Promise<boolean> => {
     try {
@@ -631,6 +658,7 @@ export const useFamilyTree = (userId?: string) => {
   // 1. Bu profilga juft qo'shilganmi (spouse_of_${memberId})
   // 2. Bu profil o'zi boshqa profilga juft sifatida qo'shilganmi
   // 3. Bu profil ota bo'lsa va shu farzandning onasi ham bormi (yoki aksincha)
+  // 4. Agar bu profil child/farzand bo'lsa, shu farzandning ota-onasi bor bo'lsa ham juft bor
   const countSpousesForMember = (memberId: string): number => {
     // Tekshirish 1: bu profilga juft qo'shilganmi
     const spousesAdded = members.filter(m => 
@@ -647,8 +675,7 @@ export const useFamilyTree = (userId?: string) => {
       return 1;
     }
     
-    // Tekshirish 3: Bu profil ota yoki ona bo'lsa, juftini tekshir
-    // father_of_CHILD_ID formatidan CHILD_ID ni olish
+    // Tekshirish 3: Bu profil ota yoki ona bo'lsa, juftini tekshir (father_of_X / mother_of_X)
     const fatherMatch = memberSelf.relation_type.match(/^father_of_(.+)$/);
     if (fatherMatch) {
       const childId = fatherMatch[1];
@@ -657,7 +684,6 @@ export const useFamilyTree = (userId?: string) => {
       if (hasMotherPair) return 1;
     }
     
-    // mother_of_CHILD_ID formatidan CHILD_ID ni olish
     const motherMatch = memberSelf.relation_type.match(/^mother_of_(.+)$/);
     if (motherMatch) {
       const childId = motherMatch[1];
@@ -665,6 +691,9 @@ export const useFamilyTree = (userId?: string) => {
       const hasFatherPair = members.some(m => m.relation_type === `father_of_${childId}`);
       if (hasFatherPair) return 1;
     }
+    
+    // Tekshirish 4: Boshqa member bu profilning jufti bo'lishi mumkin (spouse_of_THIS_ID)
+    // Bu holat allaqachon tekshirilgan (spousesAdded), lekin qayta tekshirish uchun
     
     return 0;
   };
@@ -691,6 +720,7 @@ export const useFamilyTree = (userId?: string) => {
   };
 
   // Add spouse to an existing member
+  // Barcha network userlarning memberlarini tekshiradi
   const addSpouseToMember = async (
     memberId: string, 
     spouseData: { name: string; gender: 'male' | 'female'; avatarUrl?: string },
@@ -698,18 +728,29 @@ export const useFamilyTree = (userId?: string) => {
   ) => {
     if (!user?.id) return null;
 
-    // Check spouse limit
-    const currentSpouseCount = countSpousesForMember(memberId);
-    if (currentSpouseCount >= FAMILY_LIMITS.MAX_SPOUSES) {
-      toast({
-        title: "Limit",
-        description: `Maksimal ${FAMILY_LIMITS.MAX_SPOUSES} ta juft qo'shish mumkin`,
-        variant: "destructive",
-      });
-      return null;
-    }
-
     try {
+      // Fetch fresh data from ALL network users to get accurate spouse count
+      const users = await getNetworkUsersForCurrentUser();
+      
+      const { data: existingSpouses, error: countError } = await supabase
+        .from('family_tree_members')
+        .select('id, relation_type')
+        .in('owner_id', users)
+        .or(`relation_type.eq.spouse_of_${memberId},relation_type.eq.spouse_2_of_${memberId}`);
+
+      if (countError) throw countError;
+
+      const currentSpouseCount = existingSpouses?.length || 0;
+      
+      if (currentSpouseCount >= FAMILY_LIMITS.MAX_SPOUSES) {
+        toast({
+          title: "Limit",
+          description: `Maksimal ${FAMILY_LIMITS.MAX_SPOUSES} ta juft qo'shish mumkin`,
+          variant: "destructive",
+        });
+        return null;
+      }
+
       // Ensure user has a network before adding member
       await ensureFamilyNetwork(user.id);
 
@@ -748,24 +789,36 @@ export const useFamilyTree = (userId?: string) => {
   };
 
   // Add child to a member (requires spouse)
+  // Barcha network userlarning memberlarini tekshiradi
   const addChildToMember = async (
     memberId: string,
     childData: { name: string; gender: 'male' | 'female'; avatarUrl?: string }
   ) => {
     if (!user?.id) return null;
 
-    // Check child limit
-    const currentChildCount = countChildrenForMember(memberId);
-    if (currentChildCount >= FAMILY_LIMITS.MAX_CHILDREN) {
-      toast({
-        title: "Limit",
-        description: `Maksimal ${FAMILY_LIMITS.MAX_CHILDREN} ta farzand qo'shish mumkin`,
-        variant: "destructive",
-      });
-      return null;
-    }
-
     try {
+      // Fetch fresh data from ALL network users to get accurate child count
+      const users = await getNetworkUsersForCurrentUser();
+      
+      const { data: existingChildren, error: countError } = await supabase
+        .from('family_tree_members')
+        .select('id, relation_type')
+        .in('owner_id', users)
+        .like('relation_type', `child_of_${memberId}%`);
+
+      if (countError) throw countError;
+
+      const currentChildCount = existingChildren?.length || 0;
+      
+      if (currentChildCount >= FAMILY_LIMITS.MAX_CHILDREN) {
+        toast({
+          title: "Limit",
+          description: `Maksimal ${FAMILY_LIMITS.MAX_CHILDREN} ta farzand qo'shish mumkin`,
+          variant: "destructive",
+        });
+        return null;
+      }
+
       await ensureFamilyNetwork(user.id);
 
       const childNumber = currentChildCount + 1;
@@ -804,6 +857,7 @@ export const useFamilyTree = (userId?: string) => {
   };
 
   // Add father to a member (faqat bitta ota)
+  // Barcha network userlarning memberlarini tekshiradi
   const addFatherToMember = async (
     memberId: string,
     fatherData: { name: string; avatarUrl?: string }
@@ -811,11 +865,13 @@ export const useFamilyTree = (userId?: string) => {
     if (!user?.id) return null;
 
     try {
-      // Fetch fresh data to get accurate count
+      // Fetch fresh data from ALL network users to get accurate count
+      const users = await getNetworkUsersForCurrentUser();
+      
       const { data: existingFathers, error: countError } = await supabase
         .from('family_tree_members')
         .select('id, relation_type')
-        .eq('owner_id', user.id)
+        .in('owner_id', users)
         .eq('relation_type', `father_of_${memberId}`);
 
       if (countError) throw countError;
@@ -868,6 +924,7 @@ export const useFamilyTree = (userId?: string) => {
   };
 
   // Add mother to a member (faqat bitta ona)
+  // Barcha network userlarning memberlarini tekshiradi
   const addMotherToMember = async (
     memberId: string,
     motherData: { name: string; avatarUrl?: string }
@@ -875,11 +932,13 @@ export const useFamilyTree = (userId?: string) => {
     if (!user?.id) return null;
 
     try {
-      // Fetch fresh data to get accurate count
+      // Fetch fresh data from ALL network users to get accurate count
+      const users = await getNetworkUsersForCurrentUser();
+      
       const { data: existingMothers, error: countError } = await supabase
         .from('family_tree_members')
         .select('id, relation_type')
-        .eq('owner_id', user.id)
+        .in('owner_id', users)
         .eq('relation_type', `mother_of_${memberId}`);
 
       if (countError) throw countError;
