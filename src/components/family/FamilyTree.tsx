@@ -652,6 +652,168 @@ export const FamilyTree = ({
   };
 
   // Filter out members that are shown as spouses/children of other members
+  // IMPORTANT: We need to find all "root" members that should start their own tree
+  // A "root" member is one that:
+  // 1. Is not a spouse of someone else (spouse_of_X)
+  // 2. Is not a child of someone else (child_of_X)
+  // 3. Is a parent (father_of_X, mother_of_X) - these are roots for their tree
+  // 4. Legacy types like father, mother, brother, etc.
+  
+  // Build a set of all member IDs that will be rendered via renderParentsChain or renderMemberWithSpouses
+  // to avoid duplicate rendering
+  const buildRenderedMemberIds = (): Set<string> => {
+    const rendered = new Set<string>();
+    
+    // Helper: recursively mark all ancestors of a member
+    const markAncestors = (memberId: string, visited: Set<string> = new Set()) => {
+      if (visited.has(memberId)) return;
+      visited.add(memberId);
+      
+      const father = members.find(m => m.relation_type === `father_of_${memberId}`);
+      const mother = members.find(m => m.relation_type === `mother_of_${memberId}`);
+      
+      if (father) {
+        rendered.add(father.id);
+        // Father's spouse (mother or otherwise)
+        const fatherSpouse = members.find(m => m.relation_type === `spouse_of_${father.id}`);
+        if (fatherSpouse) rendered.add(fatherSpouse.id);
+        markAncestors(father.id, visited);
+      }
+      if (mother) {
+        rendered.add(mother.id);
+        // Mother's spouse (father or otherwise)
+        const motherSpouse = members.find(m => m.relation_type === `spouse_of_${mother.id}`);
+        if (motherSpouse) rendered.add(motherSpouse.id);
+        markAncestors(mother.id, visited);
+      }
+    };
+    
+    // Helper: recursively mark all descendants of a member
+    const markDescendants = (memberId: string, visited: Set<string> = new Set()) => {
+      if (visited.has(memberId)) return;
+      visited.add(memberId);
+      
+      const memberChildren = members.filter(m => m.relation_type.startsWith(`child_of_${memberId}`));
+      memberChildren.forEach(child => {
+        rendered.add(child.id);
+        // Child's spouse
+        const childSpouse = members.find(m => m.relation_type === `spouse_of_${child.id}`);
+        if (childSpouse) rendered.add(childSpouse.id);
+        markDescendants(child.id, visited);
+      });
+    };
+    
+    // Start from "self" - current user
+    // Mark legacy parents (father, mother)
+    const legacyFather = members.find(m => m.relation_type === 'father');
+    const legacyMother = members.find(m => m.relation_type === 'mother');
+    if (legacyFather) {
+      rendered.add(legacyFather.id);
+      markAncestors(legacyFather.id);
+    }
+    if (legacyMother) {
+      rendered.add(legacyMother.id);
+      markAncestors(legacyMother.id);
+    }
+    
+    // Mark dynamic parents of "self" (if any - though unlikely with current ID system)
+    markAncestors('self');
+    
+    // Mark siblings
+    siblings.forEach(s => rendered.add(s.id));
+    
+    // Mark spouses (legacy types)
+    spouses.forEach(s => rendered.add(s.id));
+    
+    // Mark legacy children (non-dynamic)
+    children.filter(c => !c.relation_type.includes('_of_')).forEach(child => {
+      rendered.add(child.id);
+      markDescendants(child.id);
+    });
+    
+    // Now process all root members that have already been marked
+    // and mark their entire trees
+    members.forEach(m => {
+      if (rendered.has(m.id)) {
+        markAncestors(m.id);
+        markDescendants(m.id);
+        // Also mark spouse
+        const spouse = members.find(sp => sp.relation_type === `spouse_of_${m.id}`);
+        if (spouse) rendered.add(spouse.id);
+      }
+    });
+    
+    return rendered;
+  };
+  
+  // Get members that are already rendered through the main tree
+  const renderedViaMainTree = buildRenderedMemberIds();
+  
+  // Find orphan members that need their own tree (not connected to main tree)
+  const findOrphanRoots = (): FamilyMember[] => {
+    const roots: FamilyMember[] = [];
+    const processedIds = new Set<string>();
+    
+    // For each unrendered member, find its tree root
+    const findTreeRoot = (member: FamilyMember, visited: Set<string> = new Set()): FamilyMember => {
+      if (visited.has(member.id)) return member;
+      visited.add(member.id);
+      
+      // If spouse, go to partner
+      if (member.relation_type.includes('spouse_of_')) {
+        const match = member.relation_type.match(/^spouse(?:_2)?_of_(.+)$/);
+        if (match) {
+          const partner = members.find(m => m.id === match[1]);
+          if (partner) return findTreeRoot(partner, visited);
+        }
+      }
+      
+      // If child, go to parent
+      if (member.relation_type.startsWith('child_of_')) {
+        const match = member.relation_type.match(/^child_of_(.+?)(?:_\d+)?$/);
+        if (match) {
+          const parent = members.find(m => m.id === match[1]);
+          if (parent) return findTreeRoot(parent, visited);
+        }
+      }
+      
+      // Check if this member has parents above
+      const myFather = members.find(m => m.relation_type === `father_of_${member.id}`);
+      const myMother = members.find(m => m.relation_type === `mother_of_${member.id}`);
+      
+      if (myFather) return findTreeRoot(myFather, visited);
+      if (myMother) return findTreeRoot(myMother, visited);
+      
+      return member;
+    };
+    
+    members.forEach(member => {
+      // Skip if already rendered in main tree
+      if (renderedViaMainTree.has(member.id)) return;
+      
+      const root = findTreeRoot(member);
+      if (!processedIds.has(root.id) && !renderedViaMainTree.has(root.id)) {
+        roots.push(root);
+        processedIds.add(root.id);
+      }
+    });
+    
+    return roots;
+  };
+  
+  // Get orphan root members
+  const orphanRoots = findOrphanRoots();
+  
+  // Separate orphan members by type for structured rendering
+  const orphanParentRoots = orphanRoots.filter(m => 
+    m.relation_type.startsWith('father_of_') || 
+    m.relation_type.startsWith('mother_of_')
+  );
+  const orphanOtherRoots = orphanRoots.filter(m => 
+    !m.relation_type.startsWith('father_of_') && 
+    !m.relation_type.startsWith('mother_of_')
+  );
+  
   const topLevelMembers = [...grandparents, ...parents.filter(p => !p.relation_type.includes('_of_')), ...siblings, ...children.filter(c => !c.relation_type.includes('_of_')), ...others];
   
   return (
@@ -772,10 +934,32 @@ export const FamilyTree = ({
             )}
           </div>
 
-          {/* Other relatives - displayed in open space without separator */}
-          {others.length > 0 && (
+          {/* Orphan parent roots - parents of disconnected trees */}
+          {orphanParentRoots.length > 0 && (
             <div className="flex justify-center gap-20 mt-16">
-              {others.map(other => (
+              {orphanParentRoots.map(parent => (
+                <div key={parent.id}>
+                  {renderMemberWithSpouses(parent, true, true)}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Orphan other roots - other disconnected members */}
+          {orphanOtherRoots.length > 0 && (
+            <div className="flex justify-center gap-20 mt-16">
+              {orphanOtherRoots.map(member => (
+                <div key={member.id}>
+                  {renderMemberWithSpouses(member, true, true)}
+                </div>
+              ))}
+            </div>
+          )}
+
+          {/* Legacy others */}
+          {others.filter(o => !renderedViaMainTree.has(o.id)).length > 0 && (
+            <div className="flex justify-center gap-20 mt-16">
+              {others.filter(o => !renderedViaMainTree.has(o.id)).map(other => (
                 <div key={other.id}>
                   {renderMemberWithSpouses(other, true, true)}
                 </div>
