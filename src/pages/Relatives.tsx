@@ -29,6 +29,8 @@ const Relatives = () => {
     countChildrenForMember,
     countFathersForMember,
     countMothersForMember,
+    isFatherSpouseAsMother,
+    isMotherSpouseAsFather,
     sendInvitation,
     respondToInvitation,
     linkExistingMemberToUser,
@@ -177,6 +179,8 @@ const Relatives = () => {
               countChildrenForMember={countChildrenForMember}
               countFathersForMember={countFathersForMember}
               countMothersForMember={countMothersForMember}
+              isFatherSpouseAsMother={isFatherSpouseAsMother}
+              isMotherSpouseAsFather={isMotherSpouseAsFather}
             />
           )}
         </div>

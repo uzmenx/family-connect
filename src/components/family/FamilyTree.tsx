@@ -40,6 +40,8 @@ interface FamilyTreeProps {
   countChildrenForMember?: (memberId: string) => number;
   countFathersForMember?: (memberId: string) => number;
   countMothersForMember?: (memberId: string) => number;
+  isFatherSpouseAsMother?: (memberId: string) => boolean;
+  isMotherSpouseAsFather?: (memberId: string) => boolean;
 }
 
 // Relation labels mapping (these are private labels, only shown to profile owner)
@@ -87,6 +89,8 @@ export const FamilyTree = ({
   countChildrenForMember,
   countFathersForMember,
   countMothersForMember,
+  isFatherSpouseAsMother,
+  isMotherSpouseAsFather,
 }: FamilyTreeProps) => {
   const [selectedMember, setSelectedMember] = useState<FamilyMember | null>(null);
   const [memberCardOpen, setMemberCardOpen] = useState(false);
