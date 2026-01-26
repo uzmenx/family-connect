@@ -124,7 +124,7 @@ export const FamilyTree = ({
   const memberElementsRef = useRef<Map<string, HTMLElement | null>>(new Map());
   const heartElementsRef = useRef<Map<string, HTMLElement | null>>(new Map());
   const [renderKey, setRenderKey] = useState(0);
-  const [useAI, setUseAI] = useState(true); // Toggle for AI line calculation
+  const [useAI, setUseAI] = useState(false); // Disabled - using fallback path generation
 
   // Attach wheel event for zoom
   useEffect(() => {
