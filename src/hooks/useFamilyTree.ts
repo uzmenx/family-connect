@@ -713,10 +713,31 @@ export const useFamilyTree = (userId?: string) => {
   };
 
   // Count children for a member
+  // MUHIM: Agar member kimningdir jufti bo'lsa, juftining bolalari ham shu memberga tegishli
   const countChildrenForMember = (memberId: string): number => {
-    return members.filter(m => 
+    // 1. To'g'ridan-to'g'ri shu memberning bolalari
+    const directChildren = members.filter(m => 
       m.relation_type.startsWith(`child_of_${memberId}`)
     ).length;
+    
+    if (directChildren > 0) return directChildren;
+    
+    // 2. Agar bu member kimningdir jufti bo'lsa - juftining bolalarini qaytaramiz
+    const memberSelf = members.find(m => m.id === memberId);
+    if (memberSelf) {
+      // spouse_of_X formatidan X ni topamiz
+      const spouseMatch = memberSelf.relation_type.match(/^spouse_of_(.+)$/);
+      if (spouseMatch) {
+        const partnerId = spouseMatch[1];
+        // Juftning bolalari = mening bolalarim
+        const partnerChildren = members.filter(m => 
+          m.relation_type.startsWith(`child_of_${partnerId}`)
+        ).length;
+        return partnerChildren;
+      }
+    }
+    
+    return 0;
   };
 
   // Count parents (fathers) for a member
@@ -914,6 +935,7 @@ export const useFamilyTree = (userId?: string) => {
 
   // Add child to a member (requires spouse)
   // Barcha network userlarning memberlarini tekshiradi
+  // MUHIM: Agar member kimningdir jufti bo'lsa (spouse_of_X), bolani X ga bog'laymiz
   const addChildToMember = async (
     memberId: string,
     childData: { name: string; gender: 'male' | 'female'; avatarUrl?: string }
@@ -921,6 +943,18 @@ export const useFamilyTree = (userId?: string) => {
     if (!user?.id) return null;
 
     try {
+      // Avval bu memberning o'zi kimningdir jufti ekanligini tekshiramiz
+      const memberSelf = members.find(m => m.id === memberId);
+      let targetParentId = memberId;
+      
+      if (memberSelf) {
+        const spouseMatch = memberSelf.relation_type.match(/^spouse_of_(.+)$/);
+        if (spouseMatch) {
+          // Bu member kimningdir jufti - bolani asosiy ota/onaga bog'laymiz
+          targetParentId = spouseMatch[1];
+        }
+      }
+
       // Fetch fresh data from ALL network users to get accurate child count
       const users = await getNetworkUsersForCurrentUser();
       
@@ -928,7 +962,7 @@ export const useFamilyTree = (userId?: string) => {
         .from('family_tree_members')
         .select('id, relation_type')
         .in('owner_id', users)
-        .like('relation_type', `child_of_${memberId}%`);
+        .like('relation_type', `child_of_${targetParentId}%`);
 
       if (countError) throw countError;
 
@@ -946,7 +980,7 @@ export const useFamilyTree = (userId?: string) => {
       await ensureFamilyNetwork(user.id);
 
       const childNumber = currentChildCount + 1;
-      const relationType = `child_of_${memberId}_${childNumber}`;
+      const relationType = `child_of_${targetParentId}_${childNumber}`;
 
       const { data, error } = await supabase
         .from('family_tree_members')
