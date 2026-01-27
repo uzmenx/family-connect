@@ -720,92 +720,105 @@ export const useFamilyTree = (userId?: string) => {
   };
 
   // Count parents (fathers) for a member
-  // QOIDA: Agar member child_of_ orqali yaratilgan bo'lsa, uning ota-onasi allaqachon bor
-  // Shu sababli ota qo'shish tugmasi ko'rinmasligi kerak
+  // TO'G'RI QOIDA: Har qanday odam o'z ota-onasiga ega bo'lishi mumkin
+  // child_of_ orqali yaratilgan bo'lsa HAM - bu faqat BITTA juftlikdan yaratilganini bildiradi
+  // lekin shu farzandning o'z ALOHIDA ota-onasi bo'lishi ham mumkin (masalan: asrab olgan ota-ona)
+  // LEKIN: child_of_X dagi X ning O'ZI ota yoki ona hisoblanadi
   const countFathersForMember = (memberId: string): number => {
     const memberSelf = members.find(m => m.id === memberId);
     if (!memberSelf) return 0;
     
-    // QOIDA 1: Agar bu member child_of_X orqali yaratilgan bo'lsa
-    // Uning ota-onasi X va X ning jufti - OTA allaqachon bor
+    // Agar bu member child_of_X orqali yaratilgan bo'lsa
+    // X ning jinsi tekshiriladi - agar X erkak bo'lsa - u OTA
     const childMatch = memberSelf.relation_type.match(/^child_of_([^_]+)/);
     if (childMatch) {
-      // Bu farzandning otasi allaqachon bor (ya'ni parent member)
-      return FAMILY_LIMITS.MAX_FATHERS; // Limit ga teng qaytaramiz - ota qo'shib bo'lmaydi
+      const parentId = childMatch[1];
+      const parent = members.find(m => m.id === parentId);
+      if (parent) {
+        const parentGender = parent.gender || parent.linked_profile?.gender;
+        // Agar parent erkak bo'lsa - bu OTA
+        if (parentGender === 'male') {
+          return 1; // Ota bor (parent o'zi)
+        }
+        // Agar parent ayol bo'lsa (ONA) - otani spouse orqali tekshiramiz
+        if (parentGender === 'female') {
+          const parentSpouse = members.find(m => m.relation_type === `spouse_of_${parentId}`);
+          if (parentSpouse) {
+            return 1; // Ota bor (ona jufti)
+          }
+          return 0; // Ota yo'q - qo'shish mumkin (lekin ona ota-onasi emas!)
+        }
+      }
+      // Agar parent topilmasa yoki jins aniqlanmasa - 0
+      return 0;
     }
     
+    // To'g'ridan-to'g'ri father_of_ relation bilan qo'shilgan ota
     const directFatherCount = members.filter(m => 
       m.relation_type === `father_of_${memberId}`
     ).length;
     
-    // QOIDA 2: Agar ona bor va onaga juft qo'shilgan bo'lsa - bu ota
-    if (directFatherCount === 0) {
-      const mother = members.find(m => m.relation_type === `mother_of_${memberId}`);
-      if (mother) {
-        // Onaga juft qo'shilganmi? Bu juft = ota
-        const motherSpouse = members.find(m => m.relation_type === `spouse_of_${mother.id}`);
-        if (motherSpouse) {
-          return FAMILY_LIMITS.MAX_FATHERS; // Ota bor (ona jufti sifatida)
-        }
+    if (directFatherCount > 0) return directFatherCount;
+    
+    // Agar ona bor va onaga juft qo'shilgan bo'lsa - bu ota
+    const mother = members.find(m => m.relation_type === `mother_of_${memberId}`);
+    if (mother) {
+      const motherSpouse = members.find(m => m.relation_type === `spouse_of_${mother.id}`);
+      if (motherSpouse) {
+        return 1; // Ota bor (ona jufti sifatida)
       }
     }
     
-    return directFatherCount;
+    return 0;
   };
 
   // Count parents (mothers) for a member
-  // QOIDA: Agar member child_of_ orqali yaratilgan bo'lsa, uning ota-onasi allaqachon bor
+  // TO'G'RI QOIDA: Har qanday odam o'z ota-onasiga ega bo'lishi mumkin
   const countMothersForMember = (memberId: string): number => {
     const memberSelf = members.find(m => m.id === memberId);
     if (!memberSelf) return 0;
     
-    // QOIDA 1: Agar bu member child_of_X orqali yaratilgan bo'lsa
-    // Uning ota-onasi X va X ning jufti - ONA allaqachon bor
+    // Agar bu member child_of_X orqali yaratilgan bo'lsa
+    // X ning jinsi tekshiriladi - agar X ayol bo'lsa - u ONA
     const childMatch = memberSelf.relation_type.match(/^child_of_([^_]+)/);
     if (childMatch) {
-      // Bu farzandning onasi allaqachon bor
-      return FAMILY_LIMITS.MAX_MOTHERS; // Limit ga teng qaytaramiz - ona qo'shib bo'lmaydi
+      const parentId = childMatch[1];
+      const parent = members.find(m => m.id === parentId);
+      if (parent) {
+        const parentGender = parent.gender || parent.linked_profile?.gender;
+        // Agar parent ayol bo'lsa - bu ONA
+        if (parentGender === 'female') {
+          return 1; // Ona bor (parent o'zi)
+        }
+        // Agar parent erkak bo'lsa (OTA) - onani spouse orqali tekshiramiz
+        if (parentGender === 'male') {
+          const parentSpouse = members.find(m => m.relation_type === `spouse_of_${parentId}`);
+          if (parentSpouse) {
+            return 1; // Ona bor (ota jufti)
+          }
+          return 0; // Ona yo'q - qo'shish mumkin
+        }
+      }
+      return 0;
     }
     
-    // QOIDA 2: Agar bu memberga ota qo'shilgan bo'lsa va shu otaga juft (ona) qo'shilgan bo'lsa
-    // Bu holda ona ham bor hisoblanadi
+    // To'g'ridan-to'g'ri mother_of_ relation bilan qo'shilgan ona
     const directMotherCount = members.filter(m => 
       m.relation_type === `mother_of_${memberId}`
     ).length;
     
-    // Agar ona yo'q lekin ota bor va otaga juft qo'shilgan bo'lsa
-    if (directMotherCount === 0) {
-      const father = members.find(m => m.relation_type === `father_of_${memberId}`);
-      if (father) {
-        // Otaga juft qo'shilganmi? Bu juft = ona
-        const fatherSpouse = members.find(m => m.relation_type === `spouse_of_${father.id}`);
-        if (fatherSpouse) {
-          return FAMILY_LIMITS.MAX_MOTHERS; // Ona bor (ota jufti sifatida)
-        }
+    if (directMotherCount > 0) return directMotherCount;
+    
+    // Agar ota bor va otaga juft qo'shilgan bo'lsa - bu ona
+    const father = members.find(m => m.relation_type === `father_of_${memberId}`);
+    if (father) {
+      const fatherSpouse = members.find(m => m.relation_type === `spouse_of_${father.id}`);
+      if (fatherSpouse) {
+        return 1; // Ona bor (ota jufti sifatida)
       }
     }
     
-    // Agar ota yo'q lekin ona bor va onaga juft qo'shilgan bo'lsa - ota mavjud
-    // Bu countFathersForMember da tekshiriladi
-    
-    // Agar OTA bor va ONAGA YO'Q - lekin otaga juft qo'shish imkoni bor
-    // Tekshir: ota bor bo'lsa va otaga juft qo'shilmagan bo'lsa
-    const directFatherCount = members.filter(m => 
-      m.relation_type === `father_of_${memberId}`
-    ).length;
-    
-    if (directFatherCount > 0 && directMotherCount === 0) {
-      const father = members.find(m => m.relation_type === `father_of_${memberId}`);
-      if (father) {
-        const fatherSpouse = members.find(m => m.relation_type === `spouse_of_${father.id}`);
-        if (fatherSpouse) {
-          // Ota jufti = ona
-          return FAMILY_LIMITS.MAX_MOTHERS;
-        }
-      }
-    }
-    
-    return directMotherCount;
+    return 0;
   };
   
   // Ota jufti = ona ekanligini tekshirish
