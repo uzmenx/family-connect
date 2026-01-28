@@ -3,7 +3,7 @@ import { FamilyMember, AddMemberData } from '@/types/family';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
-const generateId = () => Math.random().toString(36).substring(2, 11);
+const generateId = () => crypto.randomUUID();
 
 export const useLocalFamilyTree = () => {
   const { user } = useAuth();
