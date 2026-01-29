@@ -19,11 +19,7 @@ import { FamilyMember } from '@/types/family';
 
 interface FamilyTreeCanvasProps {
   members: Record<string, FamilyMember>;
-  onAddParents: (id: string) => void;
-  onAddSpouse: (id: string) => void;
-  onAddChild: (id: string) => void;
   onOpenProfile: (member: FamilyMember) => void;
-  onSendInvitation: (member: FamilyMember) => void;
 }
 
 const nodeTypes: NodeTypes = {
@@ -36,11 +32,7 @@ const edgeTypes: EdgeTypes = {
 
 export const FamilyTreeCanvas = ({
   members,
-  onAddParents,
-  onAddSpouse,
-  onAddChild,
   onOpenProfile,
-  onSendInvitation,
 }: FamilyTreeCanvasProps) => {
   const calculateLayout = useCallback(() => {
     const nodes: Node[] = [];
@@ -161,14 +153,7 @@ export const FamilyTreeCanvas = ({
         position: pos,
         data: {
           member,
-          onAddParents,
-          onAddSpouse,
-          onAddChild,
           onOpenProfile,
-          onSendInvitation,
-          hasParents: (member.parentIds?.length || 0) > 0,
-          hasSpouse: !!member.spouseId,
-          canAddChild: !!member.spouseId,
         },
       });
     });
@@ -197,7 +182,7 @@ export const FamilyTreeCanvas = ({
     });
     
     return { nodes, edges };
-  }, [members, onAddParents, onAddSpouse, onAddChild, onOpenProfile, onSendInvitation]);
+  }, [members, onOpenProfile]);
 
   const { nodes: initialNodes, edges: initialEdges } = useMemo(
     () => calculateLayout(),
