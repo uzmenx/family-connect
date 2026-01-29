@@ -147,11 +147,7 @@ export const FamilyTreeV2 = () => {
         <div className="h-[calc(100vh-280px)] min-h-[400px]">
           <FamilyTreeCanvas
             members={members}
-            onAddParents={handleAddParents}
-            onAddSpouse={handleAddSpouse}
-            onAddChild={handleAddChild}
             onOpenProfile={handleOpenProfile}
-            onSendInvitation={handleSendInvitation}
           />
         </div>
       </div>
@@ -206,6 +202,13 @@ export const FamilyTreeV2 = () => {
           member={modal.member}
           onUpdate={updateMember}
           onDelete={removeMember}
+          onAddParents={handleAddParents}
+          onAddSpouse={handleAddSpouse}
+          onAddChild={handleAddChild}
+          onSendInvitation={handleSendInvitation}
+          hasParents={(modal.member.parentIds?.length || 0) > 0}
+          hasSpouse={!!modal.member.spouseId}
+          canAddChild={!!modal.member.spouseId}
         />
       )}
 

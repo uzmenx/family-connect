@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Edit2, Trash2, ImagePlus } from 'lucide-react';
+import { Edit2, Trash2, ImagePlus, Users, UserPlus, Baby, Send } from 'lucide-react';
 import { FamilyMember } from '@/types/family';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -12,6 +12,13 @@ interface ProfileModalProps {
   member: FamilyMember;
   onUpdate: (id: string, updates: Partial<FamilyMember>) => void;
   onDelete: (id: string) => void;
+  onAddParents?: (id: string) => void;
+  onAddSpouse?: (id: string) => void;
+  onAddChild?: (id: string) => void;
+  onSendInvitation?: (member: FamilyMember) => void;
+  hasParents?: boolean;
+  hasSpouse?: boolean;
+  canAddChild?: boolean;
 }
 
 export const ProfileModal = ({
@@ -20,6 +27,13 @@ export const ProfileModal = ({
   member,
   onUpdate,
   onDelete,
+  onAddParents,
+  onAddSpouse,
+  onAddChild,
+  onSendInvitation,
+  hasParents = false,
+  hasSpouse = false,
+  canAddChild = false,
 }: ProfileModalProps) => {
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(member.name);
@@ -56,6 +70,11 @@ export const ProfileModal = ({
       onDelete(member.id);
       onClose();
     }
+  };
+
+  const handleAction = (action: () => void) => {
+    onClose();
+    action();
   };
 
   const yearDisplay = member.birthYear 
@@ -177,6 +196,57 @@ export const ProfileModal = ({
                   )}>
                     {yearDisplay}
                   </p>
+                )}
+              </div>
+
+              {/* Action Buttons - Ota-ona, Juft, Farzand, Taklif */}
+              <div className="flex flex-wrap gap-2 justify-center pt-2">
+                {!hasParents && onAddParents && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleAction(() => onAddParents(member.id))}
+                    className="flex items-center gap-1.5"
+                  >
+                    <Users className="w-4 h-4" />
+                    Ota-ona
+                  </Button>
+                )}
+                
+                {!hasSpouse && onAddSpouse && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleAction(() => onAddSpouse(member.id))}
+                    className="flex items-center gap-1.5"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                    Juft
+                  </Button>
+                )}
+                
+                {canAddChild && onAddChild && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleAction(() => onAddChild(member.id))}
+                    className="flex items-center gap-1.5"
+                  >
+                    <Baby className="w-4 h-4" />
+                    Farzand
+                  </Button>
+                )}
+
+                {member.name && !member.linkedUserId && onSendInvitation && (
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handleAction(() => onSendInvitation(member))}
+                    className="flex items-center gap-1.5 border-emerald-500/50 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
+                  >
+                    <Send className="w-4 h-4" />
+                    Taklif
+                  </Button>
                 )}
               </div>
 
