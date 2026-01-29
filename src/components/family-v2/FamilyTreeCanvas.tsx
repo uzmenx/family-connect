@@ -169,8 +169,18 @@ export const FamilyTreeCanvas = ({
         const parentId = father || member.parentIds[0];
         
         if (parentId && members[parentId]) {
-          // Get spouse ID to calculate center point
+          // Get spouse ID to calculate center point between couple
           const spouseId = father && mother ? mother : members[parentId].spouseId;
+          
+          // Calculate the center X between parents for edge positioning
+          const parentPos = nodePositions.get(parentId);
+          const spousePos = spouseId ? nodePositions.get(spouseId) : null;
+          
+          let centerX = parentPos?.x || 0;
+          if (parentPos && spousePos) {
+            // Center between both parents (where heart icon is)
+            centerX = (parentPos.x + spousePos.x + 80) / 2; // +80 for node width
+          }
           
           edges.push({
             id: `child-${parentId}-${member.id}`,
@@ -179,6 +189,7 @@ export const FamilyTreeCanvas = ({
             type: 'child',
             data: {
               spouseId: spouseId,
+              centerX: centerX,
             },
           });
         }
