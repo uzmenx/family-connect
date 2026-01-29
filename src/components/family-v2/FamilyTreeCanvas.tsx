@@ -15,6 +15,7 @@ import '@xyflow/react/dist/style.css';
 
 import FamilyMemberNode from './FamilyMemberNode';
 import { CoupleEdge } from './CoupleEdge';
+import { ChildEdge } from './ChildEdge';
 import { FamilyMember } from '@/types/family';
 
 interface FamilyTreeCanvasProps {
@@ -28,6 +29,7 @@ const nodeTypes: NodeTypes = {
 
 const edgeTypes: EdgeTypes = {
   couple: CoupleEdge as any,
+  child: ChildEdge as any,
 };
 
 export const FamilyTreeCanvas = ({
@@ -163,19 +165,21 @@ export const FamilyTreeCanvas = ({
       if (member.parentIds && member.parentIds.length > 0) {
         // Find the father (or first parent) for the edge
         const father = member.parentIds.find(pid => members[pid]?.gender === 'male');
+        const mother = member.parentIds.find(pid => members[pid]?.gender === 'female');
         const parentId = father || member.parentIds[0];
         
         if (parentId && members[parentId]) {
+          // Get spouse ID to calculate center point
+          const spouseId = father && mother ? mother : members[parentId].spouseId;
+          
           edges.push({
             id: `child-${parentId}-${member.id}`,
             source: parentId,
             target: member.id,
-            type: 'smoothstep',
-            style: { 
-              stroke: 'hsl(210, 60%, 50%)', 
-              strokeWidth: 2,
+            type: 'child',
+            data: {
+              spouseId: spouseId,
             },
-            animated: false,
           });
         }
       }
