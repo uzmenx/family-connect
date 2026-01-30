@@ -25,6 +25,7 @@ export const FamilyTreeV2 = () => {
     addSpouse,
     addChild,
     updateMember,
+    updatePosition,
     removeMember,
   } = useLocalFamilyTree();
 
@@ -148,6 +149,7 @@ export const FamilyTreeV2 = () => {
           <FamilyTreeCanvas
             members={members}
             onOpenProfile={handleOpenProfile}
+            onPositionChange={updatePosition}
           />
         </div>
       </div>

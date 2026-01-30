@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useCallback } from 'react';
 import {
   ReactFlow,
   Node,
@@ -10,18 +10,20 @@ import {
   BackgroundVariant,
   NodeTypes,
   EdgeTypes,
+  NodeChange,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 
 import FamilyMemberNode from './FamilyMemberNode';
-import { CoupleEdge } from './CoupleEdge';
-import { ChildEdge } from './ChildEdge';
+import SpouseEdge from './SpouseEdge';
+import ChildEdge from './ChildEdge';
 import { FamilyMember } from '@/types/family';
 import { computeNewMemberPosition } from './layout';
 
 interface FamilyTreeCanvasProps {
   members: Record<string, FamilyMember>;
   onOpenProfile: (member: FamilyMember) => void;
+  onPositionChange?: (memberId: string, position: { x: number; y: number }) => void;
 }
 
 const nodeTypes: NodeTypes = {
@@ -29,19 +31,33 @@ const nodeTypes: NodeTypes = {
 };
 
 const edgeTypes: EdgeTypes = {
-  couple: CoupleEdge as any,
+  spouse: SpouseEdge as any,
   child: ChildEdge as any,
 };
 
 export const FamilyTreeCanvas = ({
   members,
   onOpenProfile,
+  onPositionChange,
 }: FamilyTreeCanvasProps) => {
   const didFitViewRef = useRef(false);
 
   // Keep positions stable: only compute positions for NEW nodes
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+
+  // Handle node position changes and sync to cloud
+  const handleNodesChange = useCallback((changes: NodeChange<Node>[]) => {
+    onNodesChange(changes);
+    
+    // Sync position changes to cloud
+    changes.forEach((change) => {
+      if (change.type === 'position' && change.position && change.dragging === false) {
+        // Node was dropped - save position
+        onPositionChange?.(change.id, change.position);
+      }
+    });
+  }, [onNodesChange, onPositionChange]);
 
   // Compute edges from members
   const edgesMemo = useMemo(() => {
@@ -66,7 +82,7 @@ export const FamilyTreeCanvas = ({
         target: right.id,
         sourceHandle: 'spouse-right',
         targetHandle: 'spouse-left',
-        type: 'couple',
+        type: 'spouse',
       });
     });
 
@@ -98,7 +114,7 @@ export const FamilyTreeCanvas = ({
     setEdges(edgesMemo);
   }, [edgesMemo, setEdges]);
 
-  // Update nodes - only compute position for NEW nodes, preserve existing positions
+  // Update nodes - use saved positions or compute for NEW nodes
   useEffect(() => {
     setNodes((prevNodes) => {
       const prevMap = new Map(prevNodes.map((n) => [n.id, n] as const));
@@ -106,8 +122,11 @@ export const FamilyTreeCanvas = ({
 
       for (const member of Object.values(members)) {
         const existing = prevMap.get(member.id);
+        
+        // Priority: 1) existing node position, 2) saved member position, 3) computed position
         const position =
           existing?.position ??
+          member.position ??
           computeNewMemberPosition({
             member,
             members,
@@ -134,7 +153,7 @@ export const FamilyTreeCanvas = ({
       <ReactFlow
         nodes={nodes}
         edges={edges}
-        onNodesChange={onNodesChange}
+        onNodesChange={handleNodesChange}
         onEdgesChange={onEdgesChange}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}

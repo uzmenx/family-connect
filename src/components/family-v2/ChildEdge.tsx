@@ -1,68 +1,71 @@
-import { EdgeProps, useStore } from '@xyflow/react';
+import { EdgeProps, useInternalNode } from '@xyflow/react';
 
 interface ChildEdgeData {
   spouseId?: string;
 }
 
-export const ChildEdge = ({
+const ChildEdge = ({
   id,
   source,
   target,
+  style,
   data,
 }: EdgeProps) => {
-  // Subscribe to node changes to get real-time positions
-  const sourceNode = useStore((state) => state.nodeLookup.get(source));
-  const targetNode = useStore((state) => state.nodeLookup.get(target));
-  
   const edgeData = data as ChildEdgeData | undefined;
-  const spouseId = edgeData?.spouseId;
-  
-  // Always call the hook, but only use the result if spouseId exists
-  const spouseNode = useStore((state) => 
-    spouseId ? state.nodeLookup.get(spouseId) : undefined
-  );
-  
-  if (!sourceNode || !targetNode) return null;
-  
-  // Node dimensions (must match FamilyMemberNode avatar size)
-  const nodeWidth = 80;
-  const nodeHeight = 80;
-  
-  // Calculate target position (child node center top)
-  const targetX = targetNode.position.x + nodeWidth / 2;
-  const targetY = targetNode.position.y; // Top of child avatar
-  
-  // Calculate start point - from heart center between parents
+  const sourceNode = useInternalNode(source);
+  const targetNode = useInternalNode(target);
+  const spouseNode = useInternalNode(edgeData?.spouseId || '');
+
+  if (!sourceNode || !targetNode) {
+    return null;
+  }
+
+  // Get node dimensions - match FamilyMemberNode avatar size
+  const sourceWidth = sourceNode.measured?.width || 80;
+  const sourceHeight = sourceNode.measured?.height || 120;
+  const targetWidth = targetNode.measured?.width || 80;
+
+  // Target position (child node center top)
+  const targetX = targetNode.internals.positionAbsolute.x + targetWidth / 2;
+  const targetY = targetNode.internals.positionAbsolute.y;
+
+  // Calculate start point - should be at the center of spouse line (where heart is)
   let startX: number;
   let startY: number;
   
   if (spouseNode) {
-    // Get positions of both parents
-    const sourceRightX = sourceNode.position.x + nodeWidth;
-    const spouseLeftX = spouseNode.position.x;
+    const spouseWidth = spouseNode.measured?.width || 80;
     
-    // Heart center is between the two parents
+    // Get the right edge of source (where spouse line ends)
+    const sourceRightX = sourceNode.internals.positionAbsolute.x + sourceWidth;
+    const sourceRightY = sourceNode.internals.positionAbsolute.y + 40; // Avatar center
+    
+    // Get the left edge of spouse (where spouse line starts)
+    const spouseLeftX = spouseNode.internals.positionAbsolute.x;
+    const spouseLeftY = spouseNode.internals.positionAbsolute.y + 40; // Avatar center
+    
+    // Start from below the heart (so line goes behind heart)
     startX = (sourceRightX + spouseLeftX) / 2;
-    startY = Math.max(sourceNode.position.y, spouseNode.position.y) + nodeHeight / 2 + 14; // Below heart
+    startY = ((sourceRightY + spouseLeftY) / 2) + 16; // Start below heart center
   } else {
-    // Single parent - start from bottom center
-    startX = sourceNode.position.x + nodeWidth / 2;
-    startY = sourceNode.position.y + nodeHeight; // Bottom of parent
+    // Fallback: start from bottom center of parent
+    startX = sourceNode.internals.positionAbsolute.x + sourceWidth / 2;
+    startY = sourceNode.internals.positionAbsolute.y + sourceHeight;
   }
 
-  // Calculate midpoint for smooth curve
+  // Calculate intermediate point (below couple center)
   const midY = startY + 35;
-  
-  // Smooth S-curve path
+
+  // Create smooth flowing path with bezier curves
   const path = `
     M ${startX} ${startY}
     L ${startX} ${midY}
-    C ${startX} ${midY + 30}, 
-      ${targetX} ${(midY + targetY) / 2 - 20}, 
+    C ${startX} ${midY + 40}, 
+      ${targetX} ${(midY + targetY) / 2}, 
       ${targetX} ${targetY}
   `;
 
-  // Generate animated dots
+  // Generate animated dots along the path
   const dots = [];
   const numDots = 4;
   for (let i = 0; i < numDots; i++) {
@@ -86,7 +89,7 @@ export const ChildEdge = ({
 
   return (
     <g>
-      {/* Glow filter and gradient definitions */}
+      {/* Glow filter */}
       <defs>
         <filter id={`glow-child-${id}`} x="-50%" y="-50%" width="200%" height="200%">
           <feGaussianBlur stdDeviation="3" result="coloredBlur" />
@@ -95,7 +98,7 @@ export const ChildEdge = ({
             <feMergeNode in="SourceGraphic" />
           </feMerge>
         </filter>
-        <linearGradient id={`child-gradient-${id}`} x1="0%" y1="0%" x2="0%" y2="100%">
+        <linearGradient id={`gradient-child-${id}`} x1="0%" y1="0%" x2="0%" y2="100%">
           <stop offset="0%" stopColor="hsl(210, 80%, 70%)" />
           <stop offset="40%" stopColor="hsl(200, 75%, 55%)" />
           <stop offset="100%" stopColor="hsl(190, 70%, 50%)" />
@@ -119,6 +122,7 @@ export const ChildEdge = ({
         strokeOpacity={0.25}
         filter={`url(#glow-child-${id})`}
         strokeLinecap="round"
+        style={style}
       />
 
       {/* Main gradient line */}
@@ -126,15 +130,16 @@ export const ChildEdge = ({
         id={id}
         d={path}
         fill="none"
-        stroke={`url(#child-gradient-${id})`}
+        stroke={`url(#gradient-child-${id})`}
         strokeWidth={2}
         strokeLinecap="round"
+        style={style}
       />
 
       {/* Animated particles */}
       {dots}
 
-      {/* Start point glow dot (at heart center) */}
+      {/* Start point glow dot */}
       <circle
         cx={startX}
         cy={startY}
@@ -155,22 +160,8 @@ export const ChildEdge = ({
           repeatCount="indefinite"
         />
       </circle>
-
-      {/* End point at child (connection dot) */}
-      <circle
-        cx={targetX}
-        cy={targetY}
-        r="4"
-        fill="hsl(200, 70%, 55%)"
-        opacity={0.7}
-      >
-        <animate
-          attributeName="r"
-          values="3;4.5;3"
-          dur="1.8s"
-          repeatCount="indefinite"
-        />
-      </circle>
     </g>
   );
 };
+
+export default ChildEdge;
