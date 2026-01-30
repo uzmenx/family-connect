@@ -27,59 +27,115 @@ export const CoupleEdge = ({
   const centerX = (sourceX + targetX) / 2;
   const centerY = (sourceY + targetY) / 2;
 
-  // Create smooth curved path for couple connection
-  const controlOffset = Math.abs(targetX - sourceX) * 0.2;
+  // Create organic curved path with slight wave
+  const controlOffset = 15;
   const path = `
     M ${sourceX} ${sourceY}
-    Q ${sourceX + controlOffset} ${centerY},
-      ${centerX} ${centerY}
-    Q ${targetX - controlOffset} ${centerY},
+    C ${sourceX + 20} ${sourceY - controlOffset},
+      ${targetX - 20} ${targetY + controlOffset},
       ${targetX} ${targetY}
   `;
 
+  // Generate animated dots along the path
+  const dots = [];
+  const numDots = 5;
+  for (let i = 0; i < numDots; i++) {
+    dots.push(
+      <circle
+        key={`dot-${id}-${i}`}
+        r="2.5"
+        fill="hsl(350, 70%, 65%)"
+        opacity={0.8}
+      >
+        <animateMotion
+          dur={`${2 + i * 0.3}s`}
+          repeatCount="indefinite"
+          begin={`${i * 0.4}s`}
+        >
+          <mpath href={`#path-${id}`} />
+        </animateMotion>
+      </circle>
+    );
+  }
+
   return (
-    <>
+    <g>
+      {/* Glow filter and gradient definitions */}
       <defs>
+        <filter id={`glow-spouse-${id}`} x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="4" result="coloredBlur" />
+          <feMerge>
+            <feMergeNode in="coloredBlur" />
+            <feMergeNode in="SourceGraphic" />
+          </feMerge>
+        </filter>
         <linearGradient id={`couple-gradient-${id}`} x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="hsl(350, 75%, 60%)" stopOpacity="0.8" />
-          <stop offset="50%" stopColor="hsl(350, 80%, 55%)" />
-          <stop offset="100%" stopColor="hsl(350, 75%, 60%)" stopOpacity="0.8" />
+          <stop offset="0%" stopColor="hsl(350, 80%, 70%)" />
+          <stop offset="50%" stopColor="hsl(0, 85%, 65%)" />
+          <stop offset="100%" stopColor="hsl(350, 80%, 70%)" />
         </linearGradient>
       </defs>
-      {/* Glow layer */}
+
+      {/* Hidden path for motion */}
+      <path
+        id={`path-${id}`}
+        d={path}
+        fill="none"
+        stroke="none"
+      />
+
+      {/* Background glow line */}
       <path
         d={path}
         fill="none"
-        stroke="hsl(350, 70%, 55%)"
-        strokeWidth="5"
-        strokeOpacity="0.2"
+        stroke="hsl(350, 70%, 60%)"
+        strokeWidth={6}
+        strokeOpacity={0.3}
+        filter={`url(#glow-spouse-${id})`}
         strokeLinecap="round"
       />
-      {/* Dashed couple line */}
+
+      {/* Main gradient line with animated dash */}
       <path
         id={id}
         d={path}
         fill="none"
         stroke={`url(#couple-gradient-${id})`}
-        strokeWidth="2"
-        strokeDasharray="8 5"
+        strokeWidth={2.5}
+        strokeDasharray="8 4"
         strokeLinecap="round"
-        style={{
-          filter: 'drop-shadow(0 0 2px hsl(350, 70%, 55% / 0.4))',
-        }}
-      />
-      {/* Heart icon at center */}
-      <foreignObject
-        x={centerX - 14}
-        y={centerY - 14}
-        width={28}
-        height={28}
-        className="overflow-visible pointer-events-none"
       >
-        <div className="w-7 h-7 flex items-center justify-center bg-card rounded-full shadow-lg border-2 border-destructive/50">
-          <Heart className="w-4 h-4 fill-destructive text-destructive" />
+        <animate
+          attributeName="stroke-dashoffset"
+          from="0"
+          to="-24"
+          dur="1s"
+          repeatCount="indefinite"
+        />
+      </path>
+
+      {/* Animated particles */}
+      {dots}
+
+      {/* Heart at center with pulse animation */}
+      <foreignObject
+        x={centerX - 16}
+        y={centerY - 16}
+        width={32}
+        height={32}
+        className="pointer-events-none overflow-visible"
+      >
+        <div 
+          className="w-8 h-8 rounded-full flex items-center justify-center"
+          style={{
+            background: 'linear-gradient(145deg, hsl(350, 80%, 65%), hsl(0, 75%, 55%))',
+            boxShadow: '0 0 20px hsl(350, 80%, 60%), 0 4px 12px hsl(0, 0%, 0%, 0.2)',
+            animation: 'pulse-heart 1.5s ease-in-out infinite',
+          }}
+        >
+          <Heart className="w-4 h-4 text-white fill-white drop-shadow-sm" />
         </div>
       </foreignObject>
-    </>
+    </g>
   );
 };
