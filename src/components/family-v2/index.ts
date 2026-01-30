@@ -3,6 +3,6 @@ export { FamilyTreeCanvas } from './FamilyTreeCanvas';
 export { AddMemberModal } from './AddMemberModal';
 export { ProfileModal } from './ProfileModal';
 export { SendInvitationModal } from './SendInvitationModal';
-export { CoupleEdge } from './CoupleEdge';
-export { ChildEdge } from './ChildEdge';
+export { default as SpouseEdge } from './SpouseEdge';
+export { default as ChildEdge } from './ChildEdge';
 export { default as FamilyMemberNode } from './FamilyMemberNode';

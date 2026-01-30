@@ -8,6 +8,8 @@ export interface FamilyMember {
   spouseId?: string;
   parentIds?: string[];
   childrenIds?: string[];
+  // Position for canvas layout
+  position?: { x: number; y: number };
   // For Supabase integration
   supabaseId?: string;
   linkedUserId?: string;

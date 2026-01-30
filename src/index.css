@@ -159,7 +159,7 @@ All colors MUST be HSL.
   }
 }
 
-/* Family Tree Edge Animations */
+/* Neon glow animations for family tree */
 @keyframes pulse-heart {
   0%, 100% {
     transform: scale(1);
@@ -180,4 +180,49 @@ All colors MUST be HSL.
     filter: drop-shadow(0 0 10px currentColor);
     opacity: 1;
   }
+}
+
+@keyframes particle-flow {
+  0% {
+    offset-distance: 0%;
+    opacity: 0;
+  }
+  10% {
+    opacity: 1;
+  }
+  90% {
+    opacity: 1;
+  }
+  100% {
+    offset-distance: 100%;
+    opacity: 0;
+  }
+}
+
+.animate-pulse-heart {
+  animation: pulse-heart 1.5s ease-in-out infinite;
+}
+
+/* React Flow overrides for family tree */
+.react-flow__node {
+  cursor: pointer !important;
+}
+
+.react-flow__controls {
+  background: hsl(var(--card)) !important;
+  border: 1px solid hsl(var(--border)) !important;
+  border-radius: 1rem !important;
+}
+
+.react-flow__controls-button {
+  background: transparent !important;
+  border-bottom: 1px solid hsl(var(--border)) !important;
+}
+
+.react-flow__controls-button:hover {
+  background: hsl(var(--muted)) !important;
+}
+
+.react-flow__controls-button svg {
+  fill: hsl(var(--foreground)) !important;
 }
