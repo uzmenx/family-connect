@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
 import {
   ReactFlow,
   Node,
@@ -17,6 +17,7 @@ import FamilyMemberNode from './FamilyMemberNode';
 import { CoupleEdge } from './CoupleEdge';
 import { ChildEdge } from './ChildEdge';
 import { FamilyMember } from '@/types/family';
+import { computeNewMemberPosition } from './layout';
 
 interface FamilyTreeCanvasProps {
   members: Record<string, FamilyMember>;
@@ -36,182 +37,97 @@ export const FamilyTreeCanvas = ({
   members,
   onOpenProfile,
 }: FamilyTreeCanvasProps) => {
-  const calculateLayout = useCallback(() => {
-    const nodes: Node[] = [];
-    const edges: Edge[] = [];
+  const didFitViewRef = useRef(false);
+
+  // Keep positions stable: only compute positions for NEW nodes
+  const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
+
+  // Compute edges from members
+  const edgesMemo = useMemo(() => {
+    const nextEdges: Edge[] = [];
     const processedCouples = new Set<string>();
-    const nodePositions = new Map<string, { x: number; y: number }>();
-    
-    const HORIZONTAL_GAP = 220;
-    const VERTICAL_GAP = 220;
-    const SPOUSE_GAP = 160;
-    
-    // Get generation for each member
-    const getGeneration = (memberId: string, visited = new Set<string>()): number => {
-      if (visited.has(memberId)) return 0;
-      visited.add(memberId);
-      
-      const member = members[memberId];
-      if (!member) return 0;
-      
-      if (!member.parentIds || member.parentIds.length === 0) {
-        return 0;
-      }
-      
-      const parentGen = Math.max(
-        ...member.parentIds.map(pid => getGeneration(pid, visited))
-      );
-      return parentGen + 1;
-    };
-    
-    // Group members by generation
-    const generations = new Map<number, FamilyMember[]>();
-    Object.values(members).forEach(member => {
-      const gen = getGeneration(member.id);
-      if (!generations.has(gen)) {
-        generations.set(gen, []);
-      }
-      generations.get(gen)!.push(member);
-    });
-    
-    // Position nodes by generation
-    const sortedGens = Array.from(generations.keys()).sort((a, b) => a - b);
-    
-    sortedGens.forEach((gen) => {
-      const genMembers = generations.get(gen)!;
-      let xOffset = 0;
-      
-      // Group by couples
-      const couples: FamilyMember[][] = [];
-      const singles: FamilyMember[] = [];
-      const processed = new Set<string>();
-      
-      genMembers.forEach(member => {
-        if (processed.has(member.id)) return;
-        
-        if (member.spouseId && members[member.spouseId]) {
-          const spouse = members[member.spouseId];
-          couples.push([member, spouse]);
-          processed.add(member.id);
-          processed.add(spouse.id);
-        } else {
-          singles.push(member);
-          processed.add(member.id);
-        }
-      });
-      
-      // Calculate total width needed
-      const totalItems = couples.length * 2 + singles.length;
-      const startX = -(totalItems * HORIZONTAL_GAP) / 4;
-      
-      // Position couples
-      couples.forEach(([member1, member2]) => {
-        const coupleKey = [member1.id, member2.id].sort().join('-');
-        if (!processedCouples.has(coupleKey)) {
-          processedCouples.add(coupleKey);
-          
-          // Determine order (male left, female right)
-          const [left, right] = member1.gender === 'male' 
-            ? [member1, member2] 
-            : [member2, member1];
-          
-          const leftX = startX + xOffset;
-          const rightX = leftX + SPOUSE_GAP;
-          const y = gen * VERTICAL_GAP;
-          
-          nodePositions.set(left.id, { x: leftX, y });
-          nodePositions.set(right.id, { x: rightX, y });
-          
-          // Add spouse edge with heart
-          edges.push({
-            id: `spouse-${left.id}-${right.id}`,
-            source: left.id,
-            target: right.id,
-            sourceHandle: 'spouse-right',
-            targetHandle: 'spouse-left',
-            type: 'couple',
-          });
-          
-          xOffset += HORIZONTAL_GAP * 1.8;
-        }
-      });
-      
-      // Position singles
-      singles.forEach(member => {
-        const x = startX + xOffset;
-        const y = gen * VERTICAL_GAP;
-        nodePositions.set(member.id, { x, y });
-        xOffset += HORIZONTAL_GAP;
-      });
-    });
-    
-    // Create nodes
-    Object.values(members).forEach(member => {
-      const pos = nodePositions.get(member.id) || { x: 0, y: 0 };
-      
-      nodes.push({
-        id: member.id,
-        type: 'familyMember',
-        position: pos,
-        data: {
-          member,
-          onOpenProfile,
-        },
-      });
-    });
-    
-    // Create parent-child edges
-    Object.values(members).forEach(member => {
-      if (member.parentIds && member.parentIds.length > 0) {
-        // Find the father (or first parent) for the edge
-        const father = member.parentIds.find(pid => members[pid]?.gender === 'male');
-        const mother = member.parentIds.find(pid => members[pid]?.gender === 'female');
-        const parentId = father || member.parentIds[0];
-        
-        if (parentId && members[parentId]) {
-          // Get spouse ID to calculate center point between couple
-          const spouseId = father && mother ? mother : members[parentId].spouseId;
-          
-          // Calculate the center X between parents for edge positioning
-          const parentPos = nodePositions.get(parentId);
-          const spousePos = spouseId ? nodePositions.get(spouseId) : null;
-          
-          let centerX = parentPos?.x || 0;
-          if (parentPos && spousePos) {
-            // Center between both parents (where heart icon is)
-            centerX = (parentPos.x + spousePos.x + 80) / 2; // +80 for node width
-          }
-          
-          edges.push({
-            id: `child-${parentId}-${member.id}`,
-            source: parentId,
-            target: member.id,
-            type: 'child',
-            data: {
-              spouseId: spouseId,
-              centerX: centerX,
-            },
-          });
-        }
-      }
-    });
-    
-    return { nodes, edges };
-  }, [members, onOpenProfile]);
 
-  const { nodes: initialNodes, edges: initialEdges } = useMemo(
-    () => calculateLayout(),
-    [calculateLayout]
-  );
+    // Spouse/couple edges
+    Object.values(members).forEach((member) => {
+      if (!member.spouseId) return;
+      const spouse = members[member.spouseId];
+      if (!spouse) return;
 
-  const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
+      const coupleKey = [member.id, spouse.id].sort().join('-');
+      if (processedCouples.has(coupleKey)) return;
+      processedCouples.add(coupleKey);
 
+      const [left, right] = member.gender === 'male' ? [member, spouse] : [spouse, member];
+
+      nextEdges.push({
+        id: `spouse-${left.id}-${right.id}`,
+        source: left.id,
+        target: right.id,
+        sourceHandle: 'spouse-right',
+        targetHandle: 'spouse-left',
+        type: 'couple',
+      });
+    });
+
+    // Parent-child edges
+    Object.values(members).forEach((member) => {
+      if (!member.parentIds || member.parentIds.length === 0) return;
+
+      const father = member.parentIds.find((pid) => members[pid]?.gender === 'male');
+      const mother = member.parentIds.find((pid) => members[pid]?.gender === 'female');
+      const parentId = father || member.parentIds[0];
+      const spouseId = mother || (member.parentIds.length > 1 ? member.parentIds[1] : undefined);
+
+      if (!parentId || !members[parentId]) return;
+
+      nextEdges.push({
+        id: `child-${parentId}-${member.id}`,
+        source: parentId,
+        target: member.id,
+        type: 'child',
+        data: { spouseId },
+      });
+    });
+
+    return nextEdges;
+  }, [members]);
+
+  // Update edges when members change
   useEffect(() => {
-    const { nodes: newNodes, edges: newEdges } = calculateLayout();
-    setNodes(newNodes);
-    setEdges(newEdges);
-  }, [members, calculateLayout, setNodes, setEdges]);
+    setEdges(edgesMemo);
+  }, [edgesMemo, setEdges]);
+
+  // Update nodes - only compute position for NEW nodes, preserve existing positions
+  useEffect(() => {
+    setNodes((prevNodes) => {
+      const prevMap = new Map(prevNodes.map((n) => [n.id, n] as const));
+      const nextNodes: Node[] = [];
+
+      for (const member of Object.values(members)) {
+        const existing = prevMap.get(member.id);
+        const position =
+          existing?.position ??
+          computeNewMemberPosition({
+            member,
+            members,
+            prevNodeMap: prevMap,
+          });
+
+        nextNodes.push({
+          id: member.id,
+          type: 'familyMember',
+          position,
+          data: {
+            member,
+            onOpenProfile,
+          },
+        });
+      }
+
+      return nextNodes;
+    });
+  }, [members, onOpenProfile, setNodes]);
 
   return (
     <div className="w-full h-full rounded-2xl overflow-hidden border border-border bg-card/50">
@@ -222,8 +138,12 @@ export const FamilyTreeCanvas = ({
         onEdgesChange={onEdgesChange}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
-        fitView
-        fitViewOptions={{ padding: 0.4 }}
+        fitView={false}
+        onInit={(instance) => {
+          if (didFitViewRef.current) return;
+          instance.fitView({ padding: 0.4 });
+          didFitViewRef.current = true;
+        }}
         minZoom={0.2}
         maxZoom={2}
         attributionPosition="bottom-left"

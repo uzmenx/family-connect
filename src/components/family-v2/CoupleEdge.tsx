@@ -12,47 +12,41 @@ export const CoupleEdge = ({
   
   if (!sourceNode || !targetNode) return null;
   
-  // Node dimensions
+  // Node dimensions (must match FamilyMemberNode avatar size)
   const nodeWidth = 80;
   const nodeHeight = 80;
   
-  // Calculate edge positions at the sides of the avatar circles
-  const sourceX = sourceNode.position.x + nodeWidth; // Right side of male
-  const sourceY = sourceNode.position.y + nodeHeight / 2;
+  // Calculate handle positions (right edge of source, left edge of target)
+  const sourceX = sourceNode.position.x + nodeWidth; // Right edge of male avatar
+  const sourceY = sourceNode.position.y + nodeHeight / 2; // Center Y
   
-  const targetX = targetNode.position.x; // Left side of female
-  const targetY = targetNode.position.y + nodeHeight / 2;
+  const targetX = targetNode.position.x; // Left edge of female avatar
+  const targetY = targetNode.position.y + nodeHeight / 2; // Center Y
   
-  // Calculate center point for heart
+  // Center point for heart
   const centerX = (sourceX + targetX) / 2;
   const centerY = (sourceY + targetY) / 2;
 
-  // Create organic curved path with slight wave
-  const controlOffset = 15;
-  const path = `
-    M ${sourceX} ${sourceY}
-    C ${sourceX + 20} ${sourceY - controlOffset},
-      ${targetX - 20} ${targetY + controlOffset},
-      ${targetX} ${targetY}
-  `;
+  // Create path from source to target (straight line through heart)
+  const path = `M ${sourceX} ${sourceY} L ${targetX} ${targetY}`;
 
-  // Generate animated dots along the path
+  // Generate animated dots
   const dots = [];
-  const numDots = 5;
+  const numDots = 3;
   for (let i = 0; i < numDots; i++) {
     dots.push(
       <circle
-        key={`dot-${id}-${i}`}
+        key={`dot-couple-${id}-${i}`}
         r="2.5"
-        fill="hsl(350, 70%, 65%)"
-        opacity={0.8}
+        fill="hsl(340, 80%, 60%)"
+        opacity={0.9}
       >
         <animateMotion
-          dur={`${2 + i * 0.3}s`}
+          dur={`${2 + i * 0.5}s`}
           repeatCount="indefinite"
           begin={`${i * 0.4}s`}
         >
-          <mpath href={`#path-${id}`} />
+          <mpath href={`#couple-path-${id}`} />
         </animateMotion>
       </circle>
     );
@@ -60,80 +54,69 @@ export const CoupleEdge = ({
 
   return (
     <g>
-      {/* Glow filter and gradient definitions */}
+      {/* Definitions */}
       <defs>
-        <filter id={`glow-spouse-${id}`} x="-50%" y="-50%" width="200%" height="200%">
-          <feGaussianBlur stdDeviation="4" result="coloredBlur" />
+        <filter id={`glow-couple-${id}`} x="-50%" y="-50%" width="200%" height="200%">
+          <feGaussianBlur stdDeviation="3" result="coloredBlur" />
           <feMerge>
             <feMergeNode in="coloredBlur" />
             <feMergeNode in="SourceGraphic" />
           </feMerge>
         </filter>
         <linearGradient id={`couple-gradient-${id}`} x1="0%" y1="0%" x2="100%" y2="0%">
-          <stop offset="0%" stopColor="hsl(350, 80%, 70%)" />
-          <stop offset="50%" stopColor="hsl(0, 85%, 65%)" />
-          <stop offset="100%" stopColor="hsl(350, 80%, 70%)" />
+          <stop offset="0%" stopColor="hsl(340, 70%, 55%)" />
+          <stop offset="50%" stopColor="hsl(350, 80%, 60%)" />
+          <stop offset="100%" stopColor="hsl(340, 70%, 55%)" />
         </linearGradient>
       </defs>
 
-      {/* Hidden path for motion */}
+      {/* Hidden path for motion animation */}
       <path
-        id={`path-${id}`}
+        id={`couple-path-${id}`}
         d={path}
         fill="none"
         stroke="none"
       />
 
-      {/* Background glow line */}
+      {/* Background glow */}
       <path
         d={path}
         fill="none"
-        stroke="hsl(350, 70%, 60%)"
+        stroke="hsl(340, 60%, 50%)"
         strokeWidth={6}
-        strokeOpacity={0.3}
-        filter={`url(#glow-spouse-${id})`}
+        strokeOpacity={0.25}
+        filter={`url(#glow-couple-${id})`}
         strokeLinecap="round"
       />
 
-      {/* Main gradient line with animated dash */}
+      {/* Main gradient line */}
       <path
         id={id}
         d={path}
         fill="none"
         stroke={`url(#couple-gradient-${id})`}
         strokeWidth={2.5}
-        strokeDasharray="8 4"
         strokeLinecap="round"
-      >
-        <animate
-          attributeName="stroke-dashoffset"
-          from="0"
-          to="-24"
-          dur="1s"
-          repeatCount="indefinite"
-        />
-      </path>
+      />
 
       {/* Animated particles */}
       {dots}
 
-      {/* Heart at center with pulse animation */}
+      {/* Heart icon in center */}
       <foreignObject
-        x={centerX - 16}
-        y={centerY - 16}
-        width={32}
-        height={32}
-        className="pointer-events-none overflow-visible"
+        x={centerX - 14}
+        y={centerY - 14}
+        width={28}
+        height={28}
+        className="overflow-visible pointer-events-none"
       >
         <div 
-          className="w-8 h-8 rounded-full flex items-center justify-center"
+          className="w-7 h-7 rounded-full bg-gradient-to-br from-pink-400 to-rose-500 flex items-center justify-center shadow-lg animate-pulse-heart"
           style={{
-            background: 'linear-gradient(145deg, hsl(350, 80%, 65%), hsl(0, 75%, 55%))',
-            boxShadow: '0 0 20px hsl(350, 80%, 60%), 0 4px 12px hsl(0, 0%, 0%, 0.2)',
-            animation: 'pulse-heart 1.5s ease-in-out infinite',
+            boxShadow: '0 0 12px rgba(236, 72, 153, 0.6)',
           }}
         >
-          <Heart className="w-4 h-4 text-white fill-white drop-shadow-sm" />
+          <Heart className="w-4 h-4 text-white fill-white" />
         </div>
       </foreignObject>
     </g>

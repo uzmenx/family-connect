@@ -24,51 +24,45 @@ export const ChildEdge = ({
   
   if (!sourceNode || !targetNode) return null;
   
-  // Node dimensions
+  // Node dimensions (must match FamilyMemberNode avatar size)
   const nodeWidth = 80;
   const nodeHeight = 80;
   
-  // Calculate source center (parent node)
-  const sourceX = sourceNode.position.x + nodeWidth / 2;
-  const sourceY = sourceNode.position.y + nodeHeight; // Bottom of parent avatar
-  
   // Calculate target position (child node center top)
   const targetX = targetNode.position.x + nodeWidth / 2;
-  const targetY = targetNode.position.y - 5; // Top of child (slightly above for handle)
+  const targetY = targetNode.position.y; // Top of child avatar
   
-  // Calculate start point - should be at the center of spouse line (where heart is)
-  let startX = sourceX;
-  let startY = sourceY + 5;
+  // Calculate start point - from heart center between parents
+  let startX: number;
+  let startY: number;
   
   if (spouseNode) {
-    const spouseX = spouseNode.position.x + nodeWidth / 2;
-    
-    // Get the right edge of source (where spouse line starts)
+    // Get positions of both parents
     const sourceRightX = sourceNode.position.x + nodeWidth;
-    const sourceRightY = sourceNode.position.y + nodeHeight / 2;
-    
-    // Get the left edge of spouse (where spouse line ends)
     const spouseLeftX = spouseNode.position.x;
-    const spouseLeftY = spouseNode.position.y + nodeHeight / 2;
     
-    // Start from below the heart (so line goes behind heart)
+    // Heart center is between the two parents
     startX = (sourceRightX + spouseLeftX) / 2;
-    startY = ((sourceRightY + spouseLeftY) / 2) + 16; // Start below heart center
+    startY = Math.max(sourceNode.position.y, spouseNode.position.y) + nodeHeight / 2 + 14; // Below heart
+  } else {
+    // Single parent - start from bottom center
+    startX = sourceNode.position.x + nodeWidth / 2;
+    startY = sourceNode.position.y + nodeHeight; // Bottom of parent
   }
-  
-  // Calculate intermediate point (below couple center)
-  const midY = startY + 35;
 
-  // Create smooth flowing path with bezier curves
+  // Calculate midpoint for smooth curve
+  const midY = startY + 35;
+  
+  // Smooth S-curve path
   const path = `
     M ${startX} ${startY}
     L ${startX} ${midY}
-    C ${startX} ${midY + 40}, 
-      ${targetX} ${(midY + targetY) / 2}, 
+    C ${startX} ${midY + 30}, 
+      ${targetX} ${(midY + targetY) / 2 - 20}, 
       ${targetX} ${targetY}
   `;
 
-  // Generate animated dots along the path
+  // Generate animated dots
   const dots = [];
   const numDots = 4;
   for (let i = 0; i < numDots; i++) {
@@ -140,7 +134,7 @@ export const ChildEdge = ({
       {/* Animated particles */}
       {dots}
 
-      {/* Start point glow dot */}
+      {/* Start point glow dot (at heart center) */}
       <circle
         cx={startX}
         cy={startY}
@@ -158,6 +152,22 @@ export const ChildEdge = ({
           attributeName="opacity"
           values="0.4;0.8;0.4"
           dur="2s"
+          repeatCount="indefinite"
+        />
+      </circle>
+
+      {/* End point at child (connection dot) */}
+      <circle
+        cx={targetX}
+        cy={targetY}
+        r="4"
+        fill="hsl(200, 70%, 55%)"
+        opacity={0.7}
+      >
+        <animate
+          attributeName="r"
+          values="3;4.5;3"
+          dur="1.8s"
           repeatCount="indefinite"
         />
       </circle>
