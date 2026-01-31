@@ -6,7 +6,6 @@ import { ProfileModal } from './ProfileModal';
 import { SendInvitationModal } from './SendInvitationModal';
 import { useLocalFamilyTree } from '@/hooks/useLocalFamilyTree';
 import { FamilyMember, AddMemberData } from '@/types/family';
-import { cn } from '@/lib/utils';
 
 type ModalState = {
   type: 'none' | 'addParentFather' | 'addParentMother' | 'addSpouse' | 'addChild' | 'profile' | 'invitation';
@@ -30,6 +29,13 @@ export const FamilyTreeV2 = () => {
   } = useLocalFamilyTree();
 
   const [modal, setModal] = useState<ModalState>({ type: 'none' });
+
+  // Build positions map from members
+  const positions = Object.fromEntries(
+    Object.values(members)
+      .filter((m) => m.position)
+      .map((m) => [m.id, m.position!])
+  );
 
   useEffect(() => {
     if (!isLoading && !rootId && Object.keys(members).length === 0) {
@@ -92,6 +98,10 @@ export const FamilyTreeV2 = () => {
     handleCloseModal();
   };
 
+  const handlePositionChange = useCallback((memberId: string, x: number, y: number) => {
+    updatePosition(memberId, { x, y });
+  }, [updatePosition]);
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -122,22 +132,22 @@ export const FamilyTreeV2 = () => {
         {/* Legend */}
         <div className="flex flex-wrap gap-3 mt-4">
           <div className="px-4 py-2 rounded-xl bg-card border border-border flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-sky-500" />
+            <div className="w-3 h-3 rounded-full bg-[hsl(200,70%,50%)]" />
             <span className="text-sm text-muted-foreground">Erkak</span>
           </div>
           <div className="px-4 py-2 rounded-xl bg-card border border-border flex items-center gap-2">
-            <div className="w-3 h-3 rounded-full bg-pink-500" />
+            <div className="w-3 h-3 rounded-full bg-[hsl(330,70%,55%)]" />
             <span className="text-sm text-muted-foreground">Ayol</span>
           </div>
           <div className="px-4 py-2 rounded-xl bg-card border border-border flex items-center gap-2">
             <div className="flex items-center">
-              <div className="w-6 h-0 border-t-2 border-dashed border-red-500" />
-              <span className="text-red-500 text-xs ml-1">♥</span>
+              <div className="w-6 h-0 border-t-2 border-dashed border-[hsl(350,70%,60%)]" />
+              <span className="text-[hsl(350,70%,60%)] text-xs ml-1">♥</span>
             </div>
             <span className="text-sm text-muted-foreground">Juftlik</span>
           </div>
           <div className="px-4 py-2 rounded-xl bg-card border border-border flex items-center gap-2">
-            <div className="w-6 h-0 border-t-2 border-sky-500" />
+            <div className="w-6 h-0 border-t-2 border-[hsl(210,70%,55%)]" />
             <span className="text-sm text-muted-foreground">Bola</span>
           </div>
         </div>
@@ -148,8 +158,9 @@ export const FamilyTreeV2 = () => {
         <div className="h-[calc(100vh-280px)] min-h-[400px]">
           <FamilyTreeCanvas
             members={members}
+            positions={positions}
             onOpenProfile={handleOpenProfile}
-            onPositionChange={updatePosition}
+            onPositionChange={handlePositionChange}
           />
         </div>
       </div>

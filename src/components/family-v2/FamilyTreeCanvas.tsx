@@ -22,8 +22,11 @@ import { computeNewMemberPosition } from './layout';
 
 interface FamilyTreeCanvasProps {
   members: Record<string, FamilyMember>;
+  positions: Record<string, { x: number; y: number }>;
   onOpenProfile: (member: FamilyMember) => void;
-  onPositionChange?: (memberId: string, position: { x: number; y: number }) => void;
+  onPositionChange: (memberId: string, x: number, y: number) => void;
+  onDragStart?: () => void;
+  onDragEnd?: () => void;
 }
 
 const nodeTypes: NodeTypes = {
@@ -37,73 +40,77 @@ const edgeTypes: EdgeTypes = {
 
 export const FamilyTreeCanvas = ({
   members,
+  positions,
   onOpenProfile,
   onPositionChange,
+  onDragStart,
+  onDragEnd,
 }: FamilyTreeCanvasProps) => {
   const didFitViewRef = useRef(false);
+  const isDraggingRef = useRef(false);
 
-  // Keep positions stable: only compute positions for NEW nodes
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
-  // Handle node position changes and sync to cloud
+  // Handle node changes - only save position on drag end
   const handleNodesChange = useCallback((changes: NodeChange<Node>[]) => {
     onNodesChange(changes);
     
-    // Sync position changes to cloud
     changes.forEach((change) => {
-      if (change.type === 'position' && change.position && change.dragging === false) {
-        // Node was dropped - save position
-        onPositionChange?.(change.id, change.position);
+      if (change.type === 'position') {
+        if (change.dragging && !isDraggingRef.current) {
+          isDraggingRef.current = true;
+          onDragStart?.();
+        }
+        if (!change.dragging && isDraggingRef.current && change.position) {
+          isDraggingRef.current = false;
+          onPositionChange(change.id, change.position.x, change.position.y);
+          onDragEnd?.();
+        }
       }
     });
-  }, [onNodesChange, onPositionChange]);
+  }, [onNodesChange, onPositionChange, onDragStart, onDragEnd]);
 
-  // Compute edges from members
+  // Build edges from relationships
   const edgesMemo = useMemo(() => {
     const nextEdges: Edge[] = [];
     const processedCouples = new Set<string>();
 
-    // Spouse/couple edges
     Object.values(members).forEach((member) => {
-      if (!member.spouseId) return;
-      const spouse = members[member.spouseId];
-      if (!spouse) return;
+      // Spouse edges
+      if (member.spouseId && members[member.spouseId]) {
+        const coupleKey = [member.id, member.spouseId].sort().join('-');
+        if (!processedCouples.has(coupleKey)) {
+          processedCouples.add(coupleKey);
+          const spouse = members[member.spouseId];
+          const [left, right] = member.gender === 'male' ? [member, spouse] : [spouse, member];
 
-      const coupleKey = [member.id, spouse.id].sort().join('-');
-      if (processedCouples.has(coupleKey)) return;
-      processedCouples.add(coupleKey);
+          nextEdges.push({
+            id: `spouse-${left.id}-${right.id}`,
+            source: left.id,
+            target: right.id,
+            type: 'spouse',
+          });
+        }
+      }
 
-      const [left, right] = member.gender === 'male' ? [member, spouse] : [spouse, member];
+      // Child edges
+      if (member.parentIds?.length) {
+        const father = member.parentIds.find((pid) => members[pid]?.gender === 'male');
+        const mother = member.parentIds.find((pid) => members[pid]?.gender === 'female');
+        const parentId = father || member.parentIds[0];
+        const spouseId = mother || (member.parentIds.length > 1 ? member.parentIds[1] : undefined);
 
-      nextEdges.push({
-        id: `spouse-${left.id}-${right.id}`,
-        source: left.id,
-        target: right.id,
-        sourceHandle: 'spouse-right',
-        targetHandle: 'spouse-left',
-        type: 'spouse',
-      });
-    });
-
-    // Parent-child edges
-    Object.values(members).forEach((member) => {
-      if (!member.parentIds || member.parentIds.length === 0) return;
-
-      const father = member.parentIds.find((pid) => members[pid]?.gender === 'male');
-      const mother = member.parentIds.find((pid) => members[pid]?.gender === 'female');
-      const parentId = father || member.parentIds[0];
-      const spouseId = mother || (member.parentIds.length > 1 ? member.parentIds[1] : undefined);
-
-      if (!parentId || !members[parentId]) return;
-
-      nextEdges.push({
-        id: `child-${parentId}-${member.id}`,
-        source: parentId,
-        target: member.id,
-        type: 'child',
-        data: { spouseId },
-      });
+        if (parentId && members[parentId]) {
+          nextEdges.push({
+            id: `child-${parentId}-${member.id}`,
+            source: parentId,
+            target: member.id,
+            type: 'child',
+            data: { spouseId },
+          });
+        }
+      }
     });
 
     return nextEdges;
@@ -114,7 +121,7 @@ export const FamilyTreeCanvas = ({
     setEdges(edgesMemo);
   }, [edgesMemo, setEdges]);
 
-  // Update nodes - use saved positions or compute for NEW nodes
+  // Update nodes - use cloud positions, fallback to computed
   useEffect(() => {
     setNodes((prevNodes) => {
       const prevMap = new Map(prevNodes.map((n) => [n.id, n] as const));
@@ -123,30 +130,24 @@ export const FamilyTreeCanvas = ({
       for (const member of Object.values(members)) {
         const existing = prevMap.get(member.id);
         
-        // Priority: 1) existing node position, 2) saved member position, 3) computed position
+        // Priority: 1) existing dragged position, 2) cloud position, 3) computed
         const position =
-          existing?.position ??
-          member.position ??
-          computeNewMemberPosition({
-            member,
-            members,
-            prevNodeMap: prevMap,
-          });
+          (isDraggingRef.current && existing?.position) ||
+          positions[member.id] ||
+          existing?.position ||
+          computeNewMemberPosition({ member, members, prevNodeMap: prevMap });
 
         nextNodes.push({
           id: member.id,
           type: 'familyMember',
           position,
-          data: {
-            member,
-            onOpenProfile,
-          },
+          data: { member, onOpenProfile },
         });
       }
 
       return nextNodes;
     });
-  }, [members, onOpenProfile, setNodes]);
+  }, [members, positions, onOpenProfile, setNodes]);
 
   return (
     <div className="w-full h-full rounded-2xl overflow-hidden border border-border bg-card/50">
