@@ -420,6 +420,44 @@ export type Database = {
           },
         ]
       }
+      node_positions: {
+        Row: {
+          id: string
+          member_id: string
+          owner_id: string
+          updated_at: string
+          updated_by: string | null
+          x: number
+          y: number
+        }
+        Insert: {
+          id?: string
+          member_id: string
+          owner_id: string
+          updated_at?: string
+          updated_by?: string | null
+          x?: number
+          y?: number
+        }
+        Update: {
+          id?: string
+          member_id?: string
+          owner_id?: string
+          updated_at?: string
+          updated_by?: string | null
+          x?: number
+          y?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "node_positions_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: true
+            referencedRelation: "family_tree_members"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       notifications: {
         Row: {
           actor_id: string

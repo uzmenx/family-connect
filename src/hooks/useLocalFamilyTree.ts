@@ -3,529 +3,471 @@ import { FamilyMember, AddMemberData } from '@/types/family';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 
+// Unique client ID to prevent real-time feedback loops
+const CLIENT_ID = crypto.randomUUID();
 const generateId = () => crypto.randomUUID();
-
-// Debounce helper for position updates
-function debounce<T extends (...args: any[]) => any>(fn: T, delay: number) {
-  let timeoutId: ReturnType<typeof setTimeout>;
-  return (...args: Parameters<T>) => {
-    clearTimeout(timeoutId);
-    timeoutId = setTimeout(() => fn(...args), delay);
-  };
-}
 
 export const useLocalFamilyTree = () => {
   const { user } = useAuth();
   const [members, setMembers] = useState<Record<string, FamilyMember>>({});
   const [rootId, setRootId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  
+  // Prevent updates while dragging
+  const isDraggingRef = useRef(false);
+  const pendingUpdatesRef = useRef<Map<string, { x: number; y: number }>>(new Map());
 
-  // Load from Supabase on mount and subscribe to realtime
-  useEffect(() => {
-    if (user?.id) {
-      loadFromSupabase();
-      
-      // Subscribe to realtime changes
-      const channel = supabase
-        .channel('family_tree_changes')
-        .on(
-          'postgres_changes',
-          {
-            event: '*',
-            schema: 'public',
-            table: 'family_tree_members',
-            filter: `owner_id=eq.${user.id}`,
-          },
-          (payload) => {
-            console.log('Realtime update:', payload);
-            // Reload on any change
-            loadFromSupabase();
-          }
-        )
-        .subscribe();
-
-      return () => {
-        supabase.removeChannel(channel);
-      };
-    }
-  }, [user?.id]);
-
-  const loadFromSupabase = async () => {
+  // Load initial data
+  const loadData = useCallback(async () => {
     if (!user?.id) return;
     
     setIsLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('family_tree_members')
-        .select('*')
-        .eq('owner_id', user.id);
+      // Load members and positions in parallel
+      const [membersRes, positionsRes] = await Promise.all([
+        supabase.from('family_tree_members').select('*').eq('owner_id', user.id),
+        supabase.from('node_positions').select('*').eq('owner_id', user.id)
+      ]);
 
-      if (error) throw error;
+      if (membersRes.error) throw membersRes.error;
+      if (positionsRes.error) throw positionsRes.error;
 
-      if (data && data.length > 0) {
-        // Convert Supabase data to local format
-        const membersMap: Record<string, FamilyMember> = {};
+      const dbMembers = membersRes.data || [];
+      const dbPositions = positionsRes.data || [];
+
+      // Build positions map
+      const posMap = new Map<string, { x: number; y: number }>();
+      dbPositions.forEach((p: any) => {
+        posMap.set(p.member_id, { x: p.x, y: p.y });
+      });
+
+      // Build members map with relationships
+      const membersMap: Record<string, FamilyMember> = {};
+      
+      dbMembers.forEach((m: any) => {
+        const pos = posMap.get(m.id);
+        membersMap[m.id] = {
+          id: m.id,
+          name: m.member_name || '',
+          gender: (m.gender as 'male' | 'female') || 'male',
+          photoUrl: m.avatar_url || undefined,
+          position: pos || { x: 0, y: 0 },
+          childrenIds: [],
+          parentIds: [],
+        };
+      });
+
+      // Establish relationships from relation_type
+      dbMembers.forEach((m: any) => {
+        const relType = (m.relation_type || '').split('|')[0];
         
-        data.forEach((item) => {
-          // Parse relation_type to extract relationships and position
-          const relationType = item.relation_type;
-          let position: { x: number; y: number } | undefined;
-          
-          // Extract position from relation_type if exists (format: type|x:123|y:456)
-          const posMatch = relationType.match(/\|x:([-\d.]+)\|y:([-\d.]+)/);
-          if (posMatch) {
-            position = { x: parseFloat(posMatch[1]), y: parseFloat(posMatch[2]) };
+        if (relType.startsWith('spouse_of_')) {
+          const partnerId = relType.replace('spouse_of_', '').split('_')[0];
+          if (membersMap[partnerId]) {
+            membersMap[m.id].spouseId = partnerId;
+            membersMap[partnerId].spouseId = m.id;
           }
-          
-          membersMap[item.id] = {
-            id: item.id,
-            name: item.member_name,
-            gender: (item.gender as 'male' | 'female') || 'male',
-            photoUrl: item.avatar_url || undefined,
-            supabaseId: item.id,
-            linkedUserId: item.linked_user_id || undefined,
-            position,
-            childrenIds: [],
-            parentIds: [],
-          };
-        });
-
-        // Second pass: establish relationships based on relation_type
-        data.forEach((item) => {
-          const relationType = item.relation_type.split('|')[0]; // Remove position data
-          
-          // Parse spouse relationships
-          if (relationType.startsWith('spouse_of_')) {
-            const partnerId = relationType.replace('spouse_of_', '').split('_')[0];
-            if (membersMap[partnerId]) {
-              membersMap[item.id].spouseId = partnerId;
-              membersMap[partnerId].spouseId = item.id;
-            }
-          }
-          
-          // Parse child relationships
-          if (relationType.startsWith('child_of_')) {
-            const parentId = relationType.replace('child_of_', '').split('_')[0];
-            if (membersMap[parentId]) {
-              if (!membersMap[item.id].parentIds) membersMap[item.id].parentIds = [];
-              membersMap[item.id].parentIds!.push(parentId);
+        }
+        
+        if (relType.startsWith('child_of_') || relType.startsWith('father_of_') || relType.startsWith('mother_of_')) {
+          const match = relType.match(/(?:child_of_|father_of_|mother_of_)([a-f0-9-]+)/);
+          if (match) {
+            const relatedId = match[1];
+            
+            if (relType.startsWith('child_of_') && membersMap[relatedId]) {
+              const parentId = relatedId;
+              if (!membersMap[m.id].parentIds) membersMap[m.id].parentIds = [];
+              membersMap[m.id].parentIds!.push(parentId);
               
-              // Add spouse as parent too
               if (membersMap[parentId].spouseId) {
-                membersMap[item.id].parentIds!.push(membersMap[parentId].spouseId!);
+                membersMap[m.id].parentIds!.push(membersMap[parentId].spouseId!);
               }
               
-              // Update parent's children
               if (!membersMap[parentId].childrenIds) membersMap[parentId].childrenIds = [];
-              membersMap[parentId].childrenIds!.push(item.id);
+              membersMap[parentId].childrenIds!.push(m.id);
               
               if (membersMap[parentId].spouseId) {
                 const spouseId = membersMap[parentId].spouseId!;
                 if (!membersMap[spouseId].childrenIds) membersMap[spouseId].childrenIds = [];
-                membersMap[spouseId].childrenIds!.push(item.id);
+                membersMap[spouseId].childrenIds!.push(m.id);
               }
             }
           }
-        });
-
-        setMembers(membersMap);
-        
-        // Find root (self member)
-        const selfMember = data.find(m => m.relation_type.startsWith('self'));
-        if (selfMember) {
-          setRootId(selfMember.id);
-        } else if (data.length > 0) {
-          setRootId(data[0].id);
         }
+      });
+
+      // Create positions for members without saved positions
+      const newPositions: { member_id: string; owner_id: string; x: number; y: number; updated_by: string }[] = [];
+      let offsetX = 0;
+      
+      Object.values(membersMap).forEach((member) => {
+        if (!posMap.has(member.id)) {
+          membersMap[member.id].position = { x: offsetX, y: 0 };
+          newPositions.push({
+            member_id: member.id,
+            owner_id: user.id,
+            x: offsetX,
+            y: 0,
+            updated_by: CLIENT_ID,
+          });
+          offsetX += 200;
+        }
+      });
+
+      if (newPositions.length > 0) {
+        await supabase.from('node_positions').insert(newPositions);
       }
+
+      setMembers(membersMap);
+
+      // Set root (self member)
+      const selfMember = dbMembers.find((m: any) => m.relation_type?.startsWith('self'));
+      setRootId(selfMember?.id || dbMembers[0]?.id || null);
+
     } catch (error) {
       console.error('Error loading family tree:', error);
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [user?.id]);
 
-  const saveToSupabase = async (member: FamilyMember, relationType: string) => {
-    if (!user?.id) return null;
+  // Initial load
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
-    // Include position in relation_type
-    const positionStr = member.position 
-      ? `|x:${member.position.x}|y:${member.position.y}` 
-      : '';
-
-    try {
-      const { data, error } = await supabase
-        .from('family_tree_members')
-        .insert({
-          id: member.id,
-          owner_id: user.id,
-          member_name: member.name || '',
-          gender: member.gender,
-          avatar_url: member.photoUrl || null,
-          relation_type: relationType + positionStr,
-          is_placeholder: true,
-        })
-        .select()
-        .single();
-
-      if (error) throw error;
-      return data;
-    } catch (error) {
-      console.error('Error saving to Supabase:', error);
-      return null;
-    }
-  };
-
-  const updateInSupabase = async (memberId: string, updates: Partial<FamilyMember>) => {
+  // Real-time subscriptions - merge updates, don't reload
+  useEffect(() => {
     if (!user?.id) return;
 
-    try {
-      const updateData: Record<string, any> = {};
-      
-      if (updates.name !== undefined) updateData.member_name = updates.name;
-      if (updates.photoUrl !== undefined) updateData.avatar_url = updates.photoUrl || null;
-      if (updates.gender !== undefined) updateData.gender = updates.gender;
-
-      // If position is updated, we need to update relation_type
-      if (updates.position) {
-        const { data: current } = await supabase
-          .from('family_tree_members')
-          .select('relation_type')
-          .eq('id', memberId)
-          .single();
-
-        if (current) {
-          // Remove old position data and add new
-          const baseType = current.relation_type.split('|')[0];
-          const positionStr = `|x:${updates.position.x}|y:${updates.position.y}`;
-          updateData.relation_type = baseType + positionStr;
+    const channel = supabase
+      .channel('family_tree_sync')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'family_tree_members', filter: `owner_id=eq.${user.id}` },
+        (payload) => {
+          const m = payload.new as any;
+          setMembers((prev) => ({
+            ...prev,
+            [m.id]: {
+              id: m.id,
+              name: m.member_name || '',
+              gender: (m.gender as 'male' | 'female') || 'male',
+              photoUrl: m.avatar_url || undefined,
+              position: { x: 0, y: 0 },
+              childrenIds: [],
+              parentIds: [],
+            },
+          }));
         }
+      )
+      .on(
+        'postgres_changes',
+        { event: 'DELETE', schema: 'public', table: 'family_tree_members', filter: `owner_id=eq.${user.id}` },
+        (payload) => {
+          const id = (payload.old as { id: string }).id;
+          setMembers((prev) => {
+            const next = { ...prev };
+            delete next[id];
+            return next;
+          });
+        }
+      )
+      .on(
+        'postgres_changes',
+        { event: '*', schema: 'public', table: 'node_positions', filter: `owner_id=eq.${user.id}` },
+        (payload) => {
+          // Ignore while dragging
+          if (isDraggingRef.current) {
+            const p = payload.new as any;
+            if (p) pendingUpdatesRef.current.set(p.member_id, { x: p.x, y: p.y });
+            return;
+          }
+          
+          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
+            const p = payload.new as any;
+            // Ignore own updates
+            if (p.updated_by === CLIENT_ID) return;
+            
+            setMembers((prev) => {
+              if (!prev[p.member_id]) return prev;
+              return {
+                ...prev,
+                [p.member_id]: { ...prev[p.member_id], position: { x: p.x, y: p.y } },
+              };
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [user?.id]);
+
+  // Update position - called on drag end only
+  const updatePosition = useCallback(async (memberId: string, position: { x: number; y: number }) => {
+    if (!user?.id) return;
+    
+    isDraggingRef.current = false;
+
+    // Apply pending updates from other clients
+    pendingUpdatesRef.current.forEach((pos, id) => {
+      if (id !== memberId) {
+        setMembers((prev) => {
+          if (!prev[id]) return prev;
+          return { ...prev, [id]: { ...prev[id], position: pos } };
+        });
       }
+    });
+    pendingUpdatesRef.current.clear();
 
-      if (Object.keys(updateData).length > 0) {
-        await supabase
-          .from('family_tree_members')
-          .update(updateData)
-          .eq('id', memberId)
-          .eq('owner_id', user.id);
-      }
-    } catch (error) {
-      console.error('Error updating in Supabase:', error);
-    }
-  };
-
-  // Debounced position update
-  const debouncedPositionUpdate = useRef(
-    debounce((memberId: string, position: { x: number; y: number }) => {
-      updateInSupabase(memberId, { position });
-    }, 500)
-  ).current;
-
-  const updatePosition = useCallback((memberId: string, position: { x: number; y: number }) => {
-    // Update local state immediately
-    setMembers(prev => {
+    // Update local state
+    setMembers((prev) => {
       if (!prev[memberId]) return prev;
-      return {
-        ...prev,
-        [memberId]: { ...prev[memberId], position },
-      };
+      return { ...prev, [memberId]: { ...prev[memberId], position } };
     });
 
-    // Debounce cloud sync
-    debouncedPositionUpdate(memberId, position);
-  }, [debouncedPositionUpdate]);
+    // Upsert to database
+    await supabase
+      .from('node_positions')
+      .upsert({
+        member_id: memberId,
+        owner_id: user.id,
+        x: position.x,
+        y: position.y,
+        updated_by: CLIENT_ID,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'member_id' });
+  }, [user?.id]);
 
-  const deleteFromSupabase = async (memberId: string) => {
-    if (!user?.id) return;
-
-    try {
-      await supabase
-        .from('family_tree_members')
-        .delete()
-        .eq('id', memberId)
-        .eq('owner_id', user.id);
-    } catch (error) {
-      console.error('Error deleting from Supabase:', error);
-    }
-  };
-
+  // Add initial couple
   const addInitialCouple = useCallback(async () => {
     if (!user?.id) return { husbandId: '', wifeId: '' };
 
     const husbandId = generateId();
     const wifeId = generateId();
 
-    const husband: FamilyMember = {
-      id: husbandId,
-      name: '',
-      gender: 'male',
-      spouseId: wifeId,
-      position: { x: 0, y: 0 },
-      childrenIds: [],
-    };
+    try {
+      // Insert members
+      await supabase.from('family_tree_members').insert([
+        { id: husbandId, owner_id: user.id, member_name: '', gender: 'male', relation_type: 'self', is_placeholder: true },
+        { id: wifeId, owner_id: user.id, member_name: '', gender: 'female', relation_type: `spouse_of_${husbandId}`, is_placeholder: true },
+      ]);
 
-    const wife: FamilyMember = {
-      id: wifeId,
-      name: '',
-      gender: 'female',
-      spouseId: husbandId,
-      position: { x: 180, y: 0 },
-      childrenIds: [],
-    };
+      // Insert positions
+      await supabase.from('node_positions').insert([
+        { member_id: husbandId, owner_id: user.id, x: 0, y: 0, updated_by: CLIENT_ID },
+        { member_id: wifeId, owner_id: user.id, x: 180, y: 0, updated_by: CLIENT_ID },
+      ]);
 
-    setMembers({
-      [husbandId]: husband,
-      [wifeId]: wife,
-    });
-    setRootId(husbandId);
+      setMembers({
+        [husbandId]: { id: husbandId, name: '', gender: 'male', spouseId: wifeId, position: { x: 0, y: 0 }, childrenIds: [] },
+        [wifeId]: { id: wifeId, name: '', gender: 'female', spouseId: husbandId, position: { x: 180, y: 0 }, childrenIds: [] },
+      });
+      setRootId(husbandId);
 
-    // Save to Supabase
-    await saveToSupabase(husband, 'self');
-    await saveToSupabase(wife, `spouse_of_${husbandId}`);
-
-    return { husbandId, wifeId };
+      return { husbandId, wifeId };
+    } catch (error) {
+      console.error('Error creating initial couple:', error);
+      return { husbandId: '', wifeId: '' };
+    }
   }, [user?.id]);
 
-  const addMember = useCallback((data: AddMemberData): string => {
-    const id = generateId();
-    const member: FamilyMember = {
-      id,
-      ...data,
-      childrenIds: [],
-    };
-
-    setMembers(prev => ({
-      ...prev,
-      [id]: member,
-    }));
-
-    return id;
-  }, []);
-
+  // Update member info
   const updateMember = useCallback(async (id: string, updates: Partial<FamilyMember>) => {
-    setMembers(prev => {
+    if (!user?.id) return;
+
+    setMembers((prev) => {
       if (!prev[id]) return prev;
-      return {
-        ...prev,
-        [id]: { ...prev[id], ...updates },
-      };
+      return { ...prev, [id]: { ...prev[id], ...updates } };
     });
 
-    await updateInSupabase(id, updates);
-  }, []);
+    const dbUpdates: Record<string, any> = {};
+    if (updates.name !== undefined) dbUpdates.member_name = updates.name;
+    if (updates.photoUrl !== undefined) dbUpdates.avatar_url = updates.photoUrl || null;
+    if (updates.gender !== undefined) dbUpdates.gender = updates.gender;
 
-  const addParents = useCallback(async (childId: string, fatherData: AddMemberData, motherData: AddMemberData) => {
-    const fatherId = generateId();
-    const motherId = generateId();
+    if (Object.keys(dbUpdates).length > 0) {
+      await supabase.from('family_tree_members').update(dbUpdates).eq('id', id).eq('owner_id', user.id);
+    }
+  }, [user?.id]);
 
-    const child = members[childId];
-    const childPos = child?.position || { x: 0, y: 0 };
-
-    setMembers(prev => {
-      const child = prev[childId];
-      if (!child) return prev;
-
-      const father: FamilyMember = {
-        id: fatherId,
-        ...fatherData,
-        gender: 'male',
-        spouseId: motherId,
-        position: { x: childPos.x - 90, y: childPos.y - 200 },
-        childrenIds: [childId],
-      };
-
-      const mother: FamilyMember = {
-        id: motherId,
-        ...motherData,
-        gender: 'female',
-        spouseId: fatherId,
-        position: { x: childPos.x + 90, y: childPos.y - 200 },
-        childrenIds: [childId],
-      };
-
-      return {
-        ...prev,
-        [fatherId]: father,
-        [motherId]: mother,
-        [childId]: {
-          ...child,
-          parentIds: [fatherId, motherId],
-        },
-      };
-    });
-
-    // Save to Supabase with positions
-    const fatherMember: FamilyMember = {
-      id: fatherId,
-      ...fatherData,
-      gender: 'male',
-      position: { x: childPos.x - 90, y: childPos.y - 200 },
-      childrenIds: [childId],
-    };
-    const motherMember: FamilyMember = {
-      id: motherId,
-      ...motherData,
-      gender: 'female',
-      position: { x: childPos.x + 90, y: childPos.y - 200 },
-      childrenIds: [childId],
-    };
-
-    await saveToSupabase(fatherMember, `father_of_${childId}`);
-    await saveToSupabase(motherMember, `mother_of_${childId}`);
-
-    return { fatherId, motherId };
-  }, [members]);
-
-  const addSpouse = useCallback(async (memberId: string, spouseData: AddMemberData) => {
-    const spouseId = generateId();
-    const member = members[memberId];
-    if (!member) return null;
-
-    const spouseGender = member.gender === 'male' ? 'female' : 'male';
-    const memberPos = member.position || { x: 0, y: 0 };
-    const spousePos = { 
-      x: memberPos.x + (member.gender === 'male' ? 180 : -180), 
-      y: memberPos.y 
-    };
-
-    setMembers(prev => ({
-      ...prev,
-      [memberId]: { ...prev[memberId], spouseId },
-      [spouseId]: {
-        id: spouseId,
-        ...spouseData,
-        gender: spouseGender,
-        spouseId: memberId,
-        position: spousePos,
-        childrenIds: [],
-      },
-    }));
-
-    // Save to Supabase with position
-    const spouseMember: FamilyMember = {
-      id: spouseId,
-      ...spouseData,
-      gender: spouseGender,
-      position: spousePos,
-      childrenIds: [],
-    };
-    await saveToSupabase(spouseMember, `spouse_of_${memberId}`);
-
-    return spouseId;
-  }, [members]);
-
-  const addChild = useCallback(async (parentId: string, childData: AddMemberData) => {
-    const childId = generateId();
-    const parent = members[parentId];
-    if (!parent) return null;
-
-    const parentIds = parent.spouseId ? [parentId, parent.spouseId] : [parentId];
-    
-    // Calculate child position
-    const parentPos = parent.position || { x: 0, y: 0 };
-    const spousePos = parent.spouseId ? members[parent.spouseId]?.position : null;
-    const centerX = spousePos 
-      ? (parentPos.x + spousePos.x) / 2 
-      : parentPos.x;
-    
-    const siblingCount = parent.childrenIds?.length || 0;
-    const childPos = { 
-      x: centerX + (siblingCount - (parent.childrenIds?.length || 0) / 2) * 200, 
-      y: parentPos.y + 200 
-    };
-
-    setMembers(prev => {
-      const updates: Record<string, FamilyMember> = {
-        [childId]: {
-          id: childId,
-          ...childData,
-          parentIds,
-          position: childPos,
-          childrenIds: [],
-        },
-      };
-
-      // Update both parents' childrenIds
-      parentIds.forEach(pid => {
-        if (prev[pid]) {
-          updates[pid] = {
-            ...prev[pid],
-            childrenIds: [...(prev[pid].childrenIds || []), childId],
-          };
-        }
-      });
-
-      return { ...prev, ...updates };
-    });
-
-    // Save to Supabase with position
-    const childMember: FamilyMember = {
-      id: childId,
-      ...childData,
-      parentIds,
-      position: childPos,
-      childrenIds: [],
-    };
-    const childCount = (parent.childrenIds?.length || 0) + 1;
-    await saveToSupabase(childMember, `child_of_${parentId}_${childCount}`);
-
-    return childId;
-  }, [members]);
-
+  // Remove member
   const removeMember = useCallback(async (id: string) => {
-    setMembers(prev => {
+    if (!user?.id) return;
+
+    setMembers((prev) => {
       const member = prev[id];
       if (!member) return prev;
 
-      const updates = { ...prev };
-      delete updates[id];
+      const next = { ...prev };
+      delete next[id];
 
-      // Remove from spouse
-      if (member.spouseId && updates[member.spouseId]) {
-        updates[member.spouseId] = {
-          ...updates[member.spouseId],
-          spouseId: undefined,
-        };
+      if (member.spouseId && next[member.spouseId]) {
+        next[member.spouseId] = { ...next[member.spouseId], spouseId: undefined };
       }
-
-      // Remove from parents' childrenIds
-      member.parentIds?.forEach(pid => {
-        if (updates[pid]) {
-          updates[pid] = {
-            ...updates[pid],
-            childrenIds: updates[pid].childrenIds?.filter(cid => cid !== id),
-          };
+      member.parentIds?.forEach((pid) => {
+        if (next[pid]) {
+          next[pid] = { ...next[pid], childrenIds: next[pid].childrenIds?.filter((c) => c !== id) };
+        }
+      });
+      member.childrenIds?.forEach((cid) => {
+        if (next[cid]) {
+          next[cid] = { ...next[cid], parentIds: next[cid].parentIds?.filter((p) => p !== id) };
         }
       });
 
-      // Remove parentIds from children
-      member.childrenIds?.forEach(cid => {
-        if (updates[cid]) {
-          updates[cid] = {
-            ...updates[cid],
-            parentIds: updates[cid].parentIds?.filter(pid => pid !== id),
-          };
-        }
-      });
-
-      return updates;
+      return next;
     });
 
-    await deleteFromSupabase(id);
-  }, []);
+    // Cascade will delete position
+    await supabase.from('family_tree_members').delete().eq('id', id).eq('owner_id', user.id);
+  }, [user?.id]);
+
+  // Add parents
+  const addParents = useCallback(async (childId: string, fatherData: AddMemberData, motherData: AddMemberData) => {
+    if (!user?.id) return { fatherId: '', motherId: '' };
+
+    const child = members[childId];
+    const childPos = child?.position || { x: 0, y: 0 };
+    const fatherId = generateId();
+    const motherId = generateId();
+
+    const fatherPos = { x: childPos.x - 90, y: childPos.y - 200 };
+    const motherPos = { x: childPos.x + 90, y: childPos.y - 200 };
+
+    try {
+      await supabase.from('family_tree_members').insert([
+        { id: fatherId, owner_id: user.id, member_name: fatherData.name || '', gender: 'male', relation_type: `father_of_${childId}`, is_placeholder: true },
+        { id: motherId, owner_id: user.id, member_name: motherData.name || '', gender: 'female', relation_type: `mother_of_${childId}`, is_placeholder: true },
+      ]);
+
+      await supabase.from('node_positions').insert([
+        { member_id: fatherId, owner_id: user.id, x: fatherPos.x, y: fatherPos.y, updated_by: CLIENT_ID },
+        { member_id: motherId, owner_id: user.id, x: motherPos.x, y: motherPos.y, updated_by: CLIENT_ID },
+      ]);
+
+      setMembers((prev) => ({
+        ...prev,
+        [fatherId]: { id: fatherId, name: fatherData.name || '', gender: 'male', spouseId: motherId, position: fatherPos, childrenIds: [childId] },
+        [motherId]: { id: motherId, name: motherData.name || '', gender: 'female', spouseId: fatherId, position: motherPos, childrenIds: [childId] },
+        [childId]: { ...prev[childId], parentIds: [fatherId, motherId] },
+      }));
+
+      return { fatherId, motherId };
+    } catch (error) {
+      console.error('Error adding parents:', error);
+      return { fatherId: '', motherId: '' };
+    }
+  }, [user?.id, members]);
+
+  // Add spouse
+  const addSpouse = useCallback(async (memberId: string, spouseData: AddMemberData) => {
+    const member = members[memberId];
+    if (!member || !user?.id) return null;
+
+    const spouseId = generateId();
+    const memberPos = member.position || { x: 0, y: 0 };
+    const spousePos = { x: memberPos.x + (member.gender === 'male' ? 180 : -180), y: memberPos.y };
+
+    try {
+      await supabase.from('family_tree_members').insert({
+        id: spouseId,
+        owner_id: user.id,
+        member_name: spouseData.name || '',
+        gender: spouseData.gender,
+        relation_type: `spouse_of_${memberId}`,
+        is_placeholder: true,
+      });
+
+      await supabase.from('node_positions').insert({
+        member_id: spouseId,
+        owner_id: user.id,
+        x: spousePos.x,
+        y: spousePos.y,
+        updated_by: CLIENT_ID,
+      });
+
+      setMembers((prev) => ({
+        ...prev,
+        [memberId]: { ...prev[memberId], spouseId },
+        [spouseId]: { id: spouseId, name: spouseData.name || '', gender: spouseData.gender, spouseId: memberId, position: spousePos, childrenIds: [] },
+      }));
+
+      return spouseId;
+    } catch (error) {
+      console.error('Error adding spouse:', error);
+      return null;
+    }
+  }, [user?.id, members]);
+
+  // Add child
+  const addChild = useCallback(async (parentId: string, childData: AddMemberData) => {
+    const parent = members[parentId];
+    if (!parent || !user?.id) return null;
+
+    const childId = generateId();
+    const parentPos = parent.position || { x: 0, y: 0 };
+    const spousePos = parent.spouseId ? members[parent.spouseId]?.position : null;
+    
+    const centerX = spousePos ? (parentPos.x + spousePos.x) / 2 : parentPos.x;
+    const siblingCount = parent.childrenIds?.length || 0;
+    const childPos = { x: centerX + (siblingCount * 150), y: parentPos.y + 200 };
+
+    const parentIds = parent.spouseId ? [parentId, parent.spouseId] : [parentId];
+
+    try {
+      await supabase.from('family_tree_members').insert({
+        id: childId,
+        owner_id: user.id,
+        member_name: childData.name || '',
+        gender: childData.gender,
+        relation_type: `child_of_${parentId}_${siblingCount + 1}`,
+        is_placeholder: true,
+      });
+
+      await supabase.from('node_positions').insert({
+        member_id: childId,
+        owner_id: user.id,
+        x: childPos.x,
+        y: childPos.y,
+        updated_by: CLIENT_ID,
+      });
+
+      setMembers((prev) => {
+        const updates: Record<string, FamilyMember> = {
+          [childId]: { id: childId, name: childData.name || '', gender: childData.gender, parentIds, position: childPos, childrenIds: [] },
+        };
+        
+        parentIds.forEach((pid) => {
+          if (prev[pid]) {
+            updates[pid] = { ...prev[pid], childrenIds: [...(prev[pid].childrenIds || []), childId] };
+          }
+        });
+
+        return { ...prev, ...updates };
+      });
+
+      return childId;
+    } catch (error) {
+      console.error('Error adding child:', error);
+      return null;
+    }
+  }, [user?.id, members]);
 
   return {
     members,
     rootId,
     isLoading,
     addInitialCouple,
-    addMember,
     updateMember,
     updatePosition,
     addParents,
     addSpouse,
     addChild,
     removeMember,
-    reload: loadFromSupabase,
+    reload: loadData,
   };
 };
