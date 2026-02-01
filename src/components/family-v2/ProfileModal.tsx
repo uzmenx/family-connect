@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { Edit2, Trash2, ImagePlus, Users, UserPlus, Baby, Send } from 'lucide-react';
+import { Edit2, Trash2, ImagePlus, Users, UserPlus, Baby, Send, ShieldCheck, User } from 'lucide-react';
 import { FamilyMember } from '@/types/family';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -35,11 +37,15 @@ export const ProfileModal = ({
   hasSpouse = false,
   canAddChild = false,
 }: ProfileModalProps) => {
+  const { user } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(member.name);
   const [birthYear, setBirthYear] = useState(member.birthYear?.toString() || '');
   const [deathYear, setDeathYear] = useState(member.deathYear?.toString() || '');
   const [photoUrl, setPhotoUrl] = useState(member.photoUrl || '');
+
+  // Check if this member is linked to the current user (protected)
+  const isCurrentUserProfile = member.linkedUserId === user?.id;
 
   const hasChanges = 
     name !== member.name ||
@@ -66,6 +72,10 @@ export const ProfileModal = ({
   };
 
   const handleDelete = () => {
+    // Don't allow deleting own profile
+    if (isCurrentUserProfile) {
+      return;
+    }
     if (confirm("Ushbu a'zoni o'chirmoqchimisiz?")) {
       onDelete(member.id);
       onClose();
@@ -82,20 +92,29 @@ export const ProfileModal = ({
     : '';
 
   const isMale = member.gender === 'male';
+  const genderLabel = isMale ? 'Erkak' : 'Ayol';
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <div className="flex items-center justify-between">
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleDelete}
-              className="text-destructive hover:bg-destructive/10"
-            >
-              <Trash2 className="w-4 h-4" />
-            </Button>
+            {/* Delete button - disabled for current user's profile */}
+            {isCurrentUserProfile ? (
+              <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                <ShieldCheck className="w-4 h-4" />
+                <span className="text-xs">Himoyalangan</span>
+              </div>
+            ) : (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={handleDelete}
+                className="text-destructive hover:bg-destructive/10"
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            )}
             <DialogTitle className="text-center flex-1">Profil</DialogTitle>
             <div className="w-8" />
           </div>
@@ -187,16 +206,35 @@ export const ProfileModal = ({
                 <h3 className="text-2xl font-semibold text-foreground">
                   {member.name || "Noma'lum"}
                 </h3>
-                {yearDisplay && (
-                  <p className={cn(
-                    "mt-2 inline-block px-3 py-1 rounded-full text-sm",
-                    isMale 
-                      ? "bg-sky-100 dark:bg-sky-900/50 text-sky-700 dark:text-sky-300" 
-                      : "bg-pink-100 dark:bg-pink-900/50 text-pink-700 dark:text-pink-300"
-                  )}>
-                    {yearDisplay}
-                  </p>
-                )}
+                
+                {/* Gender Badge */}
+                <div className="flex items-center justify-center gap-2 mt-2">
+                  <Badge 
+                    variant="outline" 
+                    className={cn(
+                      "flex items-center gap-1",
+                      isMale 
+                        ? "border-sky-500/50 text-sky-600 dark:text-sky-400" 
+                        : "border-pink-500/50 text-pink-600 dark:text-pink-400"
+                    )}
+                  >
+                    <User className="w-3 h-3" />
+                    {genderLabel}
+                  </Badge>
+                  
+                  {yearDisplay && (
+                    <Badge 
+                      variant="outline"
+                      className={cn(
+                        isMale 
+                          ? "border-sky-500/30 text-sky-600 dark:text-sky-400" 
+                          : "border-pink-500/30 text-pink-600 dark:text-pink-400"
+                      )}
+                    >
+                      {yearDisplay}
+                    </Badge>
+                  )}
+                </div>
               </div>
 
               {/* Action Buttons - Ota-ona, Juft, Farzand, Taklif */}
