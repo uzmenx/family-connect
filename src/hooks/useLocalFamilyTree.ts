@@ -41,7 +41,7 @@ export const useLocalFamilyTree = () => {
         posMap.set(p.member_id, { x: p.x, y: p.y });
       });
 
-      // Build members map with relationships
+      // Build members map - first pass: create all members
       const membersMap: Record<string, FamilyMember> = {};
       
       dbMembers.forEach((m: any) => {
@@ -57,42 +57,107 @@ export const useLocalFamilyTree = () => {
         };
       });
 
-      // Establish relationships from relation_type
+      // Second pass: establish ALL relationships from relation_type
       dbMembers.forEach((m: any) => {
         const relType = (m.relation_type || '').split('|')[0];
         
+        // Handle spouse relationships (bidirectional)
         if (relType.startsWith('spouse_of_')) {
-          const partnerId = relType.replace('spouse_of_', '').split('_')[0];
+          const partnerId = relType.replace('spouse_of_', '');
           if (membersMap[partnerId]) {
             membersMap[m.id].spouseId = partnerId;
             membersMap[partnerId].spouseId = m.id;
           }
         }
         
-        if (relType.startsWith('child_of_') || relType.startsWith('father_of_') || relType.startsWith('mother_of_')) {
-          const match = relType.match(/(?:child_of_|father_of_|mother_of_)([a-f0-9-]+)/);
+        // Handle father_of_ relationships - this member is father of childId
+        if (relType.startsWith('father_of_')) {
+          const childId = relType.replace('father_of_', '');
+          if (membersMap[childId]) {
+            // Add this member as parent of child
+            if (!membersMap[childId].parentIds) membersMap[childId].parentIds = [];
+            if (!membersMap[childId].parentIds.includes(m.id)) {
+              membersMap[childId].parentIds.push(m.id);
+            }
+            // Add child to this member's children
+            if (!membersMap[m.id].childrenIds) membersMap[m.id].childrenIds = [];
+            if (!membersMap[m.id].childrenIds.includes(childId)) {
+              membersMap[m.id].childrenIds.push(childId);
+            }
+          }
+        }
+        
+        // Handle mother_of_ relationships - this member is mother of childId
+        if (relType.startsWith('mother_of_')) {
+          const childId = relType.replace('mother_of_', '');
+          if (membersMap[childId]) {
+            // Add this member as parent of child
+            if (!membersMap[childId].parentIds) membersMap[childId].parentIds = [];
+            if (!membersMap[childId].parentIds.includes(m.id)) {
+              membersMap[childId].parentIds.push(m.id);
+            }
+            // Add child to this member's children
+            if (!membersMap[m.id].childrenIds) membersMap[m.id].childrenIds = [];
+            if (!membersMap[m.id].childrenIds.includes(childId)) {
+              membersMap[m.id].childrenIds.push(childId);
+            }
+          }
+        }
+        
+        // Handle child_of_ relationships - this member is child of parentId
+        if (relType.startsWith('child_of_')) {
+          const match = relType.match(/child_of_([a-f0-9-]+)/);
           if (match) {
-            const relatedId = match[1];
-            
-            if (relType.startsWith('child_of_') && membersMap[relatedId]) {
-              const parentId = relatedId;
+            const parentId = match[1];
+            if (membersMap[parentId]) {
+              // Add parent to this member's parents
               if (!membersMap[m.id].parentIds) membersMap[m.id].parentIds = [];
-              membersMap[m.id].parentIds!.push(parentId);
-              
-              if (membersMap[parentId].spouseId) {
-                membersMap[m.id].parentIds!.push(membersMap[parentId].spouseId!);
+              if (!membersMap[m.id].parentIds.includes(parentId)) {
+                membersMap[m.id].parentIds.push(parentId);
               }
-              
+              // Add this member to parent's children
               if (!membersMap[parentId].childrenIds) membersMap[parentId].childrenIds = [];
-              membersMap[parentId].childrenIds!.push(m.id);
-              
-              if (membersMap[parentId].spouseId) {
+              if (!membersMap[parentId].childrenIds.includes(m.id)) {
+                membersMap[parentId].childrenIds.push(m.id);
+              }
+              // Also link to parent's spouse if exists
+              if (membersMap[parentId].spouseId && membersMap[membersMap[parentId].spouseId!]) {
                 const spouseId = membersMap[parentId].spouseId!;
+                if (!membersMap[m.id].parentIds.includes(spouseId)) {
+                  membersMap[m.id].parentIds.push(spouseId);
+                }
                 if (!membersMap[spouseId].childrenIds) membersMap[spouseId].childrenIds = [];
-                membersMap[spouseId].childrenIds!.push(m.id);
+                if (!membersMap[spouseId].childrenIds.includes(m.id)) {
+                  membersMap[spouseId].childrenIds.push(m.id);
+                }
               }
             }
           }
+        }
+      });
+      
+      // Third pass: link spouse's children (for couples where both parents exist)
+      Object.values(membersMap).forEach((member) => {
+        if (member.spouseId && membersMap[member.spouseId]) {
+          const spouse = membersMap[member.spouseId];
+          // Merge children
+          const allChildren = new Set([...(member.childrenIds || []), ...(spouse.childrenIds || [])]);
+          const childrenArray = Array.from(allChildren);
+          membersMap[member.id].childrenIds = childrenArray;
+          membersMap[spouse.id].childrenIds = childrenArray;
+          
+          // Ensure all children have both parents
+          childrenArray.forEach((childId) => {
+            if (membersMap[childId]) {
+              if (!membersMap[childId].parentIds) membersMap[childId].parentIds = [];
+              if (!membersMap[childId].parentIds.includes(member.id)) {
+                membersMap[childId].parentIds.push(member.id);
+              }
+              if (!membersMap[childId].parentIds.includes(spouse.id)) {
+                membersMap[childId].parentIds.push(spouse.id);
+              }
+            }
+          });
         }
       });
 
