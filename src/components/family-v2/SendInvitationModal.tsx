@@ -132,6 +132,26 @@ export const SendInvitationModal = ({
 
     setIsSending(true);
     try {
+      // Check if invitation already exists
+      const { data: existing } = await supabase
+        .from('family_invitations')
+        .select('id')
+        .eq('sender_id', user.id)
+        .eq('receiver_id', userId)
+        .eq('member_id', member.supabaseId || member.id)
+        .eq('status', 'pending')
+        .maybeSingle();
+
+      if (existing) {
+        toast({
+          title: "Mavjud",
+          description: "Bu foydalanuvchiga allaqachon taklifnoma yuborilgan",
+          variant: "destructive",
+        });
+        setIsSending(false);
+        return;
+      }
+
       const { error } = await supabase
         .from('family_invitations')
         .insert({
@@ -142,6 +162,13 @@ export const SendInvitationModal = ({
         });
 
       if (error) throw error;
+
+      // Create notification for receiver
+      await supabase.from('notifications').insert({
+        user_id: userId,
+        actor_id: user.id,
+        type: 'family_invitation',
+      });
 
       toast({
         title: "Yuborildi!",

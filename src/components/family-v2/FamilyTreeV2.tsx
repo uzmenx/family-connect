@@ -4,17 +4,23 @@ import { FamilyTreeCanvas } from './FamilyTreeCanvas';
 import { AddMemberModal } from './AddMemberModal';
 import { ProfileModal } from './ProfileModal';
 import { SendInvitationModal } from './SendInvitationModal';
+import { GenderSelectionModal } from './GenderSelectionModal';
 import { useLocalFamilyTree } from '@/hooks/useLocalFamilyTree';
+import { useFamilyInvitations } from '@/hooks/useFamilyInvitations';
 import { FamilyMember, AddMemberData } from '@/types/family';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { FamilyInvitationItem } from './FamilyInvitationItem';
 
 type ModalState = {
-  type: 'none' | 'addParentFather' | 'addParentMother' | 'addSpouse' | 'addChild' | 'profile' | 'invitation';
+  type: 'none' | 'addParentFather' | 'addParentMother' | 'addSpouse' | 'addChild' | 'profile' | 'invitation' | 'genderSelect';
   targetId?: string;
   member?: FamilyMember;
   fatherData?: AddMemberData;
 };
 
 export const FamilyTreeV2 = () => {
+  const { user, profile, refreshProfile } = useAuth();
   const {
     members,
     rootId,
@@ -26,9 +32,13 @@ export const FamilyTreeV2 = () => {
     updateMember,
     updatePosition,
     removeMember,
+    createSelfNode,
   } = useLocalFamilyTree();
 
+  const { pendingInvitations, acceptInvitation, rejectInvitation } = useFamilyInvitations();
   const [modal, setModal] = useState<ModalState>({ type: 'none' });
+  const [showGenderSelect, setShowGenderSelect] = useState(false);
+  const [processingInvitation, setProcessingInvitation] = useState<string | null>(null);
 
   // Build positions map from members
   const positions = Object.fromEntries(
@@ -37,11 +47,40 @@ export const FamilyTreeV2 = () => {
       .map((m) => [m.id, m.position!])
   );
 
+  // Check if user needs to select gender on first visit
   useEffect(() => {
-    if (!isLoading && !rootId && Object.keys(members).length === 0) {
-      addInitialCouple();
+    if (!isLoading && user?.id && profile) {
+      // Check if gender is not set
+      if (!profile.gender) {
+        setShowGenderSelect(true);
+      } else if (Object.keys(members).length === 0) {
+        // Gender is set but no tree exists - create self node
+        createSelfNode(profile.gender as 'male' | 'female');
+      }
     }
-  }, [rootId, members, isLoading, addInitialCouple]);
+  }, [isLoading, user?.id, profile?.gender, Object.keys(members).length]);
+
+  const handleGenderSelect = async (gender: 'male' | 'female') => {
+    if (!user?.id) return;
+
+    try {
+      // Update profile with gender
+      await supabase
+        .from('profiles')
+        .update({ gender })
+        .eq('id', user.id);
+
+      // Refresh profile
+      await refreshProfile();
+      
+      // Create self node
+      await createSelfNode(gender);
+      
+      setShowGenderSelect(false);
+    } catch (error) {
+      console.error('Error setting gender:', error);
+    }
+  };
 
   const handleAddParents = useCallback((id: string) => {
     setModal({ type: 'addParentFather', targetId: id });
@@ -102,6 +141,18 @@ export const FamilyTreeV2 = () => {
     updatePosition(memberId, { x, y });
   }, [updatePosition]);
 
+  const handleAcceptInvitation = async (invitation: any) => {
+    setProcessingInvitation(invitation.id);
+    await acceptInvitation(invitation);
+    setProcessingInvitation(null);
+  };
+
+  const handleRejectInvitation = async (invitation: any) => {
+    setProcessingInvitation(invitation.id);
+    await rejectInvitation(invitation);
+    setProcessingInvitation(null);
+  };
+
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -115,6 +166,12 @@ export const FamilyTreeV2 = () => {
 
   return (
     <section className="min-h-screen bg-background flex flex-col">
+      {/* Gender Selection Modal */}
+      <GenderSelectionModal
+        isOpen={showGenderSelect}
+        onSelect={handleGenderSelect}
+      />
+
       {/* Header */}
       <div className="container mx-auto px-4 py-6">
         <div className="flex items-center justify-between">
@@ -128,6 +185,26 @@ export const FamilyTreeV2 = () => {
             </div>
           </div>
         </div>
+        
+        {/* Pending Invitations */}
+        {pendingInvitations.length > 0 && (
+          <div className="mt-4 rounded-xl border border-border overflow-hidden">
+            <div className="px-4 py-2 bg-muted/50 border-b border-border">
+              <p className="text-sm font-medium">{pendingInvitations.length} ta taklifnoma kutmoqda</p>
+            </div>
+            <div className="divide-y divide-border">
+              {pendingInvitations.map((inv) => (
+                <FamilyInvitationItem
+                  key={inv.id}
+                  invitation={inv}
+                  onAccept={handleAcceptInvitation}
+                  onReject={handleRejectInvitation}
+                  isProcessing={processingInvitation === inv.id}
+                />
+              ))}
+            </div>
+          </div>
+        )}
         
         {/* Legend */}
         <div className="flex flex-wrap gap-3 mt-4">
