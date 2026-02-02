@@ -54,6 +54,8 @@ export const useLocalFamilyTree = () => {
           position: pos || { x: 0, y: 0 },
           childrenIds: [],
           parentIds: [],
+          linkedUserId: m.linked_user_id || undefined,
+          supabaseId: m.id,
         };
       });
 
@@ -522,6 +524,68 @@ export const useLocalFamilyTree = () => {
     }
   }, [user?.id, members]);
 
+  // Create self node - for user's own profile on first visit
+  const createSelfNode = useCallback(async (gender: 'male' | 'female') => {
+    if (!user?.id) return null;
+
+    // Check if self node already exists
+    const existingMembers = Object.values(members);
+    const selfExists = existingMembers.some(m => m.linkedUserId === user.id);
+    if (selfExists) return null;
+
+    // Fetch current profile data
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('name, username, avatar_url')
+      .eq('id', user.id)
+      .single();
+
+    const selfId = generateId();
+    const memberName = profile?.name || profile?.username || "Men";
+
+    try {
+      // Insert self member linked to user
+      await supabase.from('family_tree_members').insert({
+        id: selfId,
+        owner_id: user.id,
+        member_name: memberName,
+        gender: gender,
+        relation_type: 'self',
+        is_placeholder: false,
+        linked_user_id: user.id,
+        avatar_url: profile?.avatar_url,
+      });
+
+      // Insert position at center
+      await supabase.from('node_positions').insert({
+        member_id: selfId,
+        owner_id: user.id,
+        x: 0,
+        y: 0,
+        updated_by: CLIENT_ID,
+      });
+
+      setMembers((prev) => ({
+        ...prev,
+        [selfId]: {
+          id: selfId,
+          name: memberName,
+          gender: gender,
+          photoUrl: profile?.avatar_url || undefined,
+          position: { x: 0, y: 0 },
+          childrenIds: [],
+          linkedUserId: user.id,
+        },
+      }));
+
+      setRootId(selfId);
+      return selfId;
+    } catch (error) {
+      console.error('Error creating self node:', error);
+      return null;
+    }
+  }, [user?.id, members]);
+
   return {
     members,
     rootId,
@@ -533,6 +597,7 @@ export const useLocalFamilyTree = () => {
     addSpouse,
     addChild,
     removeMember,
+    createSelfNode,
     reload: loadData,
   };
 };

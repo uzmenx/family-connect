@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Heart, MessageCircle, UserPlus, Send } from 'lucide-react';
+import { Heart, MessageCircle, UserPlus, Send, TreeDeciduous, Check } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { uz } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -29,6 +29,10 @@ export const NotificationItem = ({ notification, onRead }: NotificationItemProps
         return <MessageCircle className="h-4 w-4 text-primary" />;
       case 'message':
         return <Send className="h-4 w-4 text-primary" />;
+      case 'family_invitation':
+        return <TreeDeciduous className="h-4 w-4 text-emerald-600" />;
+      case 'family_invitation_accepted':
+        return <Check className="h-4 w-4 text-emerald-600" />;
     }
   };
 
@@ -42,6 +46,10 @@ export const NotificationItem = ({ notification, onRead }: NotificationItemProps
         return 'postingizga izoh qoldirdi';
       case 'message':
         return 'sizga xabar yubordi';
+      case 'family_invitation':
+        return 'sizni oila daraxtiga taklif qildi';
+      case 'family_invitation_accepted':
+        return 'oila daraxtiga qo\'shildi';
     }
   };
 
@@ -62,6 +70,10 @@ export const NotificationItem = ({ notification, onRead }: NotificationItemProps
         break;
       case 'message':
         navigate(`/chat/${notification.actor_id}`);
+        break;
+      case 'family_invitation':
+      case 'family_invitation_accepted':
+        navigate('/relatives');
         break;
     }
   };
