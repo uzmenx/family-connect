@@ -138,7 +138,29 @@ export const useLocalFamilyTree = () => {
         }
       });
       
-      // Third pass: link spouse's children (for couples where both parents exist)
+      // Third pass: infer spouse relationships from shared children
+      // If two members (one male, one female) share a child, they are spouses
+      Object.values(membersMap).forEach((member) => {
+        if (member.childrenIds && member.childrenIds.length > 0) {
+          member.childrenIds.forEach((childId) => {
+            const child = membersMap[childId];
+            if (child && child.parentIds && child.parentIds.length >= 2) {
+              // Find the other parent
+              const otherParentId = child.parentIds.find(pid => pid !== member.id);
+              if (otherParentId && membersMap[otherParentId]) {
+                const otherParent = membersMap[otherParentId];
+                // If genders are different, set them as spouses
+                if (member.gender !== otherParent.gender && !member.spouseId) {
+                  membersMap[member.id].spouseId = otherParentId;
+                  membersMap[otherParentId].spouseId = member.id;
+                }
+              }
+            }
+          });
+        }
+      });
+      
+      // Fourth pass: link spouse's children (for couples where both parents exist)
       Object.values(membersMap).forEach((member) => {
         if (member.spouseId && membersMap[member.spouseId]) {
           const spouse = membersMap[member.spouseId];
