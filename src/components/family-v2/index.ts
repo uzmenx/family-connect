@@ -5,6 +5,7 @@ export { ProfileModal } from './ProfileModal';
 export { SendInvitationModal } from './SendInvitationModal';
 export { GenderSelectionModal } from './GenderSelectionModal';
 export { FamilyInvitationItem } from './FamilyInvitationItem';
+export { TreeMergeDialog } from './TreeMergeDialog';
 export { default as SpouseEdge } from './SpouseEdge';
 export { default as ChildEdge } from './ChildEdge';
 export { default as FamilyMemberNode } from './FamilyMemberNode';

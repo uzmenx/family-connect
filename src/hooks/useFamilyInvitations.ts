@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
+import { useTreeMerging } from './useTreeMerging';
 
 export interface FamilyInvitation {
   id: string;
@@ -19,11 +20,37 @@ export interface FamilyInvitation {
   };
 }
 
+interface MergeCandidate {
+  sourceId: string;
+  targetId: string;
+  sourceName: string;
+  targetName: string;
+  relationship: 'parent' | 'grandparent' | 'sibling';
+  autoMerge: boolean;
+}
+
+interface ChildMergeCandidate {
+  sourceChildren: { id: string; name: string }[];
+  targetChildren: { id: string; name: string }[];
+  parentDescription: string;
+}
+
 export const useFamilyInvitations = () => {
   const { user, profile } = useAuth();
   const { toast } = useToast();
+  const { findMergeCandidates, executeAutoMerge, mergeChildren } = useTreeMerging();
+  
   const [pendingInvitations, setPendingInvitations] = useState<FamilyInvitation[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  
+  // Merge dialog state
+  const [showMergeDialog, setShowMergeDialog] = useState(false);
+  const [mergeData, setMergeData] = useState<{
+    autoMergeCandidates: MergeCandidate[];
+    childrenToMerge: ChildMergeCandidate[];
+    senderId: string;
+    senderName: string;
+  } | null>(null);
 
   // Fetch pending invitations for current user
   const fetchInvitations = useCallback(async () => {
@@ -65,7 +92,7 @@ export const useFamilyInvitations = () => {
     }
   }, [user?.id]);
 
-  // Accept invitation - link user to member and merge trees
+  // Accept invitation - link user to member and trigger merge
   const acceptInvitation = async (invitation: FamilyInvitation) => {
     if (!user?.id || !profile) return false;
 
@@ -78,7 +105,7 @@ export const useFamilyInvitations = () => {
 
       if (updateError) throw updateError;
 
-      // 2. Link user to the family member
+      // 2. Link user to the family member placeholder
       const { error: linkError } = await supabase
         .from('family_tree_members')
         .update({ 
@@ -86,6 +113,7 @@ export const useFamilyInvitations = () => {
           member_name: profile.name || profile.username || 'Foydalanuvchi',
           avatar_url: profile.avatar_url,
           is_placeholder: false,
+          gender: profile.gender || undefined,
         })
         .eq('id', invitation.member_id);
 
@@ -98,10 +126,28 @@ export const useFamilyInvitations = () => {
         type: 'family_invitation_accepted',
       });
 
-      toast({
-        title: "Qabul qilindi!",
-        description: "Siz oila daraxtiga muvaffaqiyatli qo'shildingiz",
-      });
+      // 4. Find merge candidates (parents/grandparents that are the same person)
+      const candidates = await findMergeCandidates(
+        invitation.sender_id,
+        user.id,
+        invitation.member_id
+      );
+
+      // 5. If there are candidates to merge, show dialog
+      if (candidates.autoMergeable.length > 0 || candidates.childrenToMerge.length > 0) {
+        setMergeData({
+          autoMergeCandidates: candidates.autoMergeable,
+          childrenToMerge: candidates.childrenToMerge,
+          senderId: invitation.sender_id,
+          senderName: invitation.sender?.name || invitation.sender?.username || 'Foydalanuvchi',
+        });
+        setShowMergeDialog(true);
+      } else {
+        toast({
+          title: "Qabul qilindi!",
+          description: "Siz oila daraxtiga muvaffaqiyatli qo'shildingiz",
+        });
+      }
 
       // Remove from pending list
       setPendingInvitations(prev => prev.filter(inv => inv.id !== invitation.id));
@@ -116,6 +162,34 @@ export const useFamilyInvitations = () => {
       });
       return false;
     }
+  };
+
+  // Confirm auto merge (parents/grandparents)
+  const confirmAutoMerge = async () => {
+    if (!mergeData || !user?.id) return;
+    
+    await executeAutoMerge(
+      mergeData.senderId,
+      user.id,
+      mergeData.autoMergeCandidates
+    );
+  };
+
+  // Merge specific children
+  const handleMergeChildren = async (sourceId: string, targetId: string) => {
+    if (!mergeData || !user?.id) return;
+    
+    await mergeChildren(sourceId, targetId, mergeData.senderId, user.id);
+  };
+
+  // Close merge dialog
+  const closeMergeDialog = () => {
+    setShowMergeDialog(false);
+    setMergeData(null);
+    toast({
+      title: "Birlashtirish tugadi!",
+      description: "Oila daraxtingiz muvaffaqiyatli birlashtirildi",
+    });
   };
 
   // Reject invitation
@@ -184,5 +258,11 @@ export const useFamilyInvitations = () => {
     fetchInvitations,
     acceptInvitation,
     rejectInvitation,
+    // Merge dialog
+    showMergeDialog,
+    mergeData,
+    confirmAutoMerge,
+    handleMergeChildren,
+    closeMergeDialog,
   };
 };
