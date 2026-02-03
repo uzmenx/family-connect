@@ -5,6 +5,7 @@ import { AddMemberModal } from './AddMemberModal';
 import { ProfileModal } from './ProfileModal';
 import { SendInvitationModal } from './SendInvitationModal';
 import { GenderSelectionModal } from './GenderSelectionModal';
+import { TreeMergeDialog } from './TreeMergeDialog';
 import { useLocalFamilyTree } from '@/hooks/useLocalFamilyTree';
 import { useFamilyInvitations } from '@/hooks/useFamilyInvitations';
 import { FamilyMember, AddMemberData } from '@/types/family';
@@ -35,7 +36,16 @@ export const FamilyTreeV2 = () => {
     createSelfNode,
   } = useLocalFamilyTree();
 
-  const { pendingInvitations, acceptInvitation, rejectInvitation } = useFamilyInvitations();
+  const { 
+    pendingInvitations, 
+    acceptInvitation, 
+    rejectInvitation,
+    showMergeDialog,
+    mergeData,
+    confirmAutoMerge,
+    handleMergeChildren,
+    closeMergeDialog,
+  } = useFamilyInvitations();
   const [modal, setModal] = useState<ModalState>({ type: 'none' });
   const [showGenderSelect, setShowGenderSelect] = useState(false);
   const [processingInvitation, setProcessingInvitation] = useState<string | null>(null);
@@ -308,6 +318,19 @@ export const FamilyTreeV2 = () => {
         onClose={handleCloseModal}
         member={modal.member || null}
       />
+
+      {/* Tree Merge Dialog */}
+      {mergeData && (
+        <TreeMergeDialog
+          isOpen={showMergeDialog}
+          onClose={closeMergeDialog}
+          autoMergeCandidates={mergeData.autoMergeCandidates}
+          childrenToMerge={mergeData.childrenToMerge}
+          onConfirmAutoMerge={confirmAutoMerge}
+          onMergeChildren={handleMergeChildren}
+          senderName={mergeData.senderName}
+        />
+      )}
     </section>
   );
 };
