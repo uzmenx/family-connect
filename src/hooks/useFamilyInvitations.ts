@@ -36,7 +36,7 @@ interface ChildMergeCandidate {
 }
 
 export const useFamilyInvitations = () => {
-  const { user, profile } = useAuth();
+  const { user, profile, refreshProfile } = useAuth();
   const { toast } = useToast();
   const { findMergeCandidates, executeAutoMerge, mergeChildren } = useTreeMerging();
   
@@ -92,6 +92,53 @@ export const useFamilyInvitations = () => {
     }
   }, [user?.id]);
 
+  /**
+   * Link two users to the same family network
+   * Takes the sender's network and adds the receiver to it
+   */
+  const linkToSameNetwork = async (senderId: string, receiverId: string): Promise<string | null> => {
+    try {
+      // Get sender's network
+      const { data: senderProfile } = await supabase
+        .from('profiles')
+        .select('family_network_id')
+        .eq('id', senderId)
+        .single();
+      
+      let networkId = senderProfile?.family_network_id;
+      
+      // If sender doesn't have a network, create one
+      if (!networkId) {
+        const { data: newNetwork } = await supabase
+          .from('family_networks')
+          .insert({})
+          .select('id')
+          .single();
+        
+        if (newNetwork) {
+          networkId = newNetwork.id;
+          await supabase
+            .from('profiles')
+            .update({ family_network_id: networkId })
+            .eq('id', senderId);
+        }
+      }
+      
+      if (!networkId) return null;
+      
+      // Add receiver to the same network
+      await supabase
+        .from('profiles')
+        .update({ family_network_id: networkId })
+        .eq('id', receiverId);
+      
+      return networkId;
+    } catch (error) {
+      console.error('Error linking to network:', error);
+      return null;
+    }
+  };
+
   // Accept invitation - link user to member and trigger merge
   const acceptInvitation = async (invitation: FamilyInvitation) => {
     if (!user?.id || !profile) return false;
@@ -105,7 +152,14 @@ export const useFamilyInvitations = () => {
 
       if (updateError) throw updateError;
 
-      // 2. Link user to the family member placeholder
+      // 2. Link both users to the same family network
+      const networkId = await linkToSameNetwork(invitation.sender_id, user.id);
+      if (networkId) {
+        // Refresh profile to get new network ID
+        await refreshProfile?.();
+      }
+
+      // 3. Link user to the family member placeholder
       const { error: linkError } = await supabase
         .from('family_tree_members')
         .update({ 
@@ -119,21 +173,21 @@ export const useFamilyInvitations = () => {
 
       if (linkError) throw linkError;
 
-      // 3. Create notification for sender
+      // 4. Create notification for sender
       await supabase.from('notifications').insert({
         user_id: invitation.sender_id,
         actor_id: user.id,
         type: 'family_invitation_accepted',
       });
 
-      // 4. Find merge candidates (parents/grandparents that are the same person)
+      // 5. Find merge candidates (parents/grandparents that are the same person)
       const candidates = await findMergeCandidates(
         invitation.sender_id,
         user.id,
         invitation.member_id
       );
 
-      // 5. If there are candidates to merge, show dialog
+      // 6. If there are candidates to merge, show dialog
       if (candidates.autoMergeable.length > 0 || candidates.childrenToMerge.length > 0) {
         setMergeData({
           autoMergeCandidates: candidates.autoMergeable,
@@ -145,7 +199,7 @@ export const useFamilyInvitations = () => {
       } else {
         toast({
           title: "Qabul qilindi!",
-          description: "Siz oila daraxtiga muvaffaqiyatli qo'shildingiz",
+          description: "Siz oila daraxtiga muvaffaqiyatli qo'shildingiz. Tarmoqlar birlashtirildi.",
         });
       }
 
@@ -168,18 +222,31 @@ export const useFamilyInvitations = () => {
   const confirmAutoMerge = async () => {
     if (!mergeData || !user?.id) return;
     
-    await executeAutoMerge(
+    const success = await executeAutoMerge(
       mergeData.senderId,
       user.id,
       mergeData.autoMergeCandidates
     );
+    
+    if (success) {
+      toast({
+        title: "Birlashtirildi!",
+        description: `${mergeData.autoMergeCandidates.length} ta profil avtomatik birlashtirildi`,
+      });
+    }
   };
 
   // Merge specific children
   const handleMergeChildren = async (sourceId: string, targetId: string) => {
     if (!mergeData || !user?.id) return;
     
-    await mergeChildren(sourceId, targetId, mergeData.senderId, user.id);
+    const success = await mergeChildren(sourceId, targetId, mergeData.senderId, user.id);
+    if (success) {
+      toast({
+        title: "Birlashtirildi!",
+        description: "Farzand profillari muvaffaqiyatli birlashtirildi",
+      });
+    }
   };
 
   // Close merge dialog
@@ -188,8 +255,10 @@ export const useFamilyInvitations = () => {
     setMergeData(null);
     toast({
       title: "Birlashtirish tugadi!",
-      description: "Oila daraxtingiz muvaffaqiyatli birlashtirildi",
+      description: "Oila daraxtingiz muvaffaqiyatli birlashtirildi. Sahifani yangilang.",
     });
+    // Reload page to show merged tree
+    window.location.reload();
   };
 
   // Reject invitation

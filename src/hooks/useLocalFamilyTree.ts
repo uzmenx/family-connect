@@ -8,25 +8,79 @@ const CLIENT_ID = crypto.randomUUID();
 const generateId = () => crypto.randomUUID();
 
 export const useLocalFamilyTree = () => {
-  const { user } = useAuth();
+  const { user, profile } = useAuth();
   const [members, setMembers] = useState<Record<string, FamilyMember>>({});
   const [rootId, setRootId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [networkId, setNetworkId] = useState<string | null>(null);
   
   // Prevent updates while dragging
   const isDraggingRef = useRef(false);
   const pendingUpdatesRef = useRef<Map<string, { x: number; y: number }>>(new Map());
 
-  // Load initial data
+  // Get or create family network for current user
+  const getOrCreateNetworkId = useCallback(async (): Promise<string | null> => {
+    if (!user?.id) return null;
+    
+    // Check if user already has a network
+    const { data: userProfile } = await supabase
+      .from('profiles')
+      .select('family_network_id')
+      .eq('id', user.id)
+      .single();
+    
+    if (userProfile?.family_network_id) {
+      return userProfile.family_network_id;
+    }
+    
+    // Create new network
+    const { data: newNetwork, error } = await supabase
+      .from('family_networks')
+      .insert({})
+      .select('id')
+      .single();
+    
+    if (error || !newNetwork) {
+      console.error('Error creating network:', error);
+      return null;
+    }
+    
+    // Update user profile with network ID
+    await supabase
+      .from('profiles')
+      .update({ family_network_id: newNetwork.id })
+      .eq('id', user.id);
+    
+    return newNetwork.id;
+  }, [user?.id]);
+
+  // Load data based on family_network_id (to see merged trees)
   const loadData = useCallback(async () => {
     if (!user?.id) return;
     
     setIsLoading(true);
     try {
-      // Load members and positions in parallel
+      // First, get user's network ID
+      const userNetworkId = await getOrCreateNetworkId();
+      setNetworkId(userNetworkId);
+      
+      if (!userNetworkId) {
+        setIsLoading(false);
+        return;
+      }
+      
+      // Get all users in the same network
+      const { data: networkUsers } = await supabase
+        .from('profiles')
+        .select('id')
+        .eq('family_network_id', userNetworkId);
+      
+      const userIds = networkUsers?.map(u => u.id) || [user.id];
+      
+      // Load members from ALL users in the network
       const [membersRes, positionsRes] = await Promise.all([
-        supabase.from('family_tree_members').select('*').eq('owner_id', user.id),
-        supabase.from('node_positions').select('*').eq('owner_id', user.id)
+        supabase.from('family_tree_members').select('*').in('owner_id', userIds),
+        supabase.from('node_positions').select('*').eq('owner_id', user.id) // Positions are still per-user
       ]);
 
       if (membersRes.error) throw membersRes.error;
@@ -41,10 +95,24 @@ export const useLocalFamilyTree = () => {
         posMap.set(p.member_id, { x: p.x, y: p.y });
       });
 
-      // Build members map - first pass: create all members
+      // Build members map - first pass: create all members (exclude merged ones)
       const membersMap: Record<string, FamilyMember> = {};
+      const mergedMap = new Map<string, string>(); // targetId -> sourceId
       
+      // First, identify merged members
       dbMembers.forEach((m: any) => {
+        const relType = m.relation_type || '';
+        const mergedMatch = relType.match(/merged_into_([a-f0-9-]+)/);
+        if (mergedMatch) {
+          mergedMap.set(m.id, mergedMatch[1]);
+        }
+      });
+      
+      // Create members, skipping merged ones
+      dbMembers.forEach((m: any) => {
+        // Skip members that are merged into another
+        if (mergedMap.has(m.id)) return;
+        
         const pos = posMap.get(m.id);
         membersMap[m.id] = {
           id: m.id,
@@ -59,29 +127,37 @@ export const useLocalFamilyTree = () => {
         };
       });
 
+      // Helper to resolve merged IDs to their source
+      const resolveId = (id: string): string => {
+        return mergedMap.get(id) || id;
+      };
+
       // Second pass: establish ALL relationships from relation_type
       dbMembers.forEach((m: any) => {
+        // Skip merged members
+        if (mergedMap.has(m.id)) return;
+        
         const relType = (m.relation_type || '').split('|')[0];
         
         // Handle spouse relationships (bidirectional)
         if (relType.startsWith('spouse_of_')) {
-          const partnerId = relType.replace('spouse_of_', '');
-          if (membersMap[partnerId]) {
+          const rawPartnerId = relType.replace('spouse_of_', '');
+          const partnerId = resolveId(rawPartnerId);
+          if (membersMap[partnerId] && membersMap[m.id]) {
             membersMap[m.id].spouseId = partnerId;
             membersMap[partnerId].spouseId = m.id;
           }
         }
         
-        // Handle father_of_ relationships - this member is father of childId
+        // Handle father_of_ relationships
         if (relType.startsWith('father_of_')) {
-          const childId = relType.replace('father_of_', '');
-          if (membersMap[childId]) {
-            // Add this member as parent of child
+          const rawChildId = relType.replace('father_of_', '');
+          const childId = resolveId(rawChildId);
+          if (membersMap[childId] && membersMap[m.id]) {
             if (!membersMap[childId].parentIds) membersMap[childId].parentIds = [];
             if (!membersMap[childId].parentIds.includes(m.id)) {
               membersMap[childId].parentIds.push(m.id);
             }
-            // Add child to this member's children
             if (!membersMap[m.id].childrenIds) membersMap[m.id].childrenIds = [];
             if (!membersMap[m.id].childrenIds.includes(childId)) {
               membersMap[m.id].childrenIds.push(childId);
@@ -89,16 +165,15 @@ export const useLocalFamilyTree = () => {
           }
         }
         
-        // Handle mother_of_ relationships - this member is mother of childId
+        // Handle mother_of_ relationships
         if (relType.startsWith('mother_of_')) {
-          const childId = relType.replace('mother_of_', '');
-          if (membersMap[childId]) {
-            // Add this member as parent of child
+          const rawChildId = relType.replace('mother_of_', '');
+          const childId = resolveId(rawChildId);
+          if (membersMap[childId] && membersMap[m.id]) {
             if (!membersMap[childId].parentIds) membersMap[childId].parentIds = [];
             if (!membersMap[childId].parentIds.includes(m.id)) {
               membersMap[childId].parentIds.push(m.id);
             }
-            // Add child to this member's children
             if (!membersMap[m.id].childrenIds) membersMap[m.id].childrenIds = [];
             if (!membersMap[m.id].childrenIds.includes(childId)) {
               membersMap[m.id].childrenIds.push(childId);
@@ -106,23 +181,21 @@ export const useLocalFamilyTree = () => {
           }
         }
         
-        // Handle child_of_ relationships - this member is child of parentId
+        // Handle child_of_ relationships
         if (relType.startsWith('child_of_')) {
           const match = relType.match(/child_of_([a-f0-9-]+)/);
           if (match) {
-            const parentId = match[1];
-            if (membersMap[parentId]) {
-              // Add parent to this member's parents
+            const rawParentId = match[1];
+            const parentId = resolveId(rawParentId);
+            if (membersMap[parentId] && membersMap[m.id]) {
               if (!membersMap[m.id].parentIds) membersMap[m.id].parentIds = [];
               if (!membersMap[m.id].parentIds.includes(parentId)) {
                 membersMap[m.id].parentIds.push(parentId);
               }
-              // Add this member to parent's children
               if (!membersMap[parentId].childrenIds) membersMap[parentId].childrenIds = [];
               if (!membersMap[parentId].childrenIds.includes(m.id)) {
                 membersMap[parentId].childrenIds.push(m.id);
               }
-              // Also link to parent's spouse if exists
               if (membersMap[parentId].spouseId && membersMap[membersMap[parentId].spouseId!]) {
                 const spouseId = membersMap[parentId].spouseId!;
                 if (!membersMap[m.id].parentIds.includes(spouseId)) {
@@ -139,17 +212,14 @@ export const useLocalFamilyTree = () => {
       });
       
       // Third pass: infer spouse relationships from shared children
-      // If two members (one male, one female) share a child, they are spouses
       Object.values(membersMap).forEach((member) => {
         if (member.childrenIds && member.childrenIds.length > 0) {
           member.childrenIds.forEach((childId) => {
             const child = membersMap[childId];
             if (child && child.parentIds && child.parentIds.length >= 2) {
-              // Find the other parent
               const otherParentId = child.parentIds.find(pid => pid !== member.id);
               if (otherParentId && membersMap[otherParentId]) {
                 const otherParent = membersMap[otherParentId];
-                // If genders are different, set them as spouses
                 if (member.gender !== otherParent.gender && !member.spouseId) {
                   membersMap[member.id].spouseId = otherParentId;
                   membersMap[otherParentId].spouseId = member.id;
@@ -160,17 +230,15 @@ export const useLocalFamilyTree = () => {
         }
       });
       
-      // Fourth pass: link spouse's children (for couples where both parents exist)
+      // Fourth pass: link spouse's children
       Object.values(membersMap).forEach((member) => {
         if (member.spouseId && membersMap[member.spouseId]) {
           const spouse = membersMap[member.spouseId];
-          // Merge children
           const allChildren = new Set([...(member.childrenIds || []), ...(spouse.childrenIds || [])]);
           const childrenArray = Array.from(allChildren);
           membersMap[member.id].childrenIds = childrenArray;
           membersMap[spouse.id].childrenIds = childrenArray;
           
-          // Ensure all children have both parents
           childrenArray.forEach((childId) => {
             if (membersMap[childId]) {
               if (!membersMap[childId].parentIds) membersMap[childId].parentIds = [];
@@ -185,7 +253,7 @@ export const useLocalFamilyTree = () => {
         }
       });
 
-      // Create positions for members without saved positions
+      // Create positions for members without saved positions (in user's view)
       const newPositions: { member_id: string; owner_id: string; x: number; y: number; updated_by: string }[] = [];
       let offsetX = 0;
       
@@ -210,7 +278,7 @@ export const useLocalFamilyTree = () => {
       setMembers(membersMap);
 
       // Set root (self member)
-      const selfMember = dbMembers.find((m: any) => m.relation_type?.startsWith('self'));
+      const selfMember = dbMembers.find((m: any) => m.linked_user_id === user.id);
       setRootId(selfMember?.id || dbMembers[0]?.id || null);
 
     } catch (error) {
@@ -218,55 +286,31 @@ export const useLocalFamilyTree = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [user?.id]);
+  }, [user?.id, getOrCreateNetworkId]);
 
   // Initial load
   useEffect(() => {
     loadData();
   }, [loadData]);
 
-  // Real-time subscriptions - merge updates, don't reload
+  // Real-time subscriptions
   useEffect(() => {
-    if (!user?.id) return;
+    if (!user?.id || !networkId) return;
 
     const channel = supabase
       .channel('family_tree_sync')
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'family_tree_members', filter: `owner_id=eq.${user.id}` },
+        { event: '*', schema: 'public', table: 'family_tree_members' },
         (payload) => {
-          const m = payload.new as any;
-          setMembers((prev) => ({
-            ...prev,
-            [m.id]: {
-              id: m.id,
-              name: m.member_name || '',
-              gender: (m.gender as 'male' | 'female') || 'male',
-              photoUrl: m.avatar_url || undefined,
-              position: { x: 0, y: 0 },
-              childrenIds: [],
-              parentIds: [],
-            },
-          }));
-        }
-      )
-      .on(
-        'postgres_changes',
-        { event: 'DELETE', schema: 'public', table: 'family_tree_members', filter: `owner_id=eq.${user.id}` },
-        (payload) => {
-          const id = (payload.old as { id: string }).id;
-          setMembers((prev) => {
-            const next = { ...prev };
-            delete next[id];
-            return next;
-          });
+          // Reload on any member change in network (will filter by network in loadData)
+          loadData();
         }
       )
       .on(
         'postgres_changes',
         { event: '*', schema: 'public', table: 'node_positions', filter: `owner_id=eq.${user.id}` },
         (payload) => {
-          // Ignore while dragging
           if (isDraggingRef.current) {
             const p = payload.new as any;
             if (p) pendingUpdatesRef.current.set(p.member_id, { x: p.x, y: p.y });
@@ -275,7 +319,6 @@ export const useLocalFamilyTree = () => {
           
           if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
             const p = payload.new as any;
-            // Ignore own updates
             if (p.updated_by === CLIENT_ID) return;
             
             setMembers((prev) => {
@@ -293,15 +336,14 @@ export const useLocalFamilyTree = () => {
     return () => {
       supabase.removeChannel(channel);
     };
-  }, [user?.id]);
+  }, [user?.id, networkId, loadData]);
 
-  // Update position - called on drag end only
+  // Update position
   const updatePosition = useCallback(async (memberId: string, position: { x: number; y: number }) => {
     if (!user?.id) return;
     
     isDraggingRef.current = false;
 
-    // Apply pending updates from other clients
     pendingUpdatesRef.current.forEach((pos, id) => {
       if (id !== memberId) {
         setMembers((prev) => {
@@ -312,13 +354,11 @@ export const useLocalFamilyTree = () => {
     });
     pendingUpdatesRef.current.clear();
 
-    // Update local state
     setMembers((prev) => {
       if (!prev[memberId]) return prev;
       return { ...prev, [memberId]: { ...prev[memberId], position } };
     });
 
-    // Upsert to database
     await supabase
       .from('node_positions')
       .upsert({
@@ -339,13 +379,11 @@ export const useLocalFamilyTree = () => {
     const wifeId = generateId();
 
     try {
-      // Insert members
       await supabase.from('family_tree_members').insert([
         { id: husbandId, owner_id: user.id, member_name: '', gender: 'male', relation_type: 'self', is_placeholder: true },
         { id: wifeId, owner_id: user.id, member_name: '', gender: 'female', relation_type: `spouse_of_${husbandId}`, is_placeholder: true },
       ]);
 
-      // Insert positions
       await supabase.from('node_positions').insert([
         { member_id: husbandId, owner_id: user.id, x: 0, y: 0, updated_by: CLIENT_ID },
         { member_id: wifeId, owner_id: user.id, x: 180, y: 0, updated_by: CLIENT_ID },
@@ -379,7 +417,12 @@ export const useLocalFamilyTree = () => {
     if (updates.gender !== undefined) dbUpdates.gender = updates.gender;
 
     if (Object.keys(dbUpdates).length > 0) {
-      await supabase.from('family_tree_members').update(dbUpdates).eq('id', id).eq('owner_id', user.id);
+      // Update any member the user owns or is linked to
+      await supabase
+        .from('family_tree_members')
+        .update(dbUpdates)
+        .eq('id', id)
+        .or(`owner_id.eq.${user.id},linked_user_id.eq.${user.id}`);
     }
   }, [user?.id]);
 
@@ -411,7 +454,6 @@ export const useLocalFamilyTree = () => {
       return next;
     });
 
-    // Cascade will delete position
     await supabase.from('family_tree_members').delete().eq('id', id).eq('owner_id', user.id);
   }, [user?.id]);
 
@@ -546,16 +588,14 @@ export const useLocalFamilyTree = () => {
     }
   }, [user?.id, members]);
 
-  // Create self node - for user's own profile on first visit
+  // Create self node
   const createSelfNode = useCallback(async (gender: 'male' | 'female') => {
     if (!user?.id) return null;
 
-    // Check if self node already exists
     const existingMembers = Object.values(members);
     const selfExists = existingMembers.some(m => m.linkedUserId === user.id);
     if (selfExists) return null;
 
-    // Fetch current profile data
     const { data: profile } = await supabase
       .from('profiles')
       .select('name, username, avatar_url')
@@ -566,7 +606,6 @@ export const useLocalFamilyTree = () => {
     const memberName = profile?.name || profile?.username || "Men";
 
     try {
-      // Insert self member linked to user
       await supabase.from('family_tree_members').insert({
         id: selfId,
         owner_id: user.id,
@@ -578,7 +617,6 @@ export const useLocalFamilyTree = () => {
         avatar_url: profile?.avatar_url,
       });
 
-      // Insert position at center
       await supabase.from('node_positions').insert({
         member_id: selfId,
         owner_id: user.id,
@@ -612,6 +650,7 @@ export const useLocalFamilyTree = () => {
     members,
     rootId,
     isLoading,
+    networkId,
     addInitialCouple,
     updateMember,
     updatePosition,

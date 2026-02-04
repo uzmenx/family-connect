@@ -1,13 +1,12 @@
 import { supabase } from '@/integrations/supabase/client';
-import { FamilyMember } from '@/types/family';
 
 interface MergeCandidate {
-  sourceId: string; // ID in sender's tree (will be merged into)
-  targetId: string; // ID in receiver's tree (will be removed/linked)
+  sourceId: string; // ID in sender's tree (will be kept)
+  targetId: string; // ID in receiver's tree (will be marked as merged)
   sourceName: string;
   targetName: string;
   relationship: 'parent' | 'grandparent' | 'sibling';
-  autoMerge: boolean; // Can be auto-merged based on relationship
+  autoMerge: boolean;
 }
 
 interface ChildMergeCandidate {
@@ -16,25 +15,36 @@ interface ChildMergeCandidate {
   parentDescription: string;
 }
 
+interface TreeMember {
+  id: string;
+  owner_id: string;
+  member_name: string;
+  gender: string | null;
+  relation_type: string;
+  linked_user_id: string | null;
+  avatar_url: string | null;
+  created_at: string;
+}
+
 /**
  * Tree Merging Algorithm
  * 
  * When a user accepts an invitation:
  * 1. They get linked to a placeholder in sender's tree
- * 2. Their parents become the same as sender's parents (if both are siblings)
- * 3. Grandparents also merge
- * 4. Children are listed for manual confirmation
+ * 2. Both users are added to the same family_network_id
+ * 3. Parents/grandparents are identified as same person based on relationship
+ * 4. The earlier created profile is kept, the other is marked for reference
  */
 export const useTreeMerging = () => {
 
   /**
    * Find merge candidates when invitation is accepted
-   * Returns list of nodes that can be merged
+   * Compares sender's tree with receiver's tree to find duplicates
    */
   const findMergeCandidates = async (
     senderId: string,
     receiverId: string,
-    linkedMemberId: string // The placeholder that receiver was linked to
+    linkedMemberId: string
   ): Promise<{
     autoMergeable: MergeCandidate[];
     childrenToMerge: ChildMergeCandidate[];
@@ -43,104 +53,106 @@ export const useTreeMerging = () => {
     const childrenToMerge: ChildMergeCandidate[] = [];
 
     try {
-      // Get sender's tree members
-      const { data: senderMembers } = await supabase
-        .from('family_tree_members')
-        .select('*')
-        .eq('owner_id', senderId);
+      // Get all members from both trees
+      const [senderRes, receiverRes] = await Promise.all([
+        supabase.from('family_tree_members').select('*').eq('owner_id', senderId),
+        supabase.from('family_tree_members').select('*').eq('owner_id', receiverId)
+      ]);
 
-      // Get receiver's tree members
-      const { data: receiverMembers } = await supabase
-        .from('family_tree_members')
-        .select('*')
-        .eq('owner_id', receiverId);
+      const senderMembers = (senderRes.data || []) as TreeMember[];
+      const receiverMembers = (receiverRes.data || []) as TreeMember[];
 
-      if (!senderMembers || !receiverMembers) return { autoMergeable, childrenToMerge };
+      if (senderMembers.length === 0 || receiverMembers.length === 0) {
+        return { autoMergeable, childrenToMerge };
+      }
 
-      // Build relationship maps
-      const senderTree = buildTreeMap(senderMembers);
-      const receiverTree = buildTreeMap(receiverMembers);
+      // Build maps for quick lookup
+      const senderMap = new Map<string, TreeMember>();
+      const receiverMap = new Map<string, TreeMember>();
+      
+      senderMembers.forEach(m => senderMap.set(m.id, m));
+      receiverMembers.forEach(m => receiverMap.set(m.id, m));
 
-      // Find the linked member in sender's tree
-      const linkedMember = senderTree.get(linkedMemberId);
+      // Find the linked member in sender's tree (this is the receiver in sender's tree)
+      const linkedMember = senderMap.get(linkedMemberId);
       if (!linkedMember) return { autoMergeable, childrenToMerge };
 
       // Find receiver's self node in their own tree
       const receiverSelf = receiverMembers.find(m => m.linked_user_id === receiverId);
       if (!receiverSelf) return { autoMergeable, childrenToMerge };
 
-      // Get receiver's parents in their own tree
-      const receiverParentIds = getParentIds(receiverSelf, receiverMembers);
-      const receiverParents = receiverParentIds.map(id => receiverTree.get(id)).filter(Boolean);
+      // Get parents of linked member in sender's tree
+      const senderParents = findParents(linkedMember, senderMembers);
+      
+      // Get parents of receiver's self in receiver's tree
+      const receiverParents = findParents(receiverSelf, receiverMembers);
 
-      // Get linked member's parents in sender's tree (these are the "real" parents now)
-      const linkedParentIds = getParentIds(linkedMember, senderMembers);
-      const linkedParents = linkedParentIds.map(id => senderTree.get(id)).filter(Boolean);
+      // Match parents by gender - these are the same people
+      for (const senderParent of senderParents) {
+        const matchingReceiverParent = receiverParents.find(
+          rp => rp.gender === senderParent.gender
+        );
 
-      // If both have parents, they should be merged (since they're the same people)
-      if (linkedParents.length > 0 && receiverParents.length > 0) {
-        // Match by gender first
-        linkedParents.forEach(senderParent => {
-          const matchingReceiverParent = receiverParents.find(
-            rp => rp && rp.gender === senderParent?.gender
-          );
+        if (matchingReceiverParent) {
+          // Compare creation dates - keep the earlier one
+          const senderDate = new Date(senderParent.created_at);
+          const receiverDate = new Date(matchingReceiverParent.created_at);
           
-          if (matchingReceiverParent && senderParent) {
-            autoMergeable.push({
-              sourceId: senderParent.id,
-              targetId: matchingReceiverParent.id,
-              sourceName: senderParent.member_name || 'Ism kiritilmagan',
-              targetName: matchingReceiverParent.member_name || 'Ism kiritilmagan',
-              relationship: 'parent',
-              autoMerge: true, // Parents are automatically the same
-            });
+          const sourceParent = senderDate <= receiverDate ? senderParent : matchingReceiverParent;
+          const targetParent = senderDate <= receiverDate ? matchingReceiverParent : senderParent;
 
-            // Check for grandparents too
-            const senderGrandparents = getParentIds(senderParent, senderMembers);
-            const receiverGrandparents = getParentIds(matchingReceiverParent, receiverMembers);
+          autoMergeable.push({
+            sourceId: sourceParent.id,
+            targetId: targetParent.id,
+            sourceName: sourceParent.member_name || 'Ism kiritilmagan',
+            targetName: targetParent.member_name || 'Ism kiritilmagan',
+            relationship: 'parent',
+            autoMerge: true,
+          });
 
-            senderGrandparents.forEach(sgpId => {
-              const sgp = senderTree.get(sgpId);
-              if (!sgp) return;
+          // Find grandparents (parents of parents)
+          const senderGrandparents = findParents(senderParent, senderMembers);
+          const receiverGrandparents = findParents(matchingReceiverParent, receiverMembers);
 
-              const matchingRgp = receiverGrandparents
-                .map(rgpId => receiverTree.get(rgpId))
-                .find(rgp => rgp && rgp.gender === sgp.gender);
-
-              if (matchingRgp) {
-                autoMergeable.push({
-                  sourceId: sgp.id,
-                  targetId: matchingRgp.id,
-                  sourceName: sgp.member_name || 'Ism kiritilmagan',
-                  targetName: matchingRgp.member_name || 'Ism kiritilmagan',
-                  relationship: 'grandparent',
-                  autoMerge: true,
-                });
-              }
-            });
-
-            // Find children that need manual merging
-            const senderChildren = getChildrenIds(senderParent, senderMembers)
-              .map(id => senderTree.get(id))
-              .filter(c => c && c.id !== linkedMemberId); // Exclude the linked member
-
-            const receiverChildren = getChildrenIds(matchingReceiverParent, receiverMembers)
-              .map(id => receiverTree.get(id))
-              .filter(c => c && c.id !== receiverSelf.id); // Exclude receiver's self
-
-            if (senderChildren.length > 0 || receiverChildren.length > 0) {
-              childrenToMerge.push({
-                parentDescription: `${senderParent.gender === 'male' ? 'Otaning' : 'Onaning'} farzandlari`,
-                sourceChildren: senderChildren
-                  .filter(Boolean)
-                  .map(c => ({ id: c!.id, name: c!.member_name || 'Ism kiritilmagan' })),
-                targetChildren: receiverChildren
-                  .filter(Boolean)
-                  .map(c => ({ id: c!.id, name: c!.member_name || 'Ism kiritilmagan' })),
+          for (const sgp of senderGrandparents) {
+            const matchingRgp = receiverGrandparents.find(rgp => rgp.gender === sgp.gender);
+            
+            if (matchingRgp) {
+              const sDate = new Date(sgp.created_at);
+              const rDate = new Date(matchingRgp.created_at);
+              
+              autoMergeable.push({
+                sourceId: sDate <= rDate ? sgp.id : matchingRgp.id,
+                targetId: sDate <= rDate ? matchingRgp.id : sgp.id,
+                sourceName: sgp.member_name || 'Ism kiritilmagan',
+                targetName: matchingRgp.member_name || 'Ism kiritilmagan',
+                relationship: 'grandparent',
+                autoMerge: true,
               });
             }
           }
-        });
+
+          // Find siblings (other children of the same parents)
+          const senderSiblings = findChildren(senderParent, senderMembers)
+            .filter(c => c.id !== linkedMemberId);
+          
+          const receiverSiblings = findChildren(matchingReceiverParent, receiverMembers)
+            .filter(c => c.id !== receiverSelf.id);
+
+          if (senderSiblings.length > 0 || receiverSiblings.length > 0) {
+            childrenToMerge.push({
+              parentDescription: `${senderParent.gender === 'male' ? 'Otaning' : 'Onaning'} boshqa farzandlari`,
+              sourceChildren: senderSiblings.map(c => ({ 
+                id: c.id, 
+                name: c.member_name || 'Ism kiritilmagan' 
+              })),
+              targetChildren: receiverSiblings.map(c => ({ 
+                id: c.id, 
+                name: c.member_name || 'Ism kiritilmagan' 
+              })),
+            });
+          }
+        }
       }
 
       return { autoMergeable, childrenToMerge };
@@ -152,7 +164,7 @@ export const useTreeMerging = () => {
 
   /**
    * Execute automatic merging for parents/grandparents
-   * This copies receiver's tree data to sender's tree nodes
+   * Marks the target member as merged and updates references
    */
   const executeAutoMerge = async (
     senderId: string,
@@ -163,32 +175,52 @@ export const useTreeMerging = () => {
       for (const candidate of candidates) {
         if (!candidate.autoMerge) continue;
 
-        // Get the target member's full data (from receiver's tree)
-        const { data: targetMember } = await supabase
-          .from('family_tree_members')
-          .select('*')
-          .eq('id', candidate.targetId)
-          .single();
+        // Get both members' data
+        const [sourceRes, targetRes] = await Promise.all([
+          supabase.from('family_tree_members').select('*').eq('id', candidate.sourceId).single(),
+          supabase.from('family_tree_members').select('*').eq('id', candidate.targetId).single()
+        ]);
 
-        if (!targetMember) continue;
+        const source = sourceRes.data as TreeMember | null;
+        const target = targetRes.data as TreeMember | null;
 
-        // Update source member with additional linked info
-        // The source node now represents both users' parent/grandparent
-        // We track this by adding a metadata field (could be JSON in future)
+        if (!source || !target) continue;
+
+        // Merge data - prefer linked user's data, then source (earlier created)
+        const mergedData: Record<string, any> = {};
+
+        // If target has a linked user but source doesn't, add it
+        if (target.linked_user_id && !source.linked_user_id) {
+          mergedData.linked_user_id = target.linked_user_id;
+          mergedData.is_placeholder = false;
+        }
+
+        // If target has better name/photo
+        if (!source.member_name && target.member_name) {
+          mergedData.member_name = target.member_name;
+        }
+        if (!source.avatar_url && target.avatar_url) {
+          mergedData.avatar_url = target.avatar_url;
+        }
+
+        // Update source with merged data
+        if (Object.keys(mergedData).length > 0) {
+          await supabase
+            .from('family_tree_members')
+            .update({ ...mergedData, updated_at: new Date().toISOString() })
+            .eq('id', candidate.sourceId);
+        }
+
+        // Update target's relation_type to indicate it's merged into source
         await supabase
           .from('family_tree_members')
-          .update({
-            // If target has better data (photo, etc), optionally merge
-            // For now, we just mark that this node is shared
-            updated_at: new Date().toISOString(),
+          .update({ 
+            relation_type: `merged_into_${candidate.sourceId}`,
+            updated_at: new Date().toISOString()
           })
-          .eq('id', candidate.sourceId);
+          .eq('id', candidate.targetId);
 
-        // Add receiver's linked_user_id connection if the target had one
-        if (targetMember.linked_user_id) {
-          // Create a notification that these profiles are now merged
-          console.log(`Merged: ${candidate.sourceName} <- ${candidate.targetName}`);
-        }
+        console.log(`Merged: ${candidate.sourceName} (kept) <- ${candidate.targetName} (merged)`);
       }
 
       return true;
@@ -208,27 +240,45 @@ export const useTreeMerging = () => {
     receiverId: string
   ): Promise<boolean> => {
     try {
-      // Get target child data
-      const { data: targetChild } = await supabase
-        .from('family_tree_members')
-        .select('*')
-        .eq('id', targetChildId)
-        .single();
+      const [sourceRes, targetRes] = await Promise.all([
+        supabase.from('family_tree_members').select('*').eq('id', sourceChildId).single(),
+        supabase.from('family_tree_members').select('*').eq('id', targetChildId).single()
+      ]);
 
-      if (!targetChild) return false;
+      const source = sourceRes.data as TreeMember | null;
+      const target = targetRes.data as TreeMember | null;
 
-      // If target has a linked user, link them to the source node
-      if (targetChild.linked_user_id) {
+      if (!source || !target) return false;
+
+      // Merge data into source
+      const mergedData: Record<string, any> = {};
+
+      if (target.linked_user_id && !source.linked_user_id) {
+        mergedData.linked_user_id = target.linked_user_id;
+        mergedData.is_placeholder = false;
+      }
+      if (!source.member_name && target.member_name) {
+        mergedData.member_name = target.member_name;
+      }
+      if (!source.avatar_url && target.avatar_url) {
+        mergedData.avatar_url = target.avatar_url;
+      }
+
+      if (Object.keys(mergedData).length > 0) {
         await supabase
           .from('family_tree_members')
-          .update({
-            linked_user_id: targetChild.linked_user_id,
-            member_name: targetChild.member_name || undefined,
-            avatar_url: targetChild.avatar_url || undefined,
-            is_placeholder: false,
-          })
+          .update({ ...mergedData, updated_at: new Date().toISOString() })
           .eq('id', sourceChildId);
       }
+
+      // Mark target as merged
+      await supabase
+        .from('family_tree_members')
+        .update({ 
+          relation_type: `merged_into_${sourceChildId}`,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', targetChildId);
 
       return true;
     } catch (error) {
@@ -244,30 +294,25 @@ export const useTreeMerging = () => {
   };
 };
 
-// Helper: Build a map of members by ID
-function buildTreeMap(members: any[]): Map<string, any> {
-  const map = new Map<string, any>();
-  members.forEach(m => map.set(m.id, m));
-  return map;
-}
-
-// Helper: Get parent IDs from relation_type
-function getParentIds(member: any, allMembers: any[]): string[] {
-  const parentIds: string[] = [];
+// Helper: Find parents of a member
+function findParents(member: TreeMember, allMembers: TreeMember[]): TreeMember[] {
+  const parents: TreeMember[] = [];
   const relType = member.relation_type || '';
 
   // If this member is a child_of_ someone
   const childMatch = relType.match(/child_of_([a-f0-9-]+)/);
   if (childMatch) {
-    parentIds.push(childMatch[1]);
-    // Find spouse of that parent
-    const parent = allMembers.find(m => m.id === childMatch[1]);
+    const parentId = childMatch[1];
+    const parent = allMembers.find(m => m.id === parentId);
     if (parent) {
-      const spouseMatch = allMembers.find(
-        m => m.relation_type === `spouse_of_${parent.id}` || 
+      parents.push(parent);
+      
+      // Also find spouse of that parent
+      const spouse = allMembers.find(
+        m => m.relation_type === `spouse_of_${parentId}` || 
              parent.relation_type === `spouse_of_${m.id}`
       );
-      if (spouseMatch) parentIds.push(spouseMatch.id);
+      if (spouse) parents.push(spouse);
     }
   }
 
@@ -275,31 +320,63 @@ function getParentIds(member: any, allMembers: any[]): string[] {
   allMembers.forEach(m => {
     if (m.relation_type === `father_of_${member.id}` || 
         m.relation_type === `mother_of_${member.id}`) {
-      if (!parentIds.includes(m.id)) parentIds.push(m.id);
+      if (!parents.find(p => p.id === m.id)) {
+        parents.push(m);
+      }
     }
   });
 
-  return parentIds;
+  // Handle self relation - look for members that are parents of self
+  if (relType === 'self') {
+    allMembers.forEach(m => {
+      const rt = m.relation_type || '';
+      if (rt.startsWith('father_of_') || rt.startsWith('mother_of_')) {
+        const childId = rt.replace('father_of_', '').replace('mother_of_', '');
+        if (childId === member.id && !parents.find(p => p.id === m.id)) {
+          parents.push(m);
+        }
+      }
+    });
+  }
+
+  return parents;
 }
 
-// Helper: Get children IDs
-function getChildrenIds(member: any, allMembers: any[]): string[] {
-  const childrenIds: string[] = [];
-
-  // Check relation_type for father_of_ or mother_of_
+// Helper: Find children of a member
+function findChildren(member: TreeMember, allMembers: TreeMember[]): TreeMember[] {
+  const children: TreeMember[] = [];
   const relType = member.relation_type || '';
-  const fatherMatch = relType.match(/father_of_([a-f0-9-]+)/);
-  const motherMatch = relType.match(/mother_of_([a-f0-9-]+)/);
-  
-  if (fatherMatch) childrenIds.push(fatherMatch[1]);
-  if (motherMatch) childrenIds.push(motherMatch[1]);
 
-  // Check for children who are child_of_ this member
+  // Check if this member is father_of_ or mother_of_ someone
+  if (relType.startsWith('father_of_') || relType.startsWith('mother_of_')) {
+    const childId = relType.replace('father_of_', '').replace('mother_of_', '');
+    const child = allMembers.find(m => m.id === childId);
+    if (child) children.push(child);
+  }
+
+  // Check for members who are child_of_ this member
   allMembers.forEach(m => {
-    if (m.relation_type?.includes(`child_of_${member.id}`)) {
-      if (!childrenIds.includes(m.id)) childrenIds.push(m.id);
+    const rt = m.relation_type || '';
+    if (rt.includes(`child_of_${member.id}`)) {
+      if (!children.find(c => c.id === m.id)) {
+        children.push(m);
+      }
     }
   });
 
-  return childrenIds;
+  // Also check spouse's children
+  const spouseMatch = relType.match(/spouse_of_([a-f0-9-]+)/);
+  if (spouseMatch) {
+    const spouseId = spouseMatch[1];
+    allMembers.forEach(m => {
+      const rt = m.relation_type || '';
+      if (rt.includes(`child_of_${spouseId}`)) {
+        if (!children.find(c => c.id === m.id)) {
+          children.push(m);
+        }
+      }
+    });
+  }
+
+  return children;
 }
