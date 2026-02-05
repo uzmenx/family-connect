@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { AppLayout } from '@/components/layout/AppLayout';
@@ -9,8 +9,9 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, Camera, Loader2, User } from 'lucide-react';
+ import { useToast } from '@/hooks/use-toast';
+ import { ImageCropper, SocialLinksEditor, SocialLink } from '@/components/profile';
+ import { ArrowLeft, Camera, Loader2, User, ImagePlus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 
 const EditProfile = () => {
@@ -19,13 +20,27 @@ const EditProfile = () => {
   const { toast } = useToast();
   
   const [isLoading, setIsLoading] = useState(false);
-  const [formData, setFormData] = useState({
-    name: '',
-    username: '',
-    bio: '',
-    avatar_url: '',
-    gender: '' as 'male' | 'female' | ''
-  });
+ 
+   const [formData, setFormData] = useState({
+     name: '',
+     username: '',
+     bio: '',
+     avatar_url: '',
+     cover_url: '',
+     gender: '' as 'male' | 'female' | '',
+     social_links: [] as SocialLink[]
+   });
+ 
+   const [cropperState, setCropperState] = useState<{
+     isOpen: boolean;
+     imageUrl: string;
+     type: 'avatar' | 'cover';
+   }>({ isOpen: false, imageUrl: '', type: 'avatar' });
+ 
+   const avatarInputRef = useRef<HTMLInputElement>(null);
+   const coverInputRef = useRef<HTMLInputElement>(null);
+ 
+   const BIO_MAX_LENGTH = 300;
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -36,15 +51,17 @@ const EditProfile = () => {
           .eq('id', user.id)
           .single();
         
-        if (data) {
-          setFormData({
-            name: data.name || '',
-            username: data.username || '',
-            bio: data.bio || '',
-            avatar_url: data.avatar_url || '',
-            gender: (data.gender as 'male' | 'female') || ''
-          });
-        }
+         if (data) {
+           setFormData({
+             name: data.name || '',
+             username: data.username || '',
+             bio: data.bio || '',
+             avatar_url: data.avatar_url || '',
+             cover_url: (data as any).cover_url || '',
+             gender: (data.gender as 'male' | 'female') || '',
+             social_links: ((data as any).social_links as SocialLink[]) || []
+           });
+         }
       }
     };
     
@@ -57,17 +74,20 @@ const EditProfile = () => {
     
     setIsLoading(true);
 
-    try {
-      const { error } = await supabase
-        .from('profiles')
-        .update({
-          name: formData.name,
-          username: formData.username,
-          bio: formData.bio,
-          avatar_url: formData.avatar_url,
-          gender: formData.gender || null
-        })
-        .eq('id', user.id);
+ 
+     try {
+       const { error } = await supabase
+         .from('profiles')
+         .update({
+           name: formData.name,
+           username: formData.username,
+           bio: formData.bio.slice(0, BIO_MAX_LENGTH),
+           avatar_url: formData.avatar_url,
+           cover_url: formData.cover_url,
+           gender: formData.gender || null,
+           social_links: formData.social_links.filter(l => l.url.trim())
+         } as any)
+         .eq('id', user.id);
 
       if (error) throw error;
 
@@ -97,16 +117,115 @@ const EditProfile = () => {
     return 'ring-muted';
   };
 
-  const getGenderBgColor = () => {
-    if (formData.gender === 'male') return 'bg-sky-500';
-    if (formData.gender === 'female') return 'bg-pink-500';
-    return 'bg-primary';
-  };
+   const getGenderBgColor = () => {
+     if (formData.gender === 'male') return 'bg-sky-500';
+     if (formData.gender === 'female') return 'bg-pink-500';
+     return 'bg-primary';
+   };
+ 
+   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>, type: 'avatar' | 'cover') => {
+     const file = e.target.files?.[0];
+     if (!file) return;
+     
+     const reader = new FileReader();
+     reader.onload = () => {
+       setCropperState({
+         isOpen: true,
+         imageUrl: reader.result as string,
+         type
+       });
+     };
+     reader.readAsDataURL(file);
+     e.target.value = '';
+   };
+ 
+   const uploadCroppedImage = async (croppedUrl: string): Promise<void> => {
+     if (!user) return;
+     
+     const response = await fetch(croppedUrl);
+     const blob = await response.blob();
+     const fileName = `${user.id}/${cropperState.type}_${Date.now()}.jpg`;
+     
+     const { data, error } = await supabase.storage
+       .from('avatars')
+       .upload(fileName, blob, { upsert: true });
+     
+     if (error) {
+       toast({ title: "Xato", description: "Rasm yuklanmadi", variant: "destructive" });
+       return;
+     }
+     
+     const { data: urlData } = supabase.storage
+       .from('avatars')
+       .getPublicUrl(data.path);
+     
+     if (cropperState.type === 'avatar') {
+       setFormData(prev => ({ ...prev, avatar_url: urlData.publicUrl }));
+     } else {
+       setFormData(prev => ({ ...prev, cover_url: urlData.publicUrl }));
+     }
+     
+     URL.revokeObjectURL(croppedUrl);
+   };
 
   return (
     <AppLayout showNav={false}>
-      <div className="min-h-screen bg-background p-4">
-        <div className="flex items-center gap-4 mb-6">
+       <div className="min-h-screen bg-background">
+         {/* Cover Image Section */}
+         <div 
+           className="relative h-36 bg-gradient-to-r from-primary to-accent cursor-pointer group"
+           onClick={() => coverInputRef.current?.click()}
+         >
+           {formData.cover_url && (
+             <img 
+               src={formData.cover_url} 
+               alt="Cover" 
+               className="w-full h-full object-cover"
+             />
+           )}
+           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+             <div className="flex items-center gap-2 text-white">
+               <ImagePlus className="h-6 w-6" />
+               <span>Muqova rasmini o'zgartirish</span>
+             </div>
+           </div>
+           <input
+             ref={coverInputRef}
+             type="file"
+             accept="image/*"
+             className="hidden"
+             onChange={(e) => handleFileSelect(e, 'cover')}
+           />
+         </div>
+ 
+         <div className="px-4 pb-4">
+           {/* Avatar positioned over cover */}
+           <div className="relative -mt-12 mb-4 flex justify-center">
+             <div 
+               className={`relative rounded-full p-1 ring-4 ${getGenderRingColor()} bg-background cursor-pointer group`}
+               onClick={() => avatarInputRef.current?.click()}
+             >
+               <Avatar className="h-24 w-24">
+                 <AvatarImage src={formData.avatar_url || undefined} />
+                 <AvatarFallback className={`text-2xl ${getGenderBgColor()} text-white`}>
+                   {getInitials(formData.name) || <User className="h-8 w-8" />}
+                 </AvatarFallback>
+               </Avatar>
+               <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+                 <Camera className="h-6 w-6 text-white" />
+               </div>
+               <input
+                 ref={avatarInputRef}
+                 type="file"
+                 accept="image/*"
+                 className="hidden"
+                 onChange={(e) => handleFileSelect(e, 'avatar')}
+               />
+             </div>
+           </div>
+ 
+           {/* Back button */}
+           <div className="flex items-center gap-4 mb-6">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
@@ -114,31 +233,11 @@ const EditProfile = () => {
         </div>
 
         <Card>
-          <CardHeader>
-            <CardTitle className="text-lg">Profil ma'lumotlari</CardTitle>
-          </CardHeader>
+           <CardHeader>
+             <CardTitle className="text-lg">Profil ma'lumotlari</CardTitle>
+           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Avatar */}
-              <div className="flex flex-col items-center gap-4">
-                <div className={`relative rounded-full p-1 ring-4 ${getGenderRingColor()}`}>
-                  <Avatar className="h-24 w-24">
-                    <AvatarImage src={formData.avatar_url || undefined} />
-                    <AvatarFallback className={`text-2xl ${getGenderBgColor()} text-white`}>
-                      {getInitials(formData.name) || <User className="h-8 w-8" />}
-                    </AvatarFallback>
-                  </Avatar>
-                  <Button 
-                    type="button"
-                    variant="secondary" 
-                    size="icon"
-                    className="absolute bottom-0 right-0 h-8 w-8 rounded-full"
-                  >
-                    <Camera className="h-4 w-4" />
-                  </Button>
-                </div>
-              </div>
-
               {/* Gender Selection */}
               <div className="space-y-3">
                 <Label>Jins</Label>
@@ -162,17 +261,6 @@ const EditProfile = () => {
                     </Label>
                   </div>
                 </RadioGroup>
-              </div>
-
-              {/* Avatar URL */}
-              <div className="space-y-2">
-                <Label htmlFor="avatar_url">Rasm URL</Label>
-                <Input
-                  id="avatar_url"
-                  placeholder="https://example.com/avatar.jpg"
-                  value={formData.avatar_url}
-                  onChange={(e) => setFormData(prev => ({ ...prev, avatar_url: e.target.value }))}
-                />
               </div>
 
               {/* Name */}
@@ -199,16 +287,34 @@ const EditProfile = () => {
 
               {/* Bio */}
               <div className="space-y-2">
-                <Label htmlFor="bio">Bio</Label>
+                 <div className="flex items-center justify-between">
+                   <Label htmlFor="bio">Bio</Label>
+                   <span className={`text-xs ${formData.bio.length > BIO_MAX_LENGTH ? 'text-destructive' : 'text-muted-foreground'}`}>
+                     {formData.bio.length}/{BIO_MAX_LENGTH}
+                   </span>
+                 </div>
                 <Textarea
                   id="bio"
                   placeholder="O'zingiz haqingizda qisqacha..."
                   value={formData.bio}
-                  onChange={(e) => setFormData(prev => ({ ...prev, bio: e.target.value }))}
+                   onChange={(e) => setFormData(prev => ({ ...prev, bio: e.target.value.slice(0, BIO_MAX_LENGTH + 50) }))}
                   rows={3}
+                   maxLength={BIO_MAX_LENGTH + 50}
                 />
+                 {formData.bio.length > BIO_MAX_LENGTH && (
+                   <p className="text-xs text-destructive">
+                     Bio {BIO_MAX_LENGTH} belgidan oshmasligi kerak
+                   </p>
+                 )}
               </div>
 
+               {/* Social Links */}
+               <SocialLinksEditor
+                 links={formData.social_links}
+                 onChange={(links) => setFormData(prev => ({ ...prev, social_links: links }))}
+                 maxLinks={3}
+               />
+ 
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? (
                   <>
@@ -222,6 +328,18 @@ const EditProfile = () => {
             </form>
           </CardContent>
         </Card>
+           </div>
+ 
+         {/* Image Cropper */}
+         <ImageCropper
+           isOpen={cropperState.isOpen}
+           onClose={() => setCropperState(prev => ({ ...prev, isOpen: false }))}
+           imageUrl={cropperState.imageUrl}
+           aspectRatio={cropperState.type === 'avatar' ? 1 : 3}
+           shape={cropperState.type === 'avatar' ? 'circle' : 'rect'}
+           onCropComplete={uploadCroppedImage}
+           title={cropperState.type === 'avatar' ? 'Profil rasmini kesish' : 'Muqova rasmini kesish'}
+         />
       </div>
     </AppLayout>
   );

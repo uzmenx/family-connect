@@ -587,36 +587,42 @@ export type Database = {
         Row: {
           avatar_url: string | null
           bio: string | null
+          cover_url: string | null
           created_at: string
           email: string | null
           family_network_id: string | null
           gender: string | null
           id: string
           name: string | null
+          social_links: Json | null
           updated_at: string
           username: string | null
         }
         Insert: {
           avatar_url?: string | null
           bio?: string | null
+          cover_url?: string | null
           created_at?: string
           email?: string | null
           family_network_id?: string | null
           gender?: string | null
           id: string
           name?: string | null
+          social_links?: Json | null
           updated_at?: string
           username?: string | null
         }
         Update: {
           avatar_url?: string | null
           bio?: string | null
+          cover_url?: string | null
           created_at?: string
           email?: string | null
           family_network_id?: string | null
           gender?: string | null
           id?: string
           name?: string | null
+          social_links?: Json | null
           updated_at?: string
           username?: string | null
         }
