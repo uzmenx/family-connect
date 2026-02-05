@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Settings, Edit, Grid3X3, Bookmark, Bell } from 'lucide-react';
+ import { SocialLinksList } from '@/components/profile';
 import { useUserPosts } from '@/hooks/useUserPosts';
 import { useSavedPosts } from '@/hooks/useSavedPosts';
 import { useFollow } from '@/hooks/useFollow';
@@ -45,7 +46,15 @@ const Profile = () => {
     <AppLayout>
       <div className="min-h-screen bg-background pb-20">
         {/* Cover Image */}
-        <div className="h-32 bg-gradient-to-r from-primary to-accent" />
+         <div className="h-32 bg-gradient-to-r from-primary to-accent overflow-hidden">
+           {(profile as any)?.cover_url && (
+             <img 
+               src={(profile as any).cover_url} 
+               alt="Cover" 
+               className="w-full h-full object-cover"
+             />
+           )}
+         </div>
         
         {/* Profile Info */}
         <div className="px-4">
@@ -103,6 +112,14 @@ const Profile = () => {
             <p className="text-sm mb-4">{profile.bio}</p>
           )}
 
+           {/* Social Links */}
+           {(profile as any)?.social_links && (
+             <SocialLinksList 
+               links={(profile as any).social_links} 
+               className="mb-4"
+             />
+           )}
+ 
           {/* Stats */}
           <Card className="mb-6">
             <CardContent className="py-4">
