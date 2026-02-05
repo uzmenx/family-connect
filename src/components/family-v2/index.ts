@@ -6,6 +6,8 @@ export { SendInvitationModal } from './SendInvitationModal';
 export { GenderSelectionModal } from './GenderSelectionModal';
 export { FamilyInvitationItem } from './FamilyInvitationItem';
 export { TreeMergeDialog } from './TreeMergeDialog';
+ export { MergeSelectionOverlay } from './MergeSelectionOverlay';
+ export { MergedBadges } from './MergedBadges';
 export { default as SpouseEdge } from './SpouseEdge';
 export { default as ChildEdge } from './ChildEdge';
 export { default as FamilyMemberNode } from './FamilyMemberNode';

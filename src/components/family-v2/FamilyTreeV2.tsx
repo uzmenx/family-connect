@@ -1,13 +1,16 @@
-import { useEffect, useState, useCallback } from 'react';
+ import { useEffect, useState, useCallback, useRef } from 'react';
 import { TreeDeciduous } from 'lucide-react';
+ import { cn } from '@/lib/utils';
 import { FamilyTreeCanvas } from './FamilyTreeCanvas';
 import { AddMemberModal } from './AddMemberModal';
 import { ProfileModal } from './ProfileModal';
 import { SendInvitationModal } from './SendInvitationModal';
 import { GenderSelectionModal } from './GenderSelectionModal';
 import { TreeMergeDialog } from './TreeMergeDialog';
+ import { MergeSelectionOverlay } from './MergeSelectionOverlay';
 import { useLocalFamilyTree } from '@/hooks/useLocalFamilyTree';
 import { useFamilyInvitations } from '@/hooks/useFamilyInvitations';
+ import { useMergeMode } from '@/hooks/useMergeMode';
 import { FamilyMember, AddMemberData } from '@/types/family';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -46,6 +49,21 @@ export const FamilyTreeV2 = () => {
     handleMergeChildren,
     closeMergeDialog,
   } = useFamilyInvitations();
+ 
+   // Merge mode hook
+   const {
+     isActive: isMergeMode,
+     selectedIds: mergeSelectedIds,
+     mergedProfiles,
+     suggestions: mergeSuggestions,
+     isProcessing: isMergeProcessing,
+     startMergeMode,
+     toggleSelection: toggleMergeSelection,
+     cancelMerge,
+     executeMerge,
+     applySuggestion,
+   } = useMergeMode(members);
+ 
   const [modal, setModal] = useState<ModalState>({ type: 'none' });
   const [showGenderSelect, setShowGenderSelect] = useState(false);
   const [processingInvitation, setProcessingInvitation] = useState<string | null>(null);
@@ -150,6 +168,15 @@ export const FamilyTreeV2 = () => {
   const handlePositionChange = useCallback((memberId: string, x: number, y: number) => {
     updatePosition(memberId, { x, y });
   }, [updatePosition]);
+ 
+   // Merge mode handlers
+   const handleLongPress = useCallback((memberId: string) => {
+     startMergeMode(memberId);
+   }, [startMergeMode]);
+ 
+   const handleToggleMergeSelect = useCallback((memberId: string) => {
+     toggleMergeSelection(memberId);
+   }, [toggleMergeSelection]);
 
   const handleAcceptInvitation = async (invitation: any) => {
     setProcessingInvitation(invitation.id);
@@ -181,6 +208,17 @@ export const FamilyTreeV2 = () => {
         isOpen={showGenderSelect}
         onSelect={handleGenderSelect}
       />
+ 
+       {/* Merge Selection Overlay */}
+       <MergeSelectionOverlay
+         isActive={isMergeMode}
+         selectedCount={mergeSelectedIds.length}
+         suggestions={mergeSuggestions}
+         isProcessing={isMergeProcessing}
+         onCancel={cancelMerge}
+         onConfirm={executeMerge}
+         onApplySuggestion={applySuggestion}
+       />
 
       {/* Header */}
       <div className="container mx-auto px-4 py-6">
@@ -241,13 +279,19 @@ export const FamilyTreeV2 = () => {
       </div>
       
       {/* Canvas */}
-      <div className="flex-1 container mx-auto px-4 pb-6">
+       <div className={cn("flex-1 container mx-auto px-4 pb-6", isMergeMode && "pt-16")}>
         <div className="h-[calc(100vh-280px)] min-h-[400px]">
           <FamilyTreeCanvas
             members={members}
             positions={positions}
             onOpenProfile={handleOpenProfile}
             onPositionChange={handlePositionChange}
+             // Merge mode props
+             isMergeMode={isMergeMode}
+             mergeSelectedIds={mergeSelectedIds}
+             mergedProfiles={mergedProfiles}
+             onLongPress={handleLongPress}
+             onToggleMergeSelect={handleToggleMergeSelect}
           />
         </div>
       </div>
