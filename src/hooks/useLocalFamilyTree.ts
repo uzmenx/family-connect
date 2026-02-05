@@ -293,6 +293,13 @@ export const useLocalFamilyTree = () => {
     loadData();
   }, [loadData]);
 
+   // Listen for manual reload requests
+   useEffect(() => {
+     const handleReload = () => loadData();
+     window.addEventListener('family-tree-reload', handleReload);
+     return () => window.removeEventListener('family-tree-reload', handleReload);
+   }, [loadData]);
+ 
   // Real-time subscriptions
   useEffect(() => {
     if (!user?.id || !networkId) return;

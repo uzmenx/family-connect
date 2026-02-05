@@ -19,6 +19,7 @@ import SpouseEdge from './SpouseEdge';
 import ChildEdge from './ChildEdge';
 import { FamilyMember } from '@/types/family';
 import { computeNewMemberPosition } from './layout';
+ import { MergedProfile } from '@/hooks/useMergeMode';
 
 interface FamilyTreeCanvasProps {
   members: Record<string, FamilyMember>;
@@ -27,6 +28,12 @@ interface FamilyTreeCanvasProps {
   onPositionChange: (memberId: string, x: number, y: number) => void;
   onDragStart?: () => void;
   onDragEnd?: () => void;
+   // Merge mode props
+   isMergeMode?: boolean;
+   mergeSelectedIds?: string[];
+   mergedProfiles?: Map<string, MergedProfile>;
+   onLongPress?: (memberId: string) => void;
+   onToggleMergeSelect?: (memberId: string) => void;
 }
 
 const nodeTypes: NodeTypes = {
@@ -45,6 +52,11 @@ export const FamilyTreeCanvas = ({
   onPositionChange,
   onDragStart,
   onDragEnd,
+   isMergeMode = false,
+   mergeSelectedIds = [],
+   mergedProfiles = new Map(),
+   onLongPress,
+   onToggleMergeSelect,
 }: FamilyTreeCanvasProps) => {
   const didFitViewRef = useRef(false);
   const isDraggingRef = useRef(false);
@@ -137,17 +149,30 @@ export const FamilyTreeCanvas = ({
           existing?.position ||
           computeNewMemberPosition({ member, members, prevNodeMap: prevMap });
 
+       // Get merged names for this member
+       const mergedProfile = mergedProfiles.get(member.id);
+       const mergedNames = mergedProfile?.mergedNames || [];
+ 
         nextNodes.push({
           id: member.id,
           type: 'familyMember',
           position,
-          data: { member, onOpenProfile },
+         data: { 
+           member, 
+           onOpenProfile,
+           isMergeMode,
+           isSelected: mergeSelectedIds.includes(member.id),
+           isPrimary: mergeSelectedIds[0] === member.id,
+           mergedNames,
+           onLongPress,
+           onToggleSelect: onToggleMergeSelect,
+         },
         });
       }
 
       return nextNodes;
     });
-  }, [members, positions, onOpenProfile, setNodes]);
+ }, [members, positions, onOpenProfile, setNodes, isMergeMode, mergeSelectedIds, mergedProfiles, onLongPress, onToggleMergeSelect]);
 
   return (
     <div className="w-full h-full rounded-2xl overflow-hidden border border-border bg-card/50">
