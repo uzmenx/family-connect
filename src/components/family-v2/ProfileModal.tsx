@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Edit2, Trash2, ImagePlus, Users, UserPlus, Baby, Send, ShieldCheck, User } from 'lucide-react';
 import { FamilyMember } from '@/types/family';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
@@ -7,6 +7,14 @@ import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
+import { MergedProfilesManager } from './MergedProfilesManager';
+
+interface MergedProfileData {
+  id: string;
+  name: string;
+  photoUrl?: string;
+  gender: 'male' | 'female';
+}
 
 interface ProfileModalProps {
   isOpen: boolean;
@@ -18,9 +26,11 @@ interface ProfileModalProps {
   onAddSpouse?: (id: string) => void;
   onAddChild?: (id: string) => void;
   onSendInvitation?: (member: FamilyMember) => void;
+  onReorderMergedProfiles?: (profiles: MergedProfileData[]) => void;
   hasParents?: boolean;
   hasSpouse?: boolean;
   canAddChild?: boolean;
+  mergedProfiles?: MergedProfileData[];
 }
 
 export const ProfileModal = ({
@@ -33,9 +43,11 @@ export const ProfileModal = ({
   onAddSpouse,
   onAddChild,
   onSendInvitation,
+  onReorderMergedProfiles,
   hasParents = false,
   hasSpouse = false,
   canAddChild = false,
+  mergedProfiles = [],
 }: ProfileModalProps) => {
   const { user } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
@@ -186,6 +198,17 @@ export const ProfileModal = ({
                   max={new Date().getFullYear()}
                 />
               </div>
+
+              {/* Merged Profiles Manager - shown in edit mode */}
+              {mergedProfiles.length > 0 && onReorderMergedProfiles && (
+                <MergedProfilesManager
+                  profiles={[
+                    { id: member.id, name: member.name, photoUrl: member.photoUrl, gender: member.gender },
+                    ...mergedProfiles,
+                  ]}
+                  onReorder={onReorderMergedProfiles}
+                />
+              )}
 
               {/* Action Buttons */}
               <div className="flex gap-3 pt-2">
