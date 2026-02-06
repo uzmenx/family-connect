@@ -9,9 +9,16 @@ interface MergeCandidate {
   autoMerge: boolean;
 }
 
+interface ChildProfile {
+  id: string;
+  name: string;
+  photoUrl?: string;
+  gender: 'male' | 'female';
+}
+
 interface ChildMergeCandidate {
-  sourceChildren: { id: string; name: string }[];
-  targetChildren: { id: string; name: string }[];
+  sourceChildren: ChildProfile[];
+  targetChildren: ChildProfile[];
   parentDescription: string;
 }
 
@@ -144,11 +151,15 @@ export const useTreeMerging = () => {
               parentDescription: `${senderParent.gender === 'male' ? 'Otaning' : 'Onaning'} boshqa farzandlari`,
               sourceChildren: senderSiblings.map(c => ({ 
                 id: c.id, 
-                name: c.member_name || 'Ism kiritilmagan' 
+                name: c.member_name || 'Ism kiritilmagan',
+                photoUrl: c.avatar_url || undefined,
+                gender: (c.gender as 'male' | 'female') || 'male',
               })),
               targetChildren: receiverSiblings.map(c => ({ 
                 id: c.id, 
-                name: c.member_name || 'Ism kiritilmagan' 
+                name: c.member_name || 'Ism kiritilmagan',
+                photoUrl: c.avatar_url || undefined,
+                gender: (c.gender as 'male' | 'female') || 'male',
               })),
             });
           }

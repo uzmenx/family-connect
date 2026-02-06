@@ -29,9 +29,16 @@ interface MergeCandidate {
   autoMerge: boolean;
 }
 
+interface ChildProfile {
+  id: string;
+  name: string;
+  photoUrl?: string;
+  gender: 'male' | 'female';
+}
+
 interface ChildMergeCandidate {
-  sourceChildren: { id: string; name: string }[];
-  targetChildren: { id: string; name: string }[];
+  sourceChildren: ChildProfile[];
+  targetChildren: ChildProfile[];
   parentDescription: string;
 }
 
