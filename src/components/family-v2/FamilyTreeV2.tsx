@@ -46,7 +46,7 @@ export const FamilyTreeV2 = () => {
     showMergeDialog,
     mergeData,
     confirmAutoMerge,
-    handleMergeChildren,
+    handleMergeChild,
     closeMergeDialog,
   } = useFamilyInvitations();
  
@@ -369,9 +369,9 @@ export const FamilyTreeV2 = () => {
           isOpen={showMergeDialog}
           onClose={closeMergeDialog}
           autoMergeCandidates={mergeData.autoMergeCandidates}
-          childrenToMerge={mergeData.childrenToMerge}
-          onConfirmAutoMerge={confirmAutoMerge}
-          onMergeChildren={handleMergeChildren}
+          childMergeData={mergeData.childMergeData}
+          onAutoMergeComplete={confirmAutoMerge}
+          onMergeChild={handleMergeChild}
           senderName={mergeData.senderName}
         />
       )}
