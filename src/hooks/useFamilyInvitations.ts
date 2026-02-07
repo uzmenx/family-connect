@@ -20,15 +20,6 @@ export interface FamilyInvitation {
   };
 }
 
-interface MergeCandidate {
-  sourceId: string;
-  targetId: string;
-  sourceName: string;
-  targetName: string;
-  relationship: 'parent' | 'grandparent' | 'sibling';
-  autoMerge: boolean;
-}
-
 interface ChildProfile {
   id: string;
   name: string;
@@ -36,16 +27,31 @@ interface ChildProfile {
   gender: 'male' | 'female';
 }
 
-interface ChildMergeCandidate {
+interface SuggestedPair {
+  sourceChild: ChildProfile;
+  targetChild: ChildProfile;
+  similarity: number;
+}
+
+interface ChildMergeData {
+  parentDescription: string;
   sourceChildren: ChildProfile[];
   targetChildren: ChildProfile[];
-  parentDescription: string;
+  suggestedPairs: SuggestedPair[];
+}
+
+interface MergeCandidate {
+  sourceId: string;
+  targetId: string;
+  sourceName: string;
+  targetName: string;
+  relationship: 'parent' | 'grandparent' | 'sibling';
 }
 
 export const useFamilyInvitations = () => {
   const { user, profile, refreshProfile } = useAuth();
   const { toast } = useToast();
-  const { findMergeCandidates, executeAutoMerge, mergeChildren } = useTreeMerging();
+  const { findMergeCandidates, executeAutoMerge, mergeChild } = useTreeMerging();
   
   const [pendingInvitations, setPendingInvitations] = useState<FamilyInvitation[]>([]);
   const [isLoading, setIsLoading] = useState(false);
@@ -54,7 +60,7 @@ export const useFamilyInvitations = () => {
   const [showMergeDialog, setShowMergeDialog] = useState(false);
   const [mergeData, setMergeData] = useState<{
     autoMergeCandidates: MergeCandidate[];
-    childrenToMerge: ChildMergeCandidate[];
+    childMergeData: ChildMergeData | null;
     senderId: string;
     senderName: string;
   } | null>(null);
@@ -101,11 +107,9 @@ export const useFamilyInvitations = () => {
 
   /**
    * Link two users to the same family network
-   * Takes the sender's network and adds the receiver to it
    */
   const linkToSameNetwork = async (senderId: string, receiverId: string): Promise<string | null> => {
     try {
-      // Get sender's network
       const { data: senderProfile } = await supabase
         .from('profiles')
         .select('family_network_id')
@@ -114,7 +118,6 @@ export const useFamilyInvitations = () => {
       
       let networkId = senderProfile?.family_network_id;
       
-      // If sender doesn't have a network, create one
       if (!networkId) {
         const { data: newNetwork } = await supabase
           .from('family_networks')
@@ -133,7 +136,6 @@ export const useFamilyInvitations = () => {
       
       if (!networkId) return null;
       
-      // Add receiver to the same network
       await supabase
         .from('profiles')
         .update({ family_network_id: networkId })
@@ -146,7 +148,7 @@ export const useFamilyInvitations = () => {
     }
   };
 
-  // Accept invitation - link user to member and trigger merge
+  // Accept invitation
   const acceptInvitation = async (invitation: FamilyInvitation) => {
     if (!user?.id || !profile) return false;
 
@@ -162,7 +164,6 @@ export const useFamilyInvitations = () => {
       // 2. Link both users to the same family network
       const networkId = await linkToSameNetwork(invitation.sender_id, user.id);
       if (networkId) {
-        // Refresh profile to get new network ID
         await refreshProfile?.();
       }
 
@@ -180,25 +181,25 @@ export const useFamilyInvitations = () => {
 
       if (linkError) throw linkError;
 
-      // 4. Create notification for sender
+      // 4. Create notification
       await supabase.from('notifications').insert({
         user_id: invitation.sender_id,
         actor_id: user.id,
         type: 'family_invitation_accepted',
       });
 
-      // 5. Find merge candidates (parents/grandparents that are the same person)
+      // 5. Find merge candidates
       const candidates = await findMergeCandidates(
         invitation.sender_id,
         user.id,
         invitation.member_id
       );
 
-      // 6. If there are candidates to merge, show dialog
-      if (candidates.autoMergeable.length > 0 || candidates.childrenToMerge.length > 0) {
+      // 6. Show merge dialog if there are candidates
+      if (candidates.autoMergeable.length > 0 || candidates.childMergeData) {
         setMergeData({
           autoMergeCandidates: candidates.autoMergeable,
-          childrenToMerge: candidates.childrenToMerge,
+          childMergeData: candidates.childMergeData,
           senderId: invitation.sender_id,
           senderName: invitation.sender?.name || invitation.sender?.username || 'Foydalanuvchi',
         });
@@ -206,34 +207,29 @@ export const useFamilyInvitations = () => {
       } else {
         toast({
           title: "Qabul qilindi!",
-          description: "Siz oila daraxtiga muvaffaqiyatli qo'shildingiz. Tarmoqlar birlashtirildi.",
+          description: "Siz oila daraxtiga muvaffaqiyatli qo'shildingiz.",
         });
       }
 
-      // Remove from pending list
       setPendingInvitations(prev => prev.filter(inv => inv.id !== invitation.id));
-      
       return true;
-    } catch (error: any) {
-      console.error('Error accepting invitation:', error);
+    } catch (error: unknown) {
+      const err = error as Error;
+      console.error('Error accepting invitation:', err);
       toast({
         title: "Xato",
-        description: error.message || "Taklifni qabul qilishda xatolik",
+        description: err.message || "Taklifni qabul qilishda xatolik",
         variant: "destructive",
       });
       return false;
     }
   };
 
-  // Confirm auto merge (parents/grandparents)
+  // Execute auto merge (parents/grandparents)
   const confirmAutoMerge = async () => {
-    if (!mergeData || !user?.id) return;
+    if (!mergeData) return;
     
-    const success = await executeAutoMerge(
-      mergeData.senderId,
-      user.id,
-      mergeData.autoMergeCandidates
-    );
+    const success = await executeAutoMerge(mergeData.autoMergeCandidates);
     
     if (success) {
       toast({
@@ -243,15 +239,13 @@ export const useFamilyInvitations = () => {
     }
   };
 
-  // Merge specific children
-  const handleMergeChildren = async (sourceId: string, targetId: string) => {
-    if (!mergeData || !user?.id) return;
-    
-    const success = await mergeChildren(sourceId, targetId, mergeData.senderId, user.id);
+  // Merge specific child
+  const handleMergeChild = async (sourceId: string, targetId: string) => {
+    const success = await mergeChild(sourceId, targetId);
     if (success) {
       toast({
         title: "Birlashtirildi!",
-        description: "Farzand profillari muvaffaqiyatli birlashtirildi",
+        description: "Farzand profillari birlashtirildi",
       });
     }
   };
@@ -262,9 +256,8 @@ export const useFamilyInvitations = () => {
     setMergeData(null);
     toast({
       title: "Birlashtirish tugadi!",
-      description: "Oila daraxtingiz muvaffaqiyatli birlashtirildi. Sahifani yangilang.",
+      description: "Oila daraxtingiz muvaffaqiyatli birlashtirildi.",
     });
-    // Reload page to show merged tree
     window.location.reload();
   };
 
@@ -287,23 +280,22 @@ export const useFamilyInvitations = () => {
 
       setPendingInvitations(prev => prev.filter(inv => inv.id !== invitation.id));
       return true;
-    } catch (error: any) {
-      console.error('Error rejecting invitation:', error);
+    } catch (error: unknown) {
+      const err = error as Error;
+      console.error('Error rejecting invitation:', err);
       toast({
         title: "Xato",
-        description: error.message || "Taklifni rad etishda xatolik",
+        description: err.message || "Taklifni rad etishda xatolik",
         variant: "destructive",
       });
       return false;
     }
   };
 
-  // Initial fetch
   useEffect(() => {
     fetchInvitations();
   }, [fetchInvitations]);
 
-  // Realtime subscription
   useEffect(() => {
     if (!user?.id) return;
 
@@ -338,7 +330,7 @@ export const useFamilyInvitations = () => {
     showMergeDialog,
     mergeData,
     confirmAutoMerge,
-    handleMergeChildren,
+    handleMergeChild,
     closeMergeDialog,
   };
 };

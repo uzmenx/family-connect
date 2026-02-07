@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -7,19 +7,8 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
-import { Badge } from '@/components/ui/badge';
-import { ScrollArea } from '@/components/ui/scroll-area';
-import { Check, ArrowRight, GitMerge, Users } from 'lucide-react';
+import { Check, GitMerge, Loader2 } from 'lucide-react';
 import { ChildrenMergeDialog } from './ChildrenMergeDialog';
-
-interface MergeCandidate {
-  sourceId: string;
-  targetId: string;
-  sourceName: string;
-  targetName: string;
-  relationship: 'parent' | 'grandparent' | 'sibling';
-  autoMerge: boolean;
-}
 
 interface ChildProfile {
   id: string;
@@ -28,19 +17,34 @@ interface ChildProfile {
   gender: 'male' | 'female';
 }
 
-interface ChildMergeCandidate {
+interface SuggestedPair {
+  sourceChild: ChildProfile;
+  targetChild: ChildProfile;
+  similarity: number;
+}
+
+interface ChildMergeData {
+  parentDescription: string;
   sourceChildren: ChildProfile[];
   targetChildren: ChildProfile[];
-  parentDescription: string;
+  suggestedPairs: SuggestedPair[];
+}
+
+interface MergeCandidate {
+  sourceId: string;
+  targetId: string;
+  sourceName: string;
+  targetName: string;
+  relationship: 'parent' | 'grandparent' | 'sibling';
 }
 
 interface TreeMergeDialogProps {
   isOpen: boolean;
   onClose: () => void;
   autoMergeCandidates: MergeCandidate[];
-  childrenToMerge: ChildMergeCandidate[];
-  onConfirmAutoMerge: () => Promise<void>;
-  onMergeChildren: (sourceId: string, targetId: string) => Promise<void>;
+  childMergeData: ChildMergeData | null;
+  onAutoMergeComplete: () => Promise<void>;
+  onMergeChild: (sourceId: string, targetId: string) => Promise<void>;
   senderName: string;
 }
 
@@ -48,150 +52,110 @@ export const TreeMergeDialog = ({
   isOpen,
   onClose,
   autoMergeCandidates,
-  childrenToMerge,
-  onConfirmAutoMerge,
-  onMergeChildren,
+  childMergeData,
+  onAutoMergeComplete,
+  onMergeChild,
   senderName,
 }: TreeMergeDialogProps) => {
-  const [step, setStep] = useState<'auto' | 'children' | 'complete'>('auto');
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [currentChildGroup, setCurrentChildGroup] = useState(0);
+  const [step, setStep] = useState<'merging' | 'children' | 'complete'>('merging');
   const [showChildrenDialog, setShowChildrenDialog] = useState(false);
 
-  const handleConfirmAuto = async () => {
-    setIsProcessing(true);
-    await onConfirmAutoMerge();
-    setIsProcessing(false);
-    
-    if (childrenToMerge.length > 0) {
-      setCurrentChildGroup(0);
-      setShowChildrenDialog(true);
-      setStep('children');
-    } else {
-      setStep('complete');
+  // Auto-execute parent merge when dialog opens
+  useEffect(() => {
+    if (!isOpen) {
+      setStep('merging');
+      return;
     }
-  };
 
-  const handleChildrenMergeComplete = async (
+    const runAutoMerge = async () => {
+      // Execute auto merge silently
+      await onAutoMergeComplete();
+
+      // Check if we need to show children dialog
+      if (childMergeData && 
+          (childMergeData.sourceChildren.length > 0 || 
+           childMergeData.targetChildren.length > 0)) {
+        setStep('children');
+        setShowChildrenDialog(true);
+      } else {
+        setStep('complete');
+      }
+    };
+
+    // Small delay for UX
+    const timer = setTimeout(runAutoMerge, 500);
+    return () => clearTimeout(timer);
+  }, [isOpen, onAutoMergeComplete, childMergeData]);
+
+  // Handle children merge completion
+  const handleChildrenComplete = async (
     merges: { sourceId: string; targetId: string }[],
-    _separates: string[]
+    _separateIds: string[]
   ) => {
-    // Process each merge
+    // Execute each merge
     for (const merge of merges) {
-      await onMergeChildren(merge.sourceId, merge.targetId);
+      await onMergeChild(merge.sourceId, merge.targetId);
     }
     
-    // Move to next group or complete
-    if (currentChildGroup < childrenToMerge.length - 1) {
-      setCurrentChildGroup(prev => prev + 1);
-    } else {
-      setShowChildrenDialog(false);
-      setStep('complete');
-    }
+    setShowChildrenDialog(false);
+    setStep('complete');
   };
 
   const handleComplete = () => {
-    setStep('auto');
-    setCurrentChildGroup(0);
+    setStep('merging');
     setShowChildrenDialog(false);
     onClose();
   };
 
-  const getRelationshipLabel = (rel: string) => {
-    switch (rel) {
-      case 'parent': return 'Ota-ona';
-      case 'grandparent': return 'Buvi-bobo';
-      case 'sibling': return 'Aka-uka/Opa-singil';
-      default: return rel;
-    }
-  };
-
-  // Get current children group for dialog
-  const currentGroup = childrenToMerge[currentChildGroup];
+  const parentCount = autoMergeCandidates.filter(c => c.relationship === 'parent').length;
+  const grandparentCount = autoMergeCandidates.filter(c => c.relationship === 'grandparent').length;
 
   return (
     <>
-      <Dialog open={isOpen && step !== 'children'} onOpenChange={onClose}>
-        <DialogContent className="max-w-lg">
+      <Dialog open={isOpen && !showChildrenDialog} onOpenChange={onClose}>
+        <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <GitMerge className="h-5 w-5 text-primary" />
-              Daraxtlarni birlashtirish
+              Daraxtlar birlashmoqda
             </DialogTitle>
             <DialogDescription>
               {senderName} bilan oila daraxtingiz birlashtirilmoqda
             </DialogDescription>
           </DialogHeader>
 
-          {step === 'auto' && (
-            <div className="space-y-4">
-              {autoMergeCandidates.length > 0 ? (
-                <>
-                  <div className="flex items-center gap-2 p-3 bg-primary/10 rounded-lg">
-                    <Check className="h-5 w-5 text-primary" />
-                    <span className="text-sm">
-                      Bu profillar avtomatik birlashtiriladi (bir xil odam)
-                    </span>
-                  </div>
-
-                  <ScrollArea className="max-h-[300px]">
-                    <div className="space-y-2">
-                      {autoMergeCandidates.map((candidate, idx) => (
-                        <div
-                          key={idx}
-                          className="flex items-center gap-3 p-3 rounded-lg border border-border bg-card"
-                        >
-                          <Badge variant="outline" className="shrink-0">
-                            {getRelationshipLabel(candidate.relationship)}
-                          </Badge>
-                          <div className="flex items-center gap-2 flex-1 min-w-0">
-                            <span className="truncate font-medium">{candidate.sourceName}</span>
-                            <ArrowRight className="h-4 w-4 text-muted-foreground shrink-0" />
-                            <span className="truncate text-muted-foreground">{candidate.targetName}</span>
-                          </div>
-                          <Check className="h-4 w-4 text-primary shrink-0" />
-                        </div>
-                      ))}
-                    </div>
-                  </ScrollArea>
-
-                  <div className="flex gap-2 pt-2">
-                    <Button variant="outline" onClick={onClose} className="flex-1">
-                      Bekor qilish
-                    </Button>
-                    <Button 
-                      onClick={handleConfirmAuto} 
-                      disabled={isProcessing}
-                      className="flex-1"
-                    >
-                      {isProcessing ? 'Birlashtirilmoqda...' : 'Tasdiqlash'}
-                    </Button>
-                  </div>
-                </>
-              ) : (
-                <div className="text-center py-6">
-                  <Users className="h-12 w-12 mx-auto text-muted-foreground mb-3" />
-                  <p className="text-muted-foreground">
-                    Avtomatik birlashtiradigan profillar topilmadi
-                  </p>
-                  <Button onClick={handleComplete} className="mt-4">
-                    Davom etish
-                  </Button>
-                </div>
+          {step === 'merging' && (
+            <div className="py-8 text-center">
+              <Loader2 className="h-12 w-12 animate-spin text-primary mx-auto mb-4" />
+              <p className="text-sm text-muted-foreground">
+                Ota-onalar avtomatik birlashtirilmoqda...
+              </p>
+              {parentCount > 0 && (
+                <p className="text-xs text-muted-foreground mt-2">
+                  {parentCount} ta ota-ona, {grandparentCount} ta buvi-bobo
+                </p>
               )}
             </div>
           )}
 
           {step === 'complete' && (
-            <div className="text-center py-6">
+            <div className="py-6 text-center">
               <div className="w-16 h-16 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-4">
                 <Check className="h-8 w-8 text-primary" />
               </div>
               <h3 className="font-semibold text-lg mb-2">Birlashtirish tugadi!</h3>
-              <p className="text-muted-foreground text-sm mb-4">
+              <p className="text-sm text-muted-foreground mb-1">
                 Oila daraxtingiz muvaffaqiyatli birlashtirildi
               </p>
-              <Button onClick={handleComplete}>
+              {(parentCount > 0 || grandparentCount > 0) && (
+                <p className="text-xs text-muted-foreground">
+                  {parentCount > 0 && `${parentCount} ta ota-ona`}
+                  {parentCount > 0 && grandparentCount > 0 && ', '}
+                  {grandparentCount > 0 && `${grandparentCount} ta buvi-bobo`}
+                  {' '}birlashtirildi
+                </p>
+              )}
+              <Button onClick={handleComplete} className="mt-4">
                 Daraxtga qaytish
               </Button>
             </div>
@@ -199,18 +163,19 @@ export const TreeMergeDialog = ({
         </DialogContent>
       </Dialog>
 
-      {/* Children Merge Dialog - shown separately for better UX */}
-      {showChildrenDialog && currentGroup && (
+      {/* Children Merge Dialog */}
+      {showChildrenDialog && childMergeData && (
         <ChildrenMergeDialog
           isOpen={showChildrenDialog}
           onClose={() => {
             setShowChildrenDialog(false);
             setStep('complete');
           }}
-          sourceChildren={currentGroup.sourceChildren}
-          targetChildren={currentGroup.targetChildren}
-          parentDescription={currentGroup.parentDescription}
-          onComplete={handleChildrenMergeComplete}
+          sourceChildren={childMergeData.sourceChildren}
+          targetChildren={childMergeData.targetChildren}
+          suggestedPairs={childMergeData.suggestedPairs}
+          parentDescription={childMergeData.parentDescription}
+          onComplete={handleChildrenComplete}
         />
       )}
     </>
