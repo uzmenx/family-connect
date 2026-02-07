@@ -64,28 +64,32 @@ export const TreeMergeDialog = ({
   useEffect(() => {
     if (!isOpen) {
       setStep('merging');
+      setShowChildrenDialog(false);
       return;
     }
 
     const runAutoMerge = async () => {
-      // Execute auto merge silently
+      // Execute auto merge silently (parents/grandparents)
       await onAutoMergeComplete();
 
       // Check if we need to show children dialog
-      if (childMergeData && 
-          (childMergeData.sourceChildren.length > 0 || 
-           childMergeData.targetChildren.length > 0)) {
+      const hasChildren = childMergeData && 
+        (childMergeData.sourceChildren.length > 0 || 
+         childMergeData.targetChildren.length > 0);
+
+      if (hasChildren) {
         setStep('children');
-        setShowChildrenDialog(true);
+        // Small delay before showing children dialog
+        setTimeout(() => setShowChildrenDialog(true), 300);
       } else {
         setStep('complete');
       }
     };
 
     // Small delay for UX
-    const timer = setTimeout(runAutoMerge, 500);
+    const timer = setTimeout(runAutoMerge, 800);
     return () => clearTimeout(timer);
-  }, [isOpen, onAutoMergeComplete, childMergeData]);
+  }, [isOpen]);
 
   // Handle children merge completion
   const handleChildrenComplete = async (
@@ -110,9 +114,12 @@ export const TreeMergeDialog = ({
   const parentCount = autoMergeCandidates.filter(c => c.relationship === 'parent').length;
   const grandparentCount = autoMergeCandidates.filter(c => c.relationship === 'grandparent').length;
 
+  // Hide main dialog when showing children dialog
+  const showMainDialog = isOpen && !showChildrenDialog;
+
   return (
     <>
-      <Dialog open={isOpen && !showChildrenDialog} onOpenChange={onClose}>
+      <Dialog open={showMainDialog} onOpenChange={onClose}>
         <DialogContent className="max-w-sm">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
@@ -130,11 +137,22 @@ export const TreeMergeDialog = ({
               <p className="text-sm text-muted-foreground">
                 Ota-onalar avtomatik birlashtirilmoqda...
               </p>
-              {parentCount > 0 && (
+              {(parentCount > 0 || grandparentCount > 0) && (
                 <p className="text-xs text-muted-foreground mt-2">
-                  {parentCount} ta ota-ona, {grandparentCount} ta buvi-bobo
+                  {parentCount > 0 && `${parentCount} ta ota-ona`}
+                  {parentCount > 0 && grandparentCount > 0 && ', '}
+                  {grandparentCount > 0 && `${grandparentCount} ta buvi-bobo`}
                 </p>
               )}
+            </div>
+          )}
+
+          {step === 'children' && !showChildrenDialog && (
+            <div className="py-6 text-center">
+              <Loader2 className="h-8 w-8 animate-spin text-primary mx-auto mb-3" />
+              <p className="text-sm text-muted-foreground">
+                Farzandlar tayyorlanmoqda...
+              </p>
             </div>
           )}
 
