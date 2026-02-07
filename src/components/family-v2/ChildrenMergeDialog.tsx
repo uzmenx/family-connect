@@ -8,7 +8,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Check, X, GripVertical, Users, ArrowLeftRight } from 'lucide-react';
+import { Check, X, GripVertical, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface ChildProfile {
@@ -25,9 +25,9 @@ interface SuggestedPair {
 }
 
 interface ChildMergeItem {
-  child: ChildProfile;
-  pairedWithId?: string;
-  shouldMerge: boolean; // true = merge with pair, false = keep separate
+  sourceChild: ChildProfile;
+  targetChild: ChildProfile | null;
+  shouldMerge: boolean;
 }
 
 interface ChildrenMergeDialogProps {
@@ -52,106 +52,133 @@ export const ChildrenMergeDialog = ({
   parentDescription,
   onComplete,
 }: ChildrenMergeDialogProps) => {
-  // Initialize with suggested pairs (default: accept all suggestions)
-  const [sourceItems, setSourceItems] = useState<ChildMergeItem[]>(() => {
-    return sourceChildren.map(child => {
-      const pair = suggestedPairs.find(p => p.sourceChild.id === child.id);
-      return {
-        child,
-        pairedWithId: pair?.targetChild.id,
-        shouldMerge: !!pair, // Auto-accept if there's a suggestion
-      };
-    });
-  });
+  // Build paired items from suggestions and unpaired children
+  const [items, setItems] = useState<ChildMergeItem[]>(() => {
+    const result: ChildMergeItem[] = [];
+    const usedSourceIds = new Set<string>();
+    const usedTargetIds = new Set<string>();
 
-  const [targetItems, setTargetItems] = useState<ChildMergeItem[]>(() => {
-    return targetChildren.map(child => {
-      const pair = suggestedPairs.find(p => p.targetChild.id === child.id);
-      return {
-        child,
-        pairedWithId: pair?.sourceChild.id,
-        shouldMerge: !!pair,
-      };
-    });
+    // First: add suggested pairs (auto-accepted)
+    for (const pair of suggestedPairs) {
+      result.push({
+        sourceChild: pair.sourceChild,
+        targetChild: pair.targetChild,
+        shouldMerge: true, // Auto-accept suggestions
+      });
+      usedSourceIds.add(pair.sourceChild.id);
+      usedTargetIds.add(pair.targetChild.id);
+    }
+
+    // Second: add unpaired source children
+    for (const source of sourceChildren) {
+      if (!usedSourceIds.has(source.id)) {
+        // Try to find a matching target by gender
+        const availableTarget = targetChildren.find(
+          t => t.gender === source.gender && !usedTargetIds.has(t.id)
+        );
+        
+        if (availableTarget) {
+          result.push({
+            sourceChild: source,
+            targetChild: availableTarget,
+            shouldMerge: false, // Not auto-accepted (no name similarity)
+          });
+          usedTargetIds.add(availableTarget.id);
+        } else {
+          // No matching target - will be kept separate
+          result.push({
+            sourceChild: source,
+            targetChild: null,
+            shouldMerge: false,
+          });
+        }
+        usedSourceIds.add(source.id);
+      }
+    }
+
+    // Third: add unpaired target children (as separate)
+    for (const target of targetChildren) {
+      if (!usedTargetIds.has(target.id)) {
+        // These will just stay in target tree
+        // We don't need to add them to the list since they're already there
+      }
+    }
+
+    return result;
   });
 
   const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
-  const [dragSide, setDragSide] = useState<'source' | 'target' | null>(null);
   const [dragOverIndex, setDragOverIndex] = useState<number | null>(null);
   const [isProcessing, setIsProcessing] = useState(false);
 
   // Toggle merge status for an item
-  const toggleMerge = useCallback((side: 'source' | 'target', id: string) => {
-    if (side === 'source') {
-      setSourceItems(prev => prev.map(item => {
-        if (item.child.id !== id) return item;
-        const newShouldMerge = !item.shouldMerge;
-        // If turning off, also unpair
-        if (!newShouldMerge) {
-          // Also update target side
-          setTargetItems(t => t.map(ti => 
-            ti.pairedWithId === id ? { ...ti, pairedWithId: undefined, shouldMerge: false } : ti
-          ));
-          return { ...item, shouldMerge: false, pairedWithId: undefined };
-        }
-        return { ...item, shouldMerge: true };
-      }));
-    } else {
-      setTargetItems(prev => prev.map(item => {
-        if (item.child.id !== id) return item;
-        const newShouldMerge = !item.shouldMerge;
-        if (!newShouldMerge) {
-          setSourceItems(s => s.map(si =>
-            si.pairedWithId === id ? { ...si, pairedWithId: undefined, shouldMerge: false } : si
-          ));
-          return { ...item, shouldMerge: false, pairedWithId: undefined };
-        }
-        return { ...item, shouldMerge: true };
-      }));
-    }
+  const toggleMerge = useCallback((index: number) => {
+    setItems(prev => prev.map((item, i) => {
+      if (i !== index) return item;
+      // Can only merge if there's a matching target with same gender
+      if (!item.targetChild || item.sourceChild.gender !== item.targetChild.gender) {
+        return item;
+      }
+      return { ...item, shouldMerge: !item.shouldMerge };
+    }));
   }, []);
 
-  // Swap positions (drag & drop within same side)
-  const handleDragStart = useCallback((index: number, side: 'source' | 'target') => {
+  // Swap target children between two rows (drag & drop)
+  const handleDragStart = useCallback((index: number) => {
     setDraggedIndex(index);
-    setDragSide(side);
   }, []);
 
-  const handleDragOver = useCallback((e: React.DragEvent, index: number, side: 'source' | 'target') => {
+  const handleDragOver = useCallback((e: React.DragEvent, index: number) => {
     e.preventDefault();
-    if (dragSide === side && draggedIndex !== null) {
-      setDragOverIndex(index);
+    if (draggedIndex !== null && draggedIndex !== index) {
+      const draggedItem = items[draggedIndex];
+      const overItem = items[index];
+      
+      // Only allow swap if both have targets and same gender
+      if (draggedItem?.targetChild && overItem?.targetChild &&
+          draggedItem.sourceChild.gender === overItem.sourceChild.gender) {
+        setDragOverIndex(index);
+      }
     }
-  }, [dragSide, draggedIndex]);
+  }, [draggedIndex, items]);
 
-  const handleDrop = useCallback((dropIndex: number, side: 'source' | 'target') => {
-    if (draggedIndex === null || dragSide !== side || draggedIndex === dropIndex) {
+  const handleDrop = useCallback((dropIndex: number) => {
+    if (draggedIndex === null || draggedIndex === dropIndex) {
       resetDrag();
       return;
     }
 
-    const setter = side === 'source' ? setSourceItems : setTargetItems;
-    setter(prev => {
-      const items = [...prev];
-      const draggedItem = items[draggedIndex];
-      const dropItem = items[dropIndex];
-      
-      // Only allow swap if same gender
-      if (draggedItem.child.gender !== dropItem.child.gender) {
-        return prev;
-      }
+    const draggedItem = items[draggedIndex];
+    const dropItem = items[dropIndex];
 
-      // Swap positions
-      [items[draggedIndex], items[dropIndex]] = [items[dropIndex], items[draggedIndex]];
-      return items;
+    // Only allow swap if same gender
+    if (draggedItem.sourceChild.gender !== dropItem.sourceChild.gender) {
+      resetDrag();
+      return;
+    }
+
+    // Swap targets
+    setItems(prev => {
+      const newItems = [...prev];
+      const tempTarget = newItems[draggedIndex].targetChild;
+      newItems[draggedIndex] = {
+        ...newItems[draggedIndex],
+        targetChild: newItems[dropIndex].targetChild,
+        shouldMerge: false, // Reset merge status after swap
+      };
+      newItems[dropIndex] = {
+        ...newItems[dropIndex],
+        targetChild: tempTarget,
+        shouldMerge: false,
+      };
+      return newItems;
     });
 
     resetDrag();
-  }, [draggedIndex, dragSide]);
+  }, [draggedIndex, items]);
 
   const resetDrag = () => {
     setDraggedIndex(null);
-    setDragSide(null);
     setDragOverIndex(null);
   };
 
@@ -159,31 +186,17 @@ export const ChildrenMergeDialog = ({
   const handleComplete = async () => {
     setIsProcessing(true);
     try {
-      // Collect confirmed merges
       const merges: { sourceId: string; targetId: string }[] = [];
       const separateIds: string[] = [];
 
-      sourceItems.forEach((item, idx) => {
-        const targetItem = targetItems[idx];
-        
-        if (item.shouldMerge && targetItem?.shouldMerge) {
-          // Same position + both marked = merge
-          if (item.child.gender === targetItem.child.gender) {
-            merges.push({
-              sourceId: item.child.id,
-              targetId: targetItem.child.id,
-            });
-          }
+      items.forEach(item => {
+        if (item.shouldMerge && item.targetChild) {
+          merges.push({
+            sourceId: item.sourceChild.id,
+            targetId: item.targetChild.id,
+          });
         } else {
-          // Not merging = keep separate
-          if (!item.shouldMerge) separateIds.push(item.child.id);
-        }
-      });
-
-      // Also add remaining target items that aren't merged
-      targetItems.forEach((item, idx) => {
-        if (!item.shouldMerge && !separateIds.includes(item.child.id)) {
-          separateIds.push(item.child.id);
+          separateIds.push(item.sourceChild.id);
         }
       });
 
@@ -196,106 +209,151 @@ export const ChildrenMergeDialog = ({
 
   // Stats
   const stats = useMemo(() => {
-    const paired = sourceItems.filter((s, i) => 
-      s.shouldMerge && targetItems[i]?.shouldMerge && 
-      s.child.gender === targetItems[i]?.child.gender
-    ).length;
-    
-    const separate = sourceItems.filter(s => !s.shouldMerge).length +
-                     targetItems.filter(t => !t.shouldMerge).length;
-    
-    return { paired, separate };
-  }, [sourceItems, targetItems]);
+    const merged = items.filter(i => i.shouldMerge && i.targetChild).length;
+    const separate = items.filter(i => !i.shouldMerge || !i.targetChild).length;
+    return { merged, separate };
+  }, [items]);
 
-  const renderChildItem = (
-    item: ChildMergeItem,
-    index: number,
-    side: 'source' | 'target'
-  ) => {
-    const { child, shouldMerge } = item;
-    const isMale = child.gender === 'male';
-    const isDragging = draggedIndex === index && dragSide === side;
-    const isDropTarget = dragOverIndex === index && dragSide === side;
-
-    // Check if opposite side at same index has same gender
-    const oppositeItems = side === 'source' ? targetItems : sourceItems;
-    const oppositeItem = oppositeItems[index];
-    const canMerge = oppositeItem && oppositeItem.child.gender === child.gender;
+  const renderPairRow = (item: ChildMergeItem, index: number) => {
+    const { sourceChild, targetChild, shouldMerge } = item;
+    const isMale = sourceChild.gender === 'male';
+    const isDragging = draggedIndex === index;
+    const isDropTarget = dragOverIndex === index;
+    const canMerge = targetChild && targetChild.gender === sourceChild.gender;
 
     return (
       <div
-        key={child.id}
-        draggable
-        onDragStart={() => handleDragStart(index, side)}
-        onDragOver={(e) => handleDragOver(e, index, side)}
-        onDragLeave={resetDrag}
-        onDrop={() => handleDrop(index, side)}
+        key={`${sourceChild.id}-${index}`}
+        draggable={!!targetChild}
+        onDragStart={() => handleDragStart(index)}
+        onDragOver={(e) => handleDragOver(e, index)}
+        onDragLeave={() => setDragOverIndex(null)}
+        onDrop={() => handleDrop(index)}
         onDragEnd={resetDrag}
         className={cn(
-          "flex items-center gap-2 p-2.5 rounded-xl border-2 transition-all duration-200",
-          "cursor-grab active:cursor-grabbing bg-card",
+          "flex items-center gap-2 p-3 rounded-xl border-2 transition-all duration-200",
+          "bg-card",
           isDragging && "opacity-50 scale-95",
-          isDropTarget && !isDragging && "border-primary border-dashed",
-          shouldMerge && canMerge && "bg-primary/5 border-primary/30",
-          !shouldMerge && "opacity-60 border-muted"
+          isDropTarget && !isDragging && "border-primary border-dashed bg-primary/5",
+          shouldMerge && canMerge && "bg-emerald-500/5 border-emerald-500/30",
+          !shouldMerge && "border-muted"
         )}
       >
-        <GripVertical className="w-4 h-4 text-muted-foreground/50 flex-shrink-0" />
+        {/* Drag Handle */}
+        {targetChild && (
+          <GripVertical className="w-4 h-4 text-muted-foreground/50 flex-shrink-0 cursor-grab active:cursor-grabbing" />
+        )}
         
-        {/* Avatar */}
+        {/* Source Child Avatar */}
         <div
           className={cn(
-            "w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 ring-2",
+            "w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 ring-2",
             isMale ? "bg-sky-500/90 ring-sky-400/50" : "bg-pink-500/90 ring-pink-400/50"
           )}
         >
-          {child.photoUrl ? (
+          {sourceChild.photoUrl ? (
             <img
-              src={child.photoUrl}
-              alt={child.name}
+              src={sourceChild.photoUrl}
+              alt={sourceChild.name}
               className="w-full h-full rounded-full object-cover"
             />
           ) : (
             <span className="text-sm font-bold text-white">
-              {child.name?.[0]?.toUpperCase() || '?'}
+              {sourceChild.name?.[0]?.toUpperCase() || '?'}
             </span>
           )}
         </div>
 
-        {/* Name */}
+        {/* Source Name */}
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-medium truncate">{child.name}</p>
+          <p className="text-sm font-medium truncate">{sourceChild.name}</p>
           <p className="text-[10px] text-muted-foreground">
-            {isMale ? 'O\'g\'il' : 'Qiz'}
+            Yangi daraxtdan
           </p>
         </div>
 
+        {/* Arrow / Connection */}
+        {targetChild ? (
+          <div className="flex items-center gap-1 px-2">
+            <div className={cn(
+              "w-6 h-0.5 rounded",
+              shouldMerge ? "bg-emerald-500" : "bg-muted-foreground/30"
+            )} />
+            <span className={cn(
+              "text-xs",
+              shouldMerge ? "text-emerald-600" : "text-muted-foreground"
+            )}>
+              {shouldMerge ? '=' : '≠'}
+            </span>
+            <div className={cn(
+              "w-6 h-0.5 rounded",
+              shouldMerge ? "bg-emerald-500" : "bg-muted-foreground/30"
+            )} />
+          </div>
+        ) : (
+          <div className="px-4 text-xs text-muted-foreground">
+            Alohida qoladi
+          </div>
+        )}
+
+        {/* Target Child Avatar */}
+        {targetChild && (
+          <>
+            <div
+              className={cn(
+                "w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 ring-2",
+                isMale ? "bg-sky-500/90 ring-sky-400/50" : "bg-pink-500/90 ring-pink-400/50"
+              )}
+            >
+              {targetChild.photoUrl ? (
+                <img
+                  src={targetChild.photoUrl}
+                  alt={targetChild.name}
+                  className="w-full h-full rounded-full object-cover"
+                />
+              ) : (
+                <span className="text-sm font-bold text-white">
+                  {targetChild.name?.[0]?.toUpperCase() || '?'}
+                </span>
+              )}
+            </div>
+
+            {/* Target Name */}
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-medium truncate">{targetChild.name}</p>
+              <p className="text-[10px] text-muted-foreground">
+                Sizning daraxt
+              </p>
+            </div>
+          </>
+        )}
+
         {/* Toggle button */}
-        <button
-          onClick={() => toggleMerge(side, child.id)}
-          disabled={!canMerge && shouldMerge}
-          className={cn(
-            "w-9 h-9 rounded-full flex items-center justify-center transition-all",
-            "border-2",
-            shouldMerge
-              ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-600 hover:bg-emerald-500/30"
-              : "bg-muted/50 border-muted-foreground/20 text-muted-foreground hover:bg-muted",
-            !canMerge && "opacity-50 cursor-not-allowed"
-          )}
-        >
-          {shouldMerge ? (
-            <Check className="w-4 h-4" strokeWidth={3} />
-          ) : (
-            <X className="w-4 h-4" strokeWidth={2.5} />
-          )}
-        </button>
+        {canMerge && (
+          <button
+            onClick={() => toggleMerge(index)}
+            className={cn(
+              "w-10 h-10 rounded-full flex items-center justify-center transition-all",
+              "border-2 flex-shrink-0",
+              shouldMerge
+                ? "bg-emerald-500/20 border-emerald-500/50 text-emerald-600 hover:bg-emerald-500/30"
+                : "bg-muted/50 border-muted-foreground/20 text-muted-foreground hover:bg-muted"
+            )}
+          >
+            {shouldMerge ? (
+              <Check className="w-5 h-5" strokeWidth={3} />
+            ) : (
+              <X className="w-5 h-5" strokeWidth={2.5} />
+            )}
+          </button>
+        )}
       </div>
     );
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-lg max-h-[90vh]">
+      <DialogContent className="max-w-md max-h-[85vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Users className="h-5 w-5 text-primary" />
@@ -308,65 +366,42 @@ export const ChildrenMergeDialog = ({
 
         <div className="space-y-3">
           {/* Instructions */}
-          <div className="text-xs text-muted-foreground bg-muted/40 p-2.5 rounded-lg space-y-1">
-            <p className="flex items-center gap-1.5">
-              <Check className="w-3 h-3 text-emerald-500" /> = birlashadi
-              <span className="mx-1">•</span>
-              <X className="w-3 h-3" /> = alohida qoladi
+          <div className="text-xs text-muted-foreground bg-muted/40 p-3 rounded-lg space-y-1.5">
+            <p className="flex items-center gap-2">
+              <Check className="w-4 h-4 text-emerald-500 flex-shrink-0" /> 
+              <span>Belgilanganlari birlashadi - bir kishi sifatida ko'rinadi</span>
             </p>
-            <p className="flex items-center gap-1.5">
-              <GripVertical className="w-3 h-3" /> sudrab joyini almashtiring
-              <span className="mx-1">•</span>
-              <ArrowLeftRight className="w-3 h-3" /> bir xil jins
+            <p className="flex items-center gap-2">
+              <X className="w-4 h-4 text-muted-foreground flex-shrink-0" /> 
+              <span>Belgilanmaganlari alohida qoladi - yangi farzand sifatida qo'shiladi</span>
+            </p>
+            <p className="flex items-center gap-2">
+              <GripVertical className="w-4 h-4 text-muted-foreground flex-shrink-0" /> 
+              <span>Sudrab joyini almashtiring (bir xil jins)</span>
             </p>
           </div>
 
-          {/* Two columns */}
-          <div className="grid grid-cols-2 gap-3">
-            {/* Source children */}
-            <div className="space-y-2">
-              <h4 className="text-xs font-medium text-center py-1.5 bg-muted/60 rounded-lg">
-                Yangi daraxtdan
-              </h4>
-              <ScrollArea className="h-[280px]">
-                <div className="space-y-2 pr-1">
-                  {sourceItems.map((item, idx) => renderChildItem(item, idx, 'source'))}
-                  {sourceItems.length === 0 && (
-                    <p className="text-xs text-muted-foreground text-center py-4">
-                      Farzandlar yo'q
-                    </p>
-                  )}
-                </div>
-              </ScrollArea>
+          {/* List */}
+          <ScrollArea className="h-[320px]">
+            <div className="space-y-2 pr-2">
+              {items.map((item, idx) => renderPairRow(item, idx))}
+              {items.length === 0 && (
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  Birlashtiriladigan farzandlar yo'q
+                </p>
+              )}
             </div>
-
-            {/* Target children */}
-            <div className="space-y-2">
-              <h4 className="text-xs font-medium text-center py-1.5 bg-muted/60 rounded-lg">
-                Sizning daraxtingiz
-              </h4>
-              <ScrollArea className="h-[280px]">
-                <div className="space-y-2 pr-1">
-                  {targetItems.map((item, idx) => renderChildItem(item, idx, 'target'))}
-                  {targetItems.length === 0 && (
-                    <p className="text-xs text-muted-foreground text-center py-4">
-                      Farzandlar yo'q
-                    </p>
-                  )}
-                </div>
-              </ScrollArea>
-            </div>
-          </div>
+          </ScrollArea>
 
           {/* Summary */}
-          <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground bg-muted/30 py-2 rounded-lg">
-            <span className="flex items-center gap-1.5">
-              <Check className="w-3.5 h-3.5 text-emerald-500" />
-              Birlashadi: {stats.paired}
+          <div className="flex items-center justify-center gap-6 text-sm text-muted-foreground bg-muted/30 py-2.5 rounded-lg">
+            <span className="flex items-center gap-2">
+              <Check className="w-4 h-4 text-emerald-500" />
+              <span>Birlashadi: <strong className="text-foreground">{stats.merged}</strong></span>
             </span>
-            <span className="flex items-center gap-1.5">
-              <X className="w-3.5 h-3.5" />
-              Alohida: {stats.separate}
+            <span className="flex items-center gap-2">
+              <X className="w-4 h-4" />
+              <span>Alohida: <strong className="text-foreground">{stats.separate}</strong></span>
             </span>
           </div>
 
