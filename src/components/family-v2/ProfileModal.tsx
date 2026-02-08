@@ -1,5 +1,5 @@
 import { useState, useCallback } from 'react';
-import { Edit2, Trash2, ImagePlus, Users, UserPlus, Baby, Send, ShieldCheck, User } from 'lucide-react';
+import { Edit2, Trash2, ImagePlus, Users, UserPlus, Baby, Send, ShieldCheck, User, Link, Unlink } from 'lucide-react';
 import { FamilyMember } from '@/types/family';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/contexts/AuthContext';
 import { MergedProfilesManager } from './MergedProfilesManager';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 
 interface MergedProfileData {
   id: string;
@@ -31,6 +32,9 @@ interface ProfileModalProps {
   hasSpouse?: boolean;
   canAddChild?: boolean;
   mergedProfiles?: MergedProfileData[];
+  // Spouse lock props
+  isSpouseLocked?: boolean;
+  onToggleSpouseLock?: () => void;
 }
 
 export const ProfileModal = ({
@@ -48,6 +52,8 @@ export const ProfileModal = ({
   hasSpouse = false,
   canAddChild = false,
   mergedProfiles = [],
+  isSpouseLocked = true,
+  onToggleSpouseLock,
 }: ProfileModalProps) => {
   const { user } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
@@ -111,22 +117,59 @@ export const ProfileModal = ({
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
           <div className="flex items-center justify-between">
-            {/* Delete button - disabled for current user's profile */}
-            {isCurrentUserProfile ? (
-              <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
-                <ShieldCheck className="w-4 h-4" />
-                <span className="text-xs">Himoyalangan</span>
-              </div>
-            ) : (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleDelete}
-                className="text-destructive hover:bg-destructive/10"
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            )}
+            {/* Left side buttons: Delete + Lock */}
+            <div className="flex items-center gap-1">
+              {/* Delete button - disabled for current user's profile */}
+              {isCurrentUserProfile ? (
+                <div className="flex items-center gap-1 text-emerald-600 dark:text-emerald-400">
+                  <ShieldCheck className="w-4 h-4" />
+                  <span className="text-xs">Himoyalangan</span>
+                </div>
+              ) : (
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={handleDelete}
+                  className="text-destructive hover:bg-destructive/10"
+                >
+                  <Trash2 className="w-4 h-4" />
+                </Button>
+              )}
+              
+              {/* Spouse Lock button - only show if has spouse */}
+              {hasSpouse && onToggleSpouseLock && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        onClick={onToggleSpouseLock}
+                        className={cn(
+                          "transition-colors",
+                          isSpouseLocked 
+                            ? "text-amber-500 hover:text-amber-600 hover:bg-amber-500/10" 
+                            : "text-muted-foreground hover:text-foreground hover:bg-muted"
+                        )}
+                      >
+                        {isSpouseLocked ? (
+                          <Link className="w-4 h-4" />
+                        ) : (
+                          <Unlink className="w-4 h-4" />
+                        )}
+                      </Button>
+                    </TooltipTrigger>
+                    <TooltipContent side="bottom">
+                      {isSpouseLocked 
+                        ? "Juft bilan bog'langan - birga harakatlanadi" 
+                        : "Juftdan ajratilgan - alohida harakatlantirish mumkin"
+                      }
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
+            </div>
+            
             <DialogTitle className="text-center flex-1">Profil</DialogTitle>
             <div className="w-8" />
           </div>

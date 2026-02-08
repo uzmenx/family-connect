@@ -11,6 +11,7 @@ import { TreeMergeDialog } from './TreeMergeDialog';
 import { useLocalFamilyTree } from '@/hooks/useLocalFamilyTree';
 import { useFamilyInvitations } from '@/hooks/useFamilyInvitations';
  import { useMergeMode } from '@/hooks/useMergeMode';
+import { useSpouseLock } from '@/hooks/useSpouseLock';
 import { FamilyMember, AddMemberData } from '@/types/family';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -62,7 +63,10 @@ export const FamilyTreeV2 = () => {
      cancelMerge,
      executeMerge,
      applySuggestion,
-   } = useMergeMode(members);
+    } = useMergeMode(members);
+ 
+  // Spouse lock hook
+  const { isPairLocked, toggleLock } = useSpouseLock();
  
   const [modal, setModal] = useState<ModalState>({ type: 'none' });
   const [showGenderSelect, setShowGenderSelect] = useState(false);
@@ -292,6 +296,8 @@ export const FamilyTreeV2 = () => {
              mergedProfiles={mergedProfiles}
              onLongPress={handleLongPress}
              onToggleMergeSelect={handleToggleMergeSelect}
+             // Spouse lock props
+             isPairLocked={isPairLocked}
           />
         </div>
       </div>
@@ -353,6 +359,8 @@ export const FamilyTreeV2 = () => {
           hasParents={(modal.member.parentIds?.length || 0) > 0}
           hasSpouse={!!modal.member.spouseId}
           canAddChild={!!modal.member.spouseId}
+          isSpouseLocked={isPairLocked(modal.member.id, modal.member.spouseId)}
+          onToggleSpouseLock={() => toggleLock(modal.member!.id, modal.member!.spouseId)}
         />
       )}
 
