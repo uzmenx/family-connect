@@ -289,17 +289,24 @@ export const useFamilyTree = (userId?: string) => {
       const users = await fetchNetworkUsers();
 
       // Fetch all members from all users in the network
+      // MUHIM: merged_into bo'lgan yoki relation_type 'merged_into_' bilan boshlangan nodelarni filtrlash
       const { data, error } = await supabase
         .from('family_tree_members')
         .select('*')
         .in('owner_id', users)
+        .is('merged_into', null) // Filter out merged nodes
         .order('created_at', { ascending: true });
 
       if (error) throw error;
 
+      // Qo'shimcha filtrlash: legacy merged_into_ relation_type larni ham chiqarib tashlash
+      const filteredData = (data || []).filter(m => 
+        !m.relation_type.startsWith('merged_into_')
+      );
+
       // Get all unique owner_ids and linked_user_ids to fetch profiles
-      const ownerIds = [...new Set((data || []).map(m => m.owner_id))];
-      const linkedUserIds = [...new Set((data || []).filter(m => m.linked_user_id).map(m => m.linked_user_id))];
+      const ownerIds = [...new Set(filteredData.map(m => m.owner_id))];
+      const linkedUserIds = [...new Set(filteredData.filter(m => m.linked_user_id).map(m => m.linked_user_id))];
       const allProfileIds = [...new Set([...ownerIds, ...linkedUserIds.filter(Boolean)])];
 
       // Fetch all profiles in one query
@@ -311,7 +318,7 @@ export const useFamilyTree = (userId?: string) => {
       const profilesMap = new Map(profilesData?.map(p => [p.id, p]) || []);
 
       // Map members with profiles
-      const membersWithProfiles: FamilyMember[] = (data || []).map(member => {
+      const membersWithProfiles: FamilyMember[] = filteredData.map(member => {
         const ownerProfile = profilesMap.get(member.owner_id);
         const linkedProfile = member.linked_user_id ? profilesMap.get(member.linked_user_id) : null;
 

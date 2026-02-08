@@ -147,12 +147,17 @@ export const useTreeMerging = () => {
 
     try {
       const [senderRes, receiverRes] = await Promise.all([
-        supabase.from('family_tree_members').select('*').eq('owner_id', senderId),
-        supabase.from('family_tree_members').select('*').eq('owner_id', receiverId)
+        supabase.from('family_tree_members').select('*').eq('owner_id', senderId).is('merged_into', null),
+        supabase.from('family_tree_members').select('*').eq('owner_id', receiverId).is('merged_into', null)
       ]);
 
-      const senderMembers = (senderRes.data || []) as TreeMember[];
-      const receiverMembers = (receiverRes.data || []) as TreeMember[];
+      // Filter out legacy merged_into_ relation types
+      const senderMembers = ((senderRes.data || []) as TreeMember[]).filter(
+        m => !m.relation_type.startsWith('merged_into_')
+      );
+      const receiverMembers = ((receiverRes.data || []) as TreeMember[]).filter(
+        m => !m.relation_type.startsWith('merged_into_')
+      );
 
       if (senderMembers.length === 0 || receiverMembers.length === 0) {
         return { autoMergeable, childMergeData };
