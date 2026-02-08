@@ -34,6 +34,8 @@ interface FamilyTreeCanvasProps {
    mergedProfiles?: Map<string, MergedProfile>;
    onLongPress?: (memberId: string) => void;
    onToggleMergeSelect?: (memberId: string) => void;
+   // Spouse lock props
+   isPairLocked?: (id1: string, id2?: string) => boolean;
 }
 
 const nodeTypes: NodeTypes = {
@@ -57,31 +59,96 @@ export const FamilyTreeCanvas = ({
    mergedProfiles = new Map(),
    onLongPress,
    onToggleMergeSelect,
+   // Spouse lock props
+   isPairLocked,
 }: FamilyTreeCanvasProps) => {
   const didFitViewRef = useRef(false);
   const isDraggingRef = useRef(false);
+  const draggedNodeIdRef = useRef<string | null>(null);
+  const dragStartPositionsRef = useRef<Map<string, { x: number; y: number }>>(new Map());
 
   const [nodes, setNodes, onNodesChange] = useNodesState<Node>([]);
   const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>([]);
 
-  // Handle node changes - only save position on drag end
+  // Handle node changes - support locked spouse pairs moving together
   const handleNodesChange = useCallback((changes: NodeChange<Node>[]) => {
-    onNodesChange(changes);
+    // Process position changes for locked spouses
+    const modifiedChanges = [...changes];
+    const additionalChanges: NodeChange<Node>[] = [];
     
     changes.forEach((change) => {
+      if (change.type === 'position' && change.dragging && change.position) {
+        const draggedMember = members[change.id];
+        
+        if (draggedMember?.spouseId && isPairLocked?.(change.id, draggedMember.spouseId)) {
+          // First time dragging - store starting positions
+          if (!dragStartPositionsRef.current.has(change.id)) {
+            const currentNode = nodes.find(n => n.id === change.id);
+            const spouseNode = nodes.find(n => n.id === draggedMember.spouseId);
+            
+            if (currentNode && spouseNode) {
+              dragStartPositionsRef.current.set(change.id, { ...currentNode.position });
+              dragStartPositionsRef.current.set(draggedMember.spouseId, { ...spouseNode.position });
+              draggedNodeIdRef.current = change.id;
+            }
+          }
+          
+          // Calculate delta from drag start
+          const startPos = dragStartPositionsRef.current.get(change.id);
+          const spouseStartPos = dragStartPositionsRef.current.get(draggedMember.spouseId);
+          
+          if (startPos && spouseStartPos) {
+            const deltaX = change.position.x - startPos.x;
+            const deltaY = change.position.y - startPos.y;
+            
+            // Add spouse movement change
+            additionalChanges.push({
+              type: 'position',
+              id: draggedMember.spouseId,
+              position: {
+                x: spouseStartPos.x + deltaX,
+                y: spouseStartPos.y + deltaY,
+              },
+              dragging: true,
+            } as NodeChange<Node>);
+          }
+        }
+      }
+      
+      // Handle drag start
       if (change.type === 'position') {
         if (change.dragging && !isDraggingRef.current) {
           isDraggingRef.current = true;
           onDragStart?.();
         }
+        
+        // Handle drag end
         if (!change.dragging && isDraggingRef.current && change.position) {
           isDraggingRef.current = false;
+          
+          // Save main node position
           onPositionChange(change.id, change.position.x, change.position.y);
+          
+          // Save spouse position if locked
+          const draggedMember = members[change.id];
+          if (draggedMember?.spouseId && isPairLocked?.(change.id, draggedMember.spouseId)) {
+            const spouseNode = nodes.find(n => n.id === draggedMember.spouseId);
+            if (spouseNode) {
+              onPositionChange(draggedMember.spouseId, spouseNode.position.x, spouseNode.position.y);
+            }
+          }
+          
+          // Clear drag tracking
+          dragStartPositionsRef.current.clear();
+          draggedNodeIdRef.current = null;
+          
           onDragEnd?.();
         }
       }
     });
-  }, [onNodesChange, onPositionChange, onDragStart, onDragEnd]);
+    
+    onNodesChange([...modifiedChanges, ...additionalChanges]);
+  }, [onNodesChange, onPositionChange, onDragStart, onDragEnd, members, isPairLocked, nodes]);
 
   // Build edges from relationships
   const edgesMemo = useMemo(() => {
