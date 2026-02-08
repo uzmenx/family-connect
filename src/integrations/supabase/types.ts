@@ -213,6 +213,7 @@ export type Database = {
           is_placeholder: boolean
           linked_user_id: string | null
           member_name: string
+          merged_into: string | null
           owner_id: string
           relation_type: string
           updated_at: string
@@ -225,6 +226,7 @@ export type Database = {
           is_placeholder?: boolean
           linked_user_id?: string | null
           member_name: string
+          merged_into?: string | null
           owner_id: string
           relation_type: string
           updated_at?: string
@@ -237,11 +239,20 @@ export type Database = {
           is_placeholder?: boolean
           linked_user_id?: string | null
           member_name?: string
+          merged_into?: string | null
           owner_id?: string
           relation_type?: string
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "family_tree_members_merged_into_fkey"
+            columns: ["merged_into"]
+            isOneToOne: false
+            referencedRelation: "family_tree_members"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       follows: {
         Row: {
