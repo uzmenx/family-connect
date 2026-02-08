@@ -260,6 +260,7 @@ export const useTreeMerging = () => {
 
   /**
    * Execute automatic merging for parents/grandparents (silent, no UI)
+   * MUHIM: relation_type ni O'ZGARTIRMASLIK kerak - merged_into maydonidan foydalanamiz
    */
   const executeAutoMerge = async (
     candidates: MergeCandidate[]
@@ -298,11 +299,11 @@ export const useTreeMerging = () => {
             .eq('id', candidate.sourceId);
         }
 
-        // Mark target as merged
+        // Mark target as merged - use merged_into column instead of destroying relation_type!
         await supabase
           .from('family_tree_members')
           .update({ 
-            relation_type: `merged_into_${candidate.sourceId}`,
+            merged_into: candidate.sourceId,
             updated_at: new Date().toISOString()
           })
           .eq('id', candidate.targetId);
@@ -319,6 +320,7 @@ export const useTreeMerging = () => {
 
   /**
    * Merge two children (confirmed by user)
+   * MUHIM: relation_type ni O'ZGARTIRMASLIK kerak - merged_into maydonidan foydalanamiz
    */
   const mergeChild = async (
     sourceChildId: string,
@@ -355,10 +357,11 @@ export const useTreeMerging = () => {
           .eq('id', sourceChildId);
       }
 
+      // Use merged_into column instead of destroying relation_type!
       await supabase
         .from('family_tree_members')
         .update({ 
-          relation_type: `merged_into_${sourceChildId}`,
+          merged_into: sourceChildId,
           updated_at: new Date().toISOString()
         })
         .eq('id', targetChildId);
