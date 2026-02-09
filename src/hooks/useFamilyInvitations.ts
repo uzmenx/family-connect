@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { useTreeMerging } from './useTreeMerging';
+import { useTreeMerging, MergeResult, MergeCandidate, ChildProfile, ChildMergeSuggestion } from './useTreeMerging';
 
 export interface FamilyInvitation {
   id: string;
@@ -20,50 +20,27 @@ export interface FamilyInvitation {
   };
 }
 
-interface ChildProfile {
-  id: string;
-  name: string;
-  photoUrl?: string;
-  gender: 'male' | 'female';
-}
-
-interface SuggestedPair {
-  sourceChild: ChildProfile;
-  targetChild: ChildProfile;
-  similarity: number;
-}
-
-interface ChildMergeData {
-  parentDescription: string;
-  sourceChildren: ChildProfile[];
-  targetChildren: ChildProfile[];
-  suggestedPairs: SuggestedPair[];
-}
-
-interface MergeCandidate {
-  sourceId: string;
-  targetId: string;
-  sourceName: string;
-  targetName: string;
-  relationship: 'parent' | 'grandparent' | 'sibling';
+export interface MergeDialogData {
+  senderName: string;
+  receiverName: string;
+  parentMerges: MergeCandidate[];
+  childSuggestions: ChildMergeSuggestion[];
+  allSourceChildren: ChildProfile[];
+  allTargetChildren: ChildProfile[];
 }
 
 export const useFamilyInvitations = () => {
   const { user, profile, refreshProfile } = useAuth();
   const { toast } = useToast();
-  const { findMergeCandidates, executeAutoMerge, mergeChild } = useTreeMerging();
+  const { findMergeCandidates, executeParentMerge, executeChildMerge } = useTreeMerging();
   
   const [pendingInvitations, setPendingInvitations] = useState<FamilyInvitation[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   
   // Merge dialog state
   const [showMergeDialog, setShowMergeDialog] = useState(false);
-  const [mergeData, setMergeData] = useState<{
-    autoMergeCandidates: MergeCandidate[];
-    childMergeData: ChildMergeData | null;
-    senderId: string;
-    senderName: string;
-  } | null>(null);
+  const [mergeData, setMergeData] = useState<MergeDialogData | null>(null);
+  const [isMerging, setIsMerging] = useState(false);
 
   // Fetch pending invitations for current user
   const fetchInvitations = useCallback(async () => {
@@ -189,19 +166,24 @@ export const useFamilyInvitations = () => {
       });
 
       // 5. Find merge candidates
-      const candidates = await findMergeCandidates(
+      const result = await findMergeCandidates(
         invitation.sender_id,
         user.id,
         invitation.member_id
       );
 
       // 6. Show merge dialog if there are candidates
-      if (candidates.autoMergeable.length > 0 || candidates.childMergeData) {
+      const hasParentMerges = result.parentMerges.length > 0;
+      const hasChildren = result.allSourceChildren.length > 0 || result.allTargetChildren.length > 0;
+
+      if (hasParentMerges || hasChildren) {
         setMergeData({
-          autoMergeCandidates: candidates.autoMergeable,
-          childMergeData: candidates.childMergeData,
-          senderId: invitation.sender_id,
           senderName: invitation.sender?.name || invitation.sender?.username || 'Foydalanuvchi',
+          receiverName: profile.name || profile.username || 'Siz',
+          parentMerges: result.parentMerges,
+          childSuggestions: result.childSuggestions,
+          allSourceChildren: result.allSourceChildren,
+          allTargetChildren: result.allTargetChildren,
         });
         setShowMergeDialog(true);
       } else {
@@ -225,28 +207,48 @@ export const useFamilyInvitations = () => {
     }
   };
 
-  // Execute auto merge (parents/grandparents)
-  const confirmAutoMerge = async () => {
+  /**
+   * Birlashtirish jarayonini bajarish
+   * parentMerges - avtomatik birlashtiriladi
+   * childMerges - foydalanuvchi tanlagan farzandlar
+   */
+  const executeMerge = async (
+    childMerges: { sourceId: string; targetId: string }[]
+  ) => {
     if (!mergeData) return;
     
-    const success = await executeAutoMerge(mergeData.autoMergeCandidates);
+    setIsMerging(true);
     
-    if (success) {
+    try {
+      // 1. Ota-onalarni avtomatik birlashtirish
+      if (mergeData.parentMerges.length > 0) {
+        await executeParentMerge(mergeData.parentMerges);
+      }
+      
+      // 2. Tanlangan farzandlarni birlashtirish
+      for (const merge of childMerges) {
+        await executeChildMerge(merge.sourceId, merge.targetId);
+      }
+      
       toast({
         title: "Birlashtirildi!",
-        description: `${mergeData.autoMergeCandidates.length} ta profil avtomatik birlashtirildi`,
+        description: "Oila daraxti muvaffaqiyatli birlashtirildi",
       });
-    }
-  };
-
-  // Merge specific child
-  const handleMergeChild = async (sourceId: string, targetId: string) => {
-    const success = await mergeChild(sourceId, targetId);
-    if (success) {
+      
+      setShowMergeDialog(false);
+      setMergeData(null);
+      
+      // Sahifani yangilash
+      window.location.reload();
+    } catch (error) {
+      console.error('Error executing merge:', error);
       toast({
-        title: "Birlashtirildi!",
-        description: "Farzand profillari birlashtirildi",
+        title: "Xato",
+        description: "Birlashtirish jarayonida xatolik yuz berdi",
+        variant: "destructive",
       });
+    } finally {
+      setIsMerging(false);
     }
   };
 
@@ -254,10 +256,6 @@ export const useFamilyInvitations = () => {
   const closeMergeDialog = () => {
     setShowMergeDialog(false);
     setMergeData(null);
-    toast({
-      title: "Birlashtirish tugadi!",
-      description: "Oila daraxtingiz muvaffaqiyatli birlashtirildi.",
-    });
     window.location.reload();
   };
 
@@ -329,8 +327,8 @@ export const useFamilyInvitations = () => {
     // Merge dialog
     showMergeDialog,
     mergeData,
-    confirmAutoMerge,
-    handleMergeChild,
+    executeMerge,
     closeMergeDialog,
+    isMerging,
   };
 };

@@ -1,16 +1,16 @@
- import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { TreeDeciduous } from 'lucide-react';
- import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import { FamilyTreeCanvas } from './FamilyTreeCanvas';
 import { AddMemberModal } from './AddMemberModal';
 import { ProfileModal } from './ProfileModal';
 import { SendInvitationModal } from './SendInvitationModal';
 import { GenderSelectionModal } from './GenderSelectionModal';
-import { TreeMergeDialog } from './TreeMergeDialog';
- import { MergeSelectionOverlay } from './MergeSelectionOverlay';
+import { UnifiedMergeDialog } from './UnifiedMergeDialog';
+import { MergeSelectionOverlay } from './MergeSelectionOverlay';
 import { useLocalFamilyTree } from '@/hooks/useLocalFamilyTree';
 import { useFamilyInvitations } from '@/hooks/useFamilyInvitations';
- import { useMergeMode } from '@/hooks/useMergeMode';
+import { useMergeMode } from '@/hooks/useMergeMode';
 import { useSpouseLock } from '@/hooks/useSpouseLock';
 import { FamilyMember, AddMemberData } from '@/types/family';
 import { useAuth } from '@/contexts/AuthContext';
@@ -46,9 +46,9 @@ export const FamilyTreeV2 = () => {
     rejectInvitation,
     showMergeDialog,
     mergeData,
-    confirmAutoMerge,
-    handleMergeChild,
+    executeMerge: executeTreeMerge,
     closeMergeDialog,
+    isMerging,
   } = useFamilyInvitations();
  
    // Merge mode hook
@@ -61,7 +61,7 @@ export const FamilyTreeV2 = () => {
      startMergeMode,
      toggleSelection: toggleMergeSelection,
      cancelMerge,
-     executeMerge,
+     executeMerge: executeManualMerge,
      applySuggestion,
     } = useMergeMode(members);
  
@@ -220,7 +220,7 @@ export const FamilyTreeV2 = () => {
          suggestions={mergeSuggestions}
          isProcessing={isMergeProcessing}
          onCancel={cancelMerge}
-         onConfirm={executeMerge}
+         onConfirm={executeManualMerge}
          onApplySuggestion={applySuggestion}
        />
 
@@ -373,14 +373,12 @@ export const FamilyTreeV2 = () => {
 
       {/* Tree Merge Dialog */}
       {mergeData && (
-        <TreeMergeDialog
+        <UnifiedMergeDialog
           isOpen={showMergeDialog}
           onClose={closeMergeDialog}
-          autoMergeCandidates={mergeData.autoMergeCandidates}
-          childMergeData={mergeData.childMergeData}
-          onAutoMergeComplete={confirmAutoMerge}
-          onMergeChild={handleMergeChild}
-          senderName={mergeData.senderName}
+          data={mergeData}
+          onConfirm={executeTreeMerge}
+          isProcessing={isMerging}
         />
       )}
     </section>
