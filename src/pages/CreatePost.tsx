@@ -8,6 +8,7 @@ import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, X } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { MediaPicker } from '@/components/post/MediaPicker';
+import { uploadMedia } from '@/lib/r2Upload';
 
 interface MediaFile {
   file: File;
@@ -45,26 +46,14 @@ const CreatePost = () => {
     }
   };
 
-  const uploadMedia = async (file: File): Promise<string | null> => {
+  const uploadFile = async (file: File): Promise<string | null> => {
     if (!user) return null;
-    
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${user.id}/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
-    
-    const { error, data } = await supabase.storage
-      .from('post-media')
-      .upload(fileName, file);
-
-    if (error) {
+    try {
+      return await uploadMedia(file, 'posts', user.id);
+    } catch (error) {
       console.error('Upload error:', error);
       return null;
     }
-
-    const { data: { publicUrl } } = supabase.storage
-      .from('post-media')
-      .getPublicUrl(fileName);
-
-    return publicUrl;
   };
 
   const handlePublish = async () => {
@@ -82,7 +71,7 @@ const CreatePost = () => {
 
     try {
       // Upload all media files
-      const uploadPromises = selectedMedia.map(media => uploadMedia(media.file));
+      const uploadPromises = selectedMedia.map(media => uploadFile(media.file));
       const uploadedUrls = await Promise.all(uploadPromises);
       
       const validUrls = uploadedUrls.filter((url): url is string => url !== null);

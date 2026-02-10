@@ -6,6 +6,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { uploadMedia } from '@/lib/r2Upload';
 
 const CreateStory = () => {
   const navigate = useNavigate();
@@ -46,20 +47,8 @@ const CreateStory = () => {
 
     setIsUploading(true);
     try {
-      // Upload file to storage
-      const fileExt = selectedFile.name.split('.').pop();
-      const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-      
-      const { data: uploadData, error: uploadError } = await supabase.storage
-        .from('post-media')
-        .upload(fileName, selectedFile);
-
-      if (uploadError) throw uploadError;
-
-      // Get public URL
-      const { data: { publicUrl } } = supabase.storage
-        .from('post-media')
-        .getPublicUrl(fileName);
+      // Upload file to R2
+      const publicUrl = await uploadMedia(selectedFile, 'stories', user.id);
 
       // Create story record
       const mediaType = selectedFile.type.startsWith('video/') ? 'video' : 'image';
