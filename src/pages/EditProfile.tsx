@@ -13,6 +13,7 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
  import { ImageCropper, SocialLinksEditor, SocialLink } from '@/components/profile';
  import { ArrowLeft, Camera, Loader2, User, ImagePlus } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { uploadToR2, compressImage } from '@/lib/r2Upload';
 
 const EditProfile = () => {
   const { profile, user, refreshProfile } = useAuth();
@@ -142,27 +143,20 @@ const EditProfile = () => {
    const uploadCroppedImage = async (croppedUrl: string): Promise<void> => {
      if (!user) return;
      
-     const response = await fetch(croppedUrl);
-     const blob = await response.blob();
-     const fileName = `${user.id}/${cropperState.type}_${Date.now()}.jpg`;
-     
-     const { data, error } = await supabase.storage
-       .from('avatars')
-       .upload(fileName, blob, { upsert: true });
-     
-     if (error) {
+     try {
+       const response = await fetch(croppedUrl);
+       const blob = await response.blob();
+       const file = new File([blob], `${cropperState.type}_${Date.now()}.jpg`, { type: 'image/jpeg' });
+       const compressed = await compressImage(file);
+       const url = await uploadToR2(compressed, `avatars/${user.id}`);
+       
+       if (cropperState.type === 'avatar') {
+         setFormData(prev => ({ ...prev, avatar_url: url }));
+       } else {
+         setFormData(prev => ({ ...prev, cover_url: url }));
+       }
+     } catch (error) {
        toast({ title: "Xato", description: "Rasm yuklanmadi", variant: "destructive" });
-       return;
-     }
-     
-     const { data: urlData } = supabase.storage
-       .from('avatars')
-       .getPublicUrl(data.path);
-     
-     if (cropperState.type === 'avatar') {
-       setFormData(prev => ({ ...prev, avatar_url: urlData.publicUrl }));
-     } else {
-       setFormData(prev => ({ ...prev, cover_url: urlData.publicUrl }));
      }
      
      URL.revokeObjectURL(croppedUrl);

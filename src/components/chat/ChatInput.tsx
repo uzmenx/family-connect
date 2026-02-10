@@ -5,9 +5,9 @@ import { Input } from '@/components/ui/input';
 import { ChatMediaPicker } from './ChatMediaPicker';
 import { VoiceRecorderButton } from './VoiceRecorderButton';
 import { useVoiceRecorder } from '@/hooks/useVoiceRecorder';
-import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { uploadMedia, uploadToR2 } from '@/lib/r2Upload';
 
 interface MediaFile {
   file: File;
@@ -39,27 +39,15 @@ export const ChatInput = ({ conversationId, onSendMessage, onTyping }: ChatInput
     formatDuration
   } = useVoiceRecorder();
 
-  const uploadMedia = async (file: File, type: string): Promise<string | null> => {
+  const uploadFile = async (file: File): Promise<string | null> => {
     if (!user?.id) return null;
-
-    const fileExt = file.name.split('.').pop();
-    const fileName = `${user.id}/${Date.now()}.${fileExt}`;
-
-    const { data, error } = await supabase.storage
-      .from('message_media')
-      .upload(fileName, file);
-
-    if (error) {
+    try {
+      return await uploadMedia(file, 'messages', user.id);
+    } catch (error) {
       console.error('Upload error:', error);
       toast.error('Fayl yuklashda xatolik');
       return null;
     }
-
-    const { data: urlData } = supabase.storage
-      .from('message_media')
-      .getPublicUrl(fileName);
-
-    return urlData.publicUrl;
   };
 
   const handleSend = async () => {
@@ -70,7 +58,7 @@ export const ChatInput = ({ conversationId, onSendMessage, onTyping }: ChatInput
     try {
       // Handle media message
       if (selectedMedia) {
-        const mediaUrl = await uploadMedia(selectedMedia.file, selectedMedia.type);
+        const mediaUrl = await uploadFile(selectedMedia.file);
         if (mediaUrl) {
           await onSendMessage(inputValue.trim() || '', mediaUrl, selectedMedia.type);
           URL.revokeObjectURL(selectedMedia.preview);
@@ -102,7 +90,7 @@ export const ChatInput = ({ conversationId, onSendMessage, onTyping }: ChatInput
         type: 'audio/webm'
       });
 
-      const mediaUrl = await uploadMedia(audioFile, 'audio');
+      const mediaUrl = await uploadToR2(audioFile, `messages/${user?.id}`);
       if (mediaUrl) {
         await onSendMessage('🎤 Ovozli xabar', mediaUrl, 'audio');
       }

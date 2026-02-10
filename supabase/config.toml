@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.verify-phone-otp]
 verify_jwt = false
+
+[functions.r2-upload]
+verify_jwt = false
