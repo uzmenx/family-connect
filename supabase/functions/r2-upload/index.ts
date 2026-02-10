@@ -6,16 +6,48 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+/** Strip any accidental KEY=... prefix from env values */
+function cleanEnv(name: string): string {
+  const raw = Deno.env.get(name) ?? '';
+  // If someone stored "R2_ENDPOINT=https://..." instead of just the value
+  const eqIdx = raw.indexOf('=');
+  if (eqIdx !== -1 && raw.substring(0, eqIdx) === name) {
+    return raw.substring(eqIdx + 1).trim();
+  }
+  return raw.trim();
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const R2_ACCESS_KEY_ID = Deno.env.get('R2_ACCESS_KEY_ID')!;
-    const R2_SECRET_ACCESS_KEY = Deno.env.get('R2_SECRET_ACCESS_KEY')!;
-    const R2_ENDPOINT = Deno.env.get('R2_ENDPOINT')!;
-    const R2_BUCKET_NAME = Deno.env.get('R2_BUCKET_NAME')!;
+    const R2_ACCESS_KEY_ID = cleanEnv('R2_ACCESS_KEY_ID');
+    const R2_SECRET_ACCESS_KEY = cleanEnv('R2_SECRET_ACCESS_KEY');
+    const R2_ENDPOINT = cleanEnv('R2_ENDPOINT');
+    const R2_BUCKET_NAME = cleanEnv('R2_BUCKET_NAME');
+    const R2_PUBLIC_URL = cleanEnv('R2_PUBLIC_URL'); // optional custom domain
+
+    // Validate required secrets
+    if (!R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_ENDPOINT || !R2_BUCKET_NAME) {
+      console.error('Missing R2 secrets. Check that R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT, R2_BUCKET_NAME are set correctly (values only, no KEY= prefix).');
+      return new Response(JSON.stringify({ error: 'Server misconfiguration: missing R2 credentials' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    // Validate endpoint is a proper URL
+    try {
+      new URL(R2_ENDPOINT);
+    } catch {
+      console.error(`R2_ENDPOINT is not a valid URL: "${R2_ENDPOINT}"`);
+      return new Response(JSON.stringify({ error: 'Server misconfiguration: invalid R2 endpoint' }), {
+        status: 500,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
 
     const r2 = new AwsClient({
       accessKeyId: R2_ACCESS_KEY_ID,
@@ -38,6 +70,8 @@ serve(async (req) => {
       }
 
       const objectUrl = `${R2_ENDPOINT}/${R2_BUCKET_NAME}/${path}`;
+      console.log('Uploading to:', objectUrl);
+      
       const arrayBuffer = await file.arrayBuffer();
 
       const uploadRes = await r2.fetch(objectUrl, {
@@ -48,15 +82,17 @@ serve(async (req) => {
 
       if (!uploadRes.ok) {
         const errText = await uploadRes.text();
-        console.error('R2 upload error:', errText);
-        return new Response(JSON.stringify({ error: 'Upload failed' }), {
+        console.error('R2 upload error:', uploadRes.status, errText);
+        return new Response(JSON.stringify({ error: `Upload failed: ${uploadRes.status}` }), {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
 
-      // Return public URL using custom domain or R2 public URL
-      const publicUrl = `${R2_ENDPOINT}/${R2_BUCKET_NAME}/${path}`;
+      // Build public URL: use custom domain if set, otherwise use R2 dev URL
+      const publicUrl = R2_PUBLIC_URL
+        ? `${R2_PUBLIC_URL}/${path}`
+        : `${R2_ENDPOINT}/${R2_BUCKET_NAME}/${path}`;
 
       return new Response(JSON.stringify({ url: publicUrl, path }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -74,7 +110,6 @@ serve(async (req) => {
 
       const objectUrl = `${R2_ENDPOINT}/${R2_BUCKET_NAME}/${path}`;
 
-      // Generate a signed URL valid for 1 hour
       const signed = await r2.sign(
         new Request(objectUrl, { method: 'GET' }),
         { aws: { signQuery: true, datetime: new Date().toISOString().replace(/[:-]|\.\d{3}/g, ''), expires: 3600 } }
