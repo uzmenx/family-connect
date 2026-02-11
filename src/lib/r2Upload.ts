@@ -2,7 +2,6 @@ import { supabase } from '@/integrations/supabase/client';
 
 /**
  * Compress an image file using Canvas API
- * Returns a compressed Blob
  */
 export async function compressImage(
   file: File,
@@ -14,20 +13,16 @@ export async function compressImage(
     const img = new Image();
     img.onload = () => {
       let { width, height } = img;
-
-      // Scale down if needed
       if (width > maxWidth || height > maxHeight) {
         const ratio = Math.min(maxWidth / width, maxHeight / height);
         width = Math.round(width * ratio);
         height = Math.round(height * ratio);
       }
-
       const canvas = document.createElement('canvas');
       canvas.width = width;
       canvas.height = height;
       const ctx = canvas.getContext('2d')!;
       ctx.drawImage(img, 0, 0, width, height);
-
       canvas.toBlob(
         (blob) => {
           if (blob) resolve(blob);
@@ -43,7 +38,7 @@ export async function compressImage(
 }
 
 /**
- * Upload a file to Cloudflare R2 via edge function
+ * Upload a file to Cloudflare R2 via edge function (with 1 retry)
  */
 export async function uploadToR2(
   file: File | Blob,
@@ -66,25 +61,35 @@ export async function uploadToR2(
 
   const { data: { session } } = await supabase.auth.getSession();
 
-  const res = await fetch(
-    `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/r2-upload?action=upload`,
-    {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
-      },
-      body: formData,
+  const doUpload = async (): Promise<string> => {
+    const res = await fetch(
+      `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/r2-upload?action=upload`,
+      {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${session?.access_token || import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          'apikey': import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY,
+        },
+        body: formData,
+      }
+    );
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }));
+      throw new Error(err.error || `Upload failed: ${res.status}`);
     }
-  );
 
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: 'Upload failed' }));
-    throw new Error(err.error || 'Upload failed');
+    const data = await res.json();
+    return data.url;
+  };
+
+  // Try once, retry on failure
+  try {
+    return await doUpload();
+  } catch (firstError) {
+    console.warn('R2 upload first attempt failed, retrying...', firstError);
+    return await doUpload();
   }
-
-  const data = await res.json();
-  return data.url;
 }
 
 /**
@@ -103,6 +108,5 @@ export async function uploadMedia(
     return uploadToR2(compressed, userFolder);
   }
 
-  // Video: upload raw
   return uploadToR2(file, userFolder);
 }

@@ -1,9 +1,10 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { AwsClient } from "npm:aws4fetch@1.0.20";
+import { S3Client, PutObjectCommand } from "npm:@aws-sdk/client-s3@3.525.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
+  "Access-Control-Allow-Headers":
+    "authorization, x-client-info, apikey, content-type",
 };
 
 serve(async (req) => {
@@ -19,21 +20,29 @@ serve(async (req) => {
     const R2_PUBLIC_URL = (Deno.env.get("R2_PUBLIC_URL") ?? "").trim();
 
     if (!R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_ENDPOINT || !R2_BUCKET_NAME) {
-      console.error("Missing R2 secrets");
-      return new Response(JSON.stringify({ error: "Server misconfiguration: missing R2 credentials" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      console.error("Missing R2 env vars:", {
+        hasKey: !!R2_ACCESS_KEY_ID,
+        hasSecret: !!R2_SECRET_ACCESS_KEY,
+        hasEndpoint: !!R2_ENDPOINT,
+        hasBucket: !!R2_BUCKET_NAME,
       });
+      return new Response(
+        JSON.stringify({ error: "Server misconfiguration: missing R2 credentials" }),
+        { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    // CRITICAL: Configure aws4fetch with service:"s3" and region:"auto"
-    // Without these, the signature will NOT match what Cloudflare R2 expects,
-    // causing 403 SignatureDoesNotMatch even with correct credentials.
-    const r2 = new AwsClient({
-      accessKeyId: R2_ACCESS_KEY_ID,
-      secretAccessKey: R2_SECRET_ACCESS_KEY,
-      service: "s3",
+    // @aws-sdk/client-s3 handles AWS4-HMAC-SHA256 signing correctly for R2.
+    // forcePathStyle: true is REQUIRED for Cloudflare R2 (it doesn't support virtual-hosted style).
+    // region: "auto" is what Cloudflare expects.
+    const s3 = new S3Client({
+      endpoint: R2_ENDPOINT,
       region: "auto",
+      credentials: {
+        accessKeyId: R2_ACCESS_KEY_ID,
+        secretAccessKey: R2_SECRET_ACCESS_KEY,
+      },
+      forcePathStyle: true,
     });
 
     const url = new URL(req.url);
@@ -45,74 +54,50 @@ serve(async (req) => {
       const path = formData.get("path") as string;
 
       if (!file || !path) {
-        return new Response(JSON.stringify({ error: "file and path required" }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
+        return new Response(
+          JSON.stringify({ error: "file and path required" }),
+          { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
       }
-
-      // R2 uses path-style: https://<account>.r2.cloudflarestorage.com/<bucket>/<key>
-      const objectUrl = `${R2_ENDPOINT}/${R2_BUCKET_NAME}/${path}`;
-      console.log("Uploading to:", objectUrl);
 
       const arrayBuffer = await file.arrayBuffer();
+      const body = new Uint8Array(arrayBuffer);
 
-      // Use r2.fetch which automatically signs the request with correct
-      // AWS4-HMAC-SHA256 signature for Cloudflare R2 (service=s3, region=auto)
-      const uploadRes = await r2.fetch(objectUrl, {
-        method: "PUT",
-        body: arrayBuffer,
-        headers: { "Content-Type": file.type },
+      console.log(`Uploading: bucket=${R2_BUCKET_NAME}, key=${path}, size=${body.length}, type=${file.type}`);
+
+      // PutObjectCommand with the official SDK signs the request properly,
+      // avoiding the SignatureDoesNotMatch error that aws4fetch caused.
+      const command = new PutObjectCommand({
+        Bucket: R2_BUCKET_NAME,
+        Key: path,
+        Body: body,
+        ContentType: file.type || "application/octet-stream",
       });
 
-      if (!uploadRes.ok) {
-        const errText = await uploadRes.text();
-        console.error("R2 upload error:", uploadRes.status, errText);
-        return new Response(JSON.stringify({ error: `Upload failed: ${uploadRes.status}` }), {
-          status: 500,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
+      await s3.send(command);
 
-      // Build public URL using R2_PUBLIC_URL (r2.dev subdomain or custom domain)
+      // Return public URL for client access
       const publicUrl = R2_PUBLIC_URL
         ? `${R2_PUBLIC_URL}/${path}`
         : `${R2_ENDPOINT}/${R2_BUCKET_NAME}/${path}`;
 
-      return new Response(JSON.stringify({ url: publicUrl, path }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
+      console.log("Upload success:", publicUrl);
+
+      return new Response(
+        JSON.stringify({ url: publicUrl, path }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    if (action === "signed-url") {
-      const { path } = await req.json();
-      if (!path) {
-        return new Response(JSON.stringify({ error: "path required" }), {
-          status: 400,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      }
-
-      const objectUrl = `${R2_ENDPOINT}/${R2_BUCKET_NAME}/${path}`;
-
-      const signed = await r2.sign(new Request(objectUrl, { method: "GET" }), {
-        aws: { signQuery: true, datetime: new Date().toISOString().replace(/[:-]|\.\d{3}/g, ""), expires: 3600 },
-      });
-
-      return new Response(JSON.stringify({ url: signed.url }), {
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
-    return new Response(JSON.stringify({ error: "Invalid action. Use ?action=upload or ?action=signed-url" }), {
-      status: 400,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({ error: "Invalid action. Use ?action=upload" }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   } catch (error) {
-    console.error("Error:", error);
-    return new Response(JSON.stringify({ error: error.message }), {
-      status: 500,
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    console.error("R2 upload error:", error.message, error.stack);
+    return new Response(
+      JSON.stringify({ error: error.message || "Upload failed" }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   }
 });
