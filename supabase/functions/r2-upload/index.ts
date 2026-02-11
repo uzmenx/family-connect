@@ -6,54 +6,34 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-/** Strip any accidental KEY=... prefix from env values */
-function cleanEnv(name: string): string {
-  const raw = Deno.env.get(name) ?? "";
-  // If someone stored "R2_ENDPOINT=https://..." instead of just the value
-  const eqIdx = raw.indexOf("=");
-  if (eqIdx !== -1 && raw.substring(0, eqIdx) === name) {
-    return raw.substring(eqIdx + 1).trim();
-  }
-  return raw.trim();
-}
-
 serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
-    const R2_ACCESS_KEY_ID = cleanEnv("R2_ACCESS_KEY_ID");
-    const R2_SECRET_ACCESS_KEY = cleanEnv("R2_SECRET_ACCESS_KEY");
-    const R2_ENDPOINT = cleanEnv("R2_ENDPOINT");
-    const R2_BUCKET_NAME = cleanEnv("R2_BUCKET_NAME");
-    const R2_PUBLIC_URL = cleanEnv("R2_PUBLIC_URL"); // optional custom domain
+    const R2_ACCESS_KEY_ID = (Deno.env.get("R2_ACCESS_KEY_ID") ?? "").trim();
+    const R2_SECRET_ACCESS_KEY = (Deno.env.get("R2_SECRET_ACCESS_KEY") ?? "").trim();
+    const R2_ENDPOINT = (Deno.env.get("R2_ENDPOINT") ?? "").trim();
+    const R2_BUCKET_NAME = (Deno.env.get("R2_BUCKET_NAME") ?? "").trim();
+    const R2_PUBLIC_URL = (Deno.env.get("R2_PUBLIC_URL") ?? "").trim();
 
-    // Validate required secrets
     if (!R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_ENDPOINT || !R2_BUCKET_NAME) {
-      console.error(
-        "Missing R2 secrets. Check that R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY, R2_ENDPOINT, R2_BUCKET_NAME are set correctly (values only, no KEY= prefix).",
-      );
+      console.error("Missing R2 secrets");
       return new Response(JSON.stringify({ error: "Server misconfiguration: missing R2 credentials" }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
-    // Validate endpoint is a proper URL
-    try {
-      new URL(R2_ENDPOINT);
-    } catch {
-      console.error(`R2_ENDPOINT is not a valid URL: "${R2_ENDPOINT}"`);
-      return new Response(JSON.stringify({ error: "Server misconfiguration: invalid R2 endpoint" }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
-
+    // CRITICAL: Configure aws4fetch with service:"s3" and region:"auto"
+    // Without these, the signature will NOT match what Cloudflare R2 expects,
+    // causing 403 SignatureDoesNotMatch even with correct credentials.
     const r2 = new AwsClient({
       accessKeyId: R2_ACCESS_KEY_ID,
       secretAccessKey: R2_SECRET_ACCESS_KEY,
+      service: "s3",
+      region: "auto",
     });
 
     const url = new URL(req.url);
@@ -71,11 +51,14 @@ serve(async (req) => {
         });
       }
 
-      const objectUrl = `${R2_ENDPOINT}/${path}`;
+      // R2 uses path-style: https://<account>.r2.cloudflarestorage.com/<bucket>/<key>
+      const objectUrl = `${R2_ENDPOINT}/${R2_BUCKET_NAME}/${path}`;
       console.log("Uploading to:", objectUrl);
 
       const arrayBuffer = await file.arrayBuffer();
 
+      // Use r2.fetch which automatically signs the request with correct
+      // AWS4-HMAC-SHA256 signature for Cloudflare R2 (service=s3, region=auto)
       const uploadRes = await r2.fetch(objectUrl, {
         method: "PUT",
         body: arrayBuffer,
@@ -91,8 +74,10 @@ serve(async (req) => {
         });
       }
 
-      // Build public URL: use custom domain if set, otherwise use R2 dev URL
-      const publicUrl = R2_PUBLIC_URL ? `${R2_PUBLIC_URL}/${path}` : `${R2_ENDPOINT}/${R2_BUCKET_NAME}/${path}`;
+      // Build public URL using R2_PUBLIC_URL (r2.dev subdomain or custom domain)
+      const publicUrl = R2_PUBLIC_URL
+        ? `${R2_PUBLIC_URL}/${path}`
+        : `${R2_ENDPOINT}/${R2_BUCKET_NAME}/${path}`;
 
       return new Response(JSON.stringify({ url: publicUrl, path }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
