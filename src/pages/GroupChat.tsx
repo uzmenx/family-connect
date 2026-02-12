@@ -18,7 +18,7 @@ import { GroupSettingsSheet } from '@/components/groups/GroupSettingsSheet';
 import { MessageContextMenu } from '@/components/chat/MessageContextMenu';
 import { ForwardMessageDialog } from '@/components/chat/ForwardMessageDialog';
 import { ReplyPreview } from '@/components/chat/ReplyPreview';
-
+import { uploadMedia, uploadToR2 } from '@/lib/r2Upload';
 interface MediaFile {
   file: File;
   preview: string;
@@ -254,42 +254,18 @@ const GroupChat = () => {
 
       // Handle voice message
       if (voiceRecorder.audioBlob) {
-        const fileName = `voice_${Date.now()}.webm`;
-        const filePath = `${user.id}/${fileName}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('message_media')
-          .upload(filePath, voiceRecorder.audioBlob);
-
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('message_media')
-          .getPublicUrl(filePath);
-
-        mediaUrl = publicUrl;
+        const audioFile = new File([voiceRecorder.audioBlob], `voice_${Date.now()}.webm`, {
+          type: 'audio/webm'
+        });
+        mediaUrl = await uploadToR2(audioFile, `group-messages/${user.id}`);
         mediaType = 'audio';
         content = content || '🎤 Ovozli xabar';
         voiceRecorder.cancelRecording();
       }
 
-      // Handle media
+      // Handle media (image/video)
       if (selectedMedia) {
-        const fileExt = selectedMedia.file.name.split('.').pop();
-        const fileName = `${Date.now()}.${fileExt}`;
-        const filePath = `${user.id}/${fileName}`;
-
-        const { error: uploadError } = await supabase.storage
-          .from('message_media')
-          .upload(filePath, selectedMedia.file);
-
-        if (uploadError) throw uploadError;
-
-        const { data: { publicUrl } } = supabase.storage
-          .from('message_media')
-          .getPublicUrl(filePath);
-
-        mediaUrl = publicUrl;
+        mediaUrl = await uploadMedia(selectedMedia.file, 'group-messages', user.id);
         mediaType = selectedMedia.type;
         content = content || (selectedMedia.type === 'image' ? '📷 Rasm' : '🎬 Video');
         setSelectedMedia(null);
