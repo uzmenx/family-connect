@@ -8,7 +8,7 @@ import { Badge } from '@/components/ui/badge';
 const navItems = [
   { icon: Home, label: 'Home', path: '/' },
   { icon: Users, label: 'Relatives', path: '/relatives' },
-  { icon: PlusCircle, label: 'Add', path: '/create-post' },
+  { icon: PlusCircle, label: 'Add', path: '/create' },
   { icon: MessageCircle, label: 'Messages', path: '/messages', badgeType: 'messages' as const },
   { icon: User, label: 'Profile', path: '/profile' },
 ];
@@ -48,7 +48,7 @@ export const BottomNav = () => {
                 <item.icon 
                   className={cn(
                     "h-6 w-6 transition-transform duration-200", 
-                    item.path === '/create-post' && "h-7 w-7",
+                    item.path === '/create' && "h-7 w-7",
                     isActive && "scale-110"
                   )} 
                 />

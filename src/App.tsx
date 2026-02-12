@@ -18,6 +18,7 @@ import Settings from "./pages/Settings";
 import Relatives from "./pages/Relatives";
 import CreatePost from "./pages/CreatePost";
 import CreateStory from "./pages/CreateStory";
+import CreateContent from "./pages/CreateContent";
 import Notifications from "./pages/Notifications";
 import UserProfile from "./pages/UserProfile";
 import Messages from "./pages/Messages";
@@ -93,6 +94,7 @@ const App = () => (
               <Route path="/edit-profile" element={<ProtectedRoute><EditProfile /></ProtectedRoute>} />
               <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
               <Route path="/relatives" element={<ProtectedRoute><Relatives /></ProtectedRoute>} />
+              <Route path="/create" element={<ProtectedRoute><CreateContent /></ProtectedRoute>} />
               <Route path="/create-post" element={<ProtectedRoute><CreatePost /></ProtectedRoute>} />
               <Route path="/create-story" element={<ProtectedRoute><CreateStory /></ProtectedRoute>} />
               <Route path="/notifications" element={<ProtectedRoute><Notifications /></ProtectedRoute>} />
