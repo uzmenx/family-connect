@@ -13,11 +13,17 @@ serve(async (req) => {
   }
 
   try {
-    const R2_ACCESS_KEY_ID = (Deno.env.get("R2_ACCESS_KEY_ID") ?? "").trim();
-    const R2_SECRET_ACCESS_KEY = (Deno.env.get("R2_SECRET_ACCESS_KEY") ?? "").trim();
-    const R2_ENDPOINT = (Deno.env.get("R2_ENDPOINT") ?? "").trim();
-    const R2_BUCKET_NAME = (Deno.env.get("R2_BUCKET_NAME") ?? "").trim();
-    const R2_PUBLIC_URL = (Deno.env.get("R2_PUBLIC_URL") ?? "").trim();
+    // Strip any accidental "KEY=" prefixes that may have been pasted into secrets
+    const strip = (val: string, key: string) => {
+      let v = val.trim();
+      if (v.startsWith(`${key}=`)) v = v.slice(key.length + 1).trim();
+      return v;
+    };
+    const R2_ACCESS_KEY_ID = strip(Deno.env.get("R2_ACCESS_KEY_ID") ?? "", "R2_ACCESS_KEY_ID");
+    const R2_SECRET_ACCESS_KEY = strip(Deno.env.get("R2_SECRET_ACCESS_KEY") ?? "", "R2_SECRET_ACCESS_KEY");
+    const R2_ENDPOINT = strip(Deno.env.get("R2_ENDPOINT") ?? "", "R2_ENDPOINT");
+    const R2_BUCKET_NAME = strip(Deno.env.get("R2_BUCKET_NAME") ?? "", "R2_BUCKET_NAME");
+    const R2_PUBLIC_URL = strip(Deno.env.get("R2_PUBLIC_URL") ?? "", "R2_PUBLIC_URL");
 
     if (!R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_ENDPOINT || !R2_BUCKET_NAME) {
       console.error("Missing R2 env vars:", {
