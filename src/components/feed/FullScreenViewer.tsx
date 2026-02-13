@@ -354,9 +354,9 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose }: FullScreenVie
             {currentMediaIndex < mediaUrls.length - 1 &&
           <button
             onClick={(e) => {e.stopPropagation();goToNextMedia();}}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/30 backdrop-blur-sm">
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/30 backdrop-blur-sm opacity-85 px-px py-[5px]">
 
-                <ChevronRight className="h-5 w-5 text-white" />
+                <ChevronRight className="h-5 text-white w-[10px] shadow-2xs opacity-100" />
               </button>
           }
           </>
