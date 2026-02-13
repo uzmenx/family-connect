@@ -19,7 +19,7 @@ export const CommentsSheet = ({ open, onOpenChange, postId }: CommentsSheetProps
   const { user } = useAuth();
   const { comments, commentsCount, isLoading, fetchComments, addComment, deleteComment, toggleCommentLike } = useComments(postId);
   const [newComment, setNewComment] = useState('');
-  const [replyTo, setReplyTo] = useState<{ id: string; name: string } | null>(null);
+  const [replyTo, setReplyTo] = useState<{id: string;name: string;} | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isInputFocused, setIsInputFocused] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
@@ -64,7 +64,7 @@ export const CommentsSheet = ({ open, onOpenChange, postId }: CommentsSheetProps
     }, 100);
   };
 
-  const CommentItem = ({ comment, isReply = false }: { comment: Comment; isReply?: boolean }) => {
+  const CommentItem = ({ comment, isReply = false }: {comment: Comment;isReply?: boolean;}) => {
     const timeAgo = formatDistanceToNow(new Date(comment.created_at), { addSuffix: false });
 
     return (
@@ -87,49 +87,49 @@ export const CommentsSheet = ({ open, onOpenChange, postId }: CommentsSheetProps
               <p className="text-sm mt-0.5">{comment.content}</p>
               
               <div className="flex items-center gap-4 mt-1.5">
-                <button 
+                <button
                   onClick={() => setReplyTo({ id: comment.id, name: comment.author?.name || 'Foydalanuvchi' })}
-                  className="text-xs text-muted-foreground hover:text-foreground"
-                >
+                  className="text-xs text-muted-foreground hover:text-foreground">
+
                   Javob berish
                 </button>
-                {comment.isLiked && (
-                  <span className="text-xs text-primary">Sizga yoqdi</span>
-                )}
+                {comment.isLiked &&
+                <span className="text-xs text-primary">Sizga yoqdi</span>
+                }
               </div>
             </div>
             
             <div className="flex items-center gap-2 flex-shrink-0">
-              <button 
+              <button
                 onClick={() => toggleCommentLike(comment.id)}
-                className="flex items-center gap-1 text-muted-foreground hover:text-destructive transition-colors"
-              >
+                className="flex items-center gap-1 text-muted-foreground hover:text-destructive transition-colors">
+
                 <Heart className={cn("h-4 w-4", comment.isLiked && "fill-destructive text-destructive")} />
-                {comment.likes_count > 0 && (
-                  <span className="text-xs">{comment.likes_count}</span>
-                )}
+                {comment.likes_count > 0 &&
+                <span className="text-xs">{comment.likes_count}</span>
+                }
               </button>
               
-              {user?.id === comment.user_id && (
-                <button
-                  onClick={() => deleteComment(comment.id)}
-                  className="text-muted-foreground hover:text-destructive transition-colors"
-                >
+              {user?.id === comment.user_id &&
+              <button
+                onClick={() => deleteComment(comment.id)}
+                className="text-muted-foreground hover:text-destructive transition-colors">
+
                   <Trash2 className="h-4 w-4" />
                 </button>
-              )}
+              }
             </div>
           </div>
         </div>
-      </div>
-    );
+      </div>);
+
   };
 
   return (
     <Drawer open={open} onOpenChange={handleOpenChange}>
       <DrawerContent className="h-[85vh] max-h-[85vh] flex flex-col">
         {/* Drag handle */}
-        <div className="mx-auto w-12 h-1.5 flex-shrink-0 rounded-full bg-muted my-3" />
+        <div className="mx-auto w-12 h-1.5 flex-shrink-0 rounded-full bg-muted my-3 opacity-50 shadow-2xs" />
         
         <DrawerHeader className="flex-shrink-0 px-6 pb-3 pt-0">
           <DrawerTitle className="flex items-center gap-2 text-center justify-center">
@@ -141,91 +141,91 @@ export const CommentsSheet = ({ open, onOpenChange, postId }: CommentsSheetProps
         </DrawerHeader>
         
         <ScrollArea className="flex-1 px-6">
-          {isLoading ? (
-            <div className="text-center py-8 text-muted-foreground">
+          {isLoading ?
+          <div className="text-center py-8 text-muted-foreground">
               Yuklanmoqda...
-            </div>
-          ) : comments.length === 0 ? (
-            <div className="text-center py-8 text-muted-foreground">
+            </div> :
+          comments.length === 0 ?
+          <div className="text-center py-8 text-muted-foreground">
               Hozircha izohlar yo'q. Birinchi bo'lib izoh qoldiring!
-            </div>
-          ) : (
-            <div className="space-y-4 py-4">
-              {comments.map((comment) => (
-                <div key={comment.id}>
+            </div> :
+
+          <div className="space-y-4 py-4">
+              {comments.map((comment) =>
+            <div key={comment.id}>
                   <CommentItem comment={comment} />
-                  {comment.replies && comment.replies.length > 0 && (
-                    <div className="mt-3 space-y-3">
-                      {comment.replies.map((reply) => (
-                        <CommentItem key={reply.id} comment={reply} isReply />
-                      ))}
+                  {comment.replies && comment.replies.length > 0 &&
+              <div className="mt-3 space-y-3">
+                      {comment.replies.map((reply) =>
+                <CommentItem key={reply.id} comment={reply} isReply />
+                )}
                     </div>
-                  )}
+              }
                 </div>
-              ))}
+            )}
             </div>
-          )}
+          }
         </ScrollArea>
         
         {/* Input area */}
         <div className="flex-shrink-0 border-t pt-4 px-6 pb-6">
-          {replyTo && (
-            <div className="flex items-center justify-between bg-muted/50 px-3 py-2 rounded-lg mb-2 text-sm">
+          {replyTo &&
+          <div className="flex items-center justify-between bg-muted/50 px-3 py-2 rounded-lg mb-2 text-sm">
               <span>
                 <span className="text-muted-foreground">Javob: </span>
                 <span className="font-medium">{replyTo.name}</span>
               </span>
-              <button 
-                onClick={() => setReplyTo(null)}
-                className="text-muted-foreground hover:text-foreground"
-              >
+              <button
+              onClick={() => setReplyTo(null)}
+              className="text-muted-foreground hover:text-foreground">
+
                 ✕
               </button>
             </div>
-          )}
+          }
           
-          {user ? (
-            <div className="flex items-center gap-2">
-              {!isInputFocused ? (
-                <button
-                  onClick={handleInputButtonClick}
-                  className="flex-1 text-left px-4 py-3 bg-muted/50 rounded-full text-muted-foreground text-sm"
-                >
+          {user ?
+          <div className="flex items-center gap-2">
+              {!isInputFocused ?
+            <button
+              onClick={handleInputButtonClick}
+              className="flex-1 text-left px-4 py-3 bg-muted/50 rounded-full text-muted-foreground text-sm">
+
                   Izoh yozing...
-                </button>
-              ) : (
-                <textarea
-                  ref={inputRef}
-                  value={newComment}
-                  onChange={(e) => setNewComment(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  onBlur={() => {
-                    if (!newComment.trim()) {
-                      setTimeout(() => setIsInputFocused(false), 100);
-                    }
-                  }}
-                  placeholder="Izoh yozing..."
-                  className="flex-1 resize-none bg-muted/50 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px] max-h-[120px]"
-                  rows={1}
-                  disabled={isSubmitting}
-                />
-              )}
-              <Button 
-                size="icon" 
-                onClick={handleSubmit}
-                disabled={!newComment.trim() || isSubmitting}
-                className="rounded-full h-10 w-10 flex-shrink-0"
-              >
+                </button> :
+
+            <textarea
+              ref={inputRef}
+              value={newComment}
+              onChange={(e) => setNewComment(e.target.value)}
+              onKeyPress={handleKeyPress}
+              onBlur={() => {
+                if (!newComment.trim()) {
+                  setTimeout(() => setIsInputFocused(false), 100);
+                }
+              }}
+              placeholder="Izoh yozing..."
+              className="flex-1 resize-none bg-muted/50 rounded-2xl px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-primary min-h-[44px] max-h-[120px]"
+              rows={1}
+              disabled={isSubmitting} />
+
+            }
+              <Button
+              size="icon"
+              onClick={handleSubmit}
+              disabled={!newComment.trim() || isSubmitting}
+              className="rounded-full h-10 w-10 flex-shrink-0">
+
                 <Send className="h-4 w-4" />
               </Button>
-            </div>
-          ) : (
-            <p className="text-center text-sm text-muted-foreground py-2">
+            </div> :
+
+          <p className="text-center text-sm text-muted-foreground py-2">
               Izoh qoldirish uchun tizimga kiring
             </p>
-          )}
+          }
         </div>
       </DrawerContent>
-    </Drawer>
-  );
+    </Drawer>);
+
 };
