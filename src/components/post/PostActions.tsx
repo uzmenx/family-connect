@@ -122,7 +122,7 @@ export const PostActions = ({
         {displayLikesCount > 0 &&
         <button
           onClick={handleLikesCountClick}
-          className="font-semibold text-sm hover:underline text-slate-800 bg-primary-foreground">
+          className="font-semibold text-sm hover:underline text-slate-800 bg-secondary-foreground">
 
             {formatCount(displayLikesCount)} ta yoqtirish
           </button>
