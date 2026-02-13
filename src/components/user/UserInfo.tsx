@@ -10,13 +10,13 @@ interface UserInfoProps {
   className?: string;
 }
 
-export const UserInfo = ({ 
-  userId, 
-  name, 
-  username, 
+export const UserInfo = ({
+  userId,
+  name,
+  username,
   variant = 'default',
   clickable = true,
-  className 
+  className
 }: UserInfoProps) => {
   const navigate = useNavigate();
 
@@ -28,34 +28,34 @@ export const UserInfo = ({
 
   if (variant === 'fullscreen') {
     return (
-      <div 
+      <div
         className={cn(
           "flex-1",
           clickable && "cursor-pointer",
           className
         )}
-        onClick={handleClick}
-      >
-        <p className="font-semibold text-sm text-white hover:underline">
+        onClick={handleClick}>
+
+        <p className="font-semibold text-sm text-white hover:underline my-0">
           {name || 'Foydalanuvchi'}
         </p>
         <p className="text-xs text-white/70">@{username || 'user'}</p>
-      </div>
-    );
+      </div>);
+
   }
 
   return (
-    <div 
+    <div
       className={cn(
         clickable && "cursor-pointer",
         className
       )}
-      onClick={handleClick}
-    >
+      onClick={handleClick}>
+
       <p className="font-semibold text-sm hover:underline">
         {name || 'Foydalanuvchi'}
       </p>
       <p className="text-xs text-muted-foreground">@{username || 'user'}</p>
-    </div>
-  );
+    </div>);
+
 };
