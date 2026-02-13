@@ -166,7 +166,7 @@ const AuthLogin = () => {
             <span className="text-sm text-muted-foreground">Ijtimoiy tarmoq orqali kiring</span>
           </div>
 
-          <div className="flex gap-3 my-[120px]">
+          <div className="gap-3 my-[120px] flex flex-col">
             <Button
               type="button"
               variant="outline"
