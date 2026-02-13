@@ -373,9 +373,9 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose }: FullScreenVie
       </div>
 
       {/* Bottom section - Author info and caption */}
-      <div className="absolute bottom-0 left-0 right-16 bg-gradient-to-t from-black/70 via-black/50 to-transparent p-4 pt-12 z-[1] my-[61px]">
+      <div className="absolute bottom-0 left-0 right-16 bg-gradient-to-t from-black/70 via-black/50 to-transparent p-4 pt-12 z-[1] my-[61px] border-0 px-[16.1px]">
         {/* Author */}
-        <div className="flex items-center gap-3 mb-3">
+        <div className="flex items-center mb-3 gap-[8px]">
           <UserAvatar
             userId={currentPost.user_id}
             avatarUrl={currentPost.author?.avatar_url}
