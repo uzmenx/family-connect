@@ -124,7 +124,7 @@ const Signup = () => {
       <div className="flex-1 flex flex-col px-8 pt-8">
         <div className="mb-8">
           <h1 className="text-3xl font-bold text-foreground mb-2">Salom!</h1>
-          <p className="text-muted-foreground">Yangi akkaunt yarating</p>
+          <p className="text-muted-foreground text-center">Yangi akkaunt yarating</p>
         </div>
 
         <form onSubmit={handleSignup} className="space-y-5 flex-1">
