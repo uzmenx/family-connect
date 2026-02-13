@@ -166,7 +166,7 @@ const AuthLogin = () => {
             <span className="text-sm text-muted-foreground">Ijtimoiy tarmoq orqali kiring</span>
           </div>
 
-          <div className="flex flex-col gap-[10px]">
+          <div className="flex gap-3 my-[120px]">
             <Button
               type="button"
               variant="outline"
@@ -210,10 +210,10 @@ const AuthLogin = () => {
         </form>
 
         {/* Footer */}
-        <div className="py-8 text-center rounded-full border">
-          <span className="text-sm text-muted-foreground text-center">
+        <div className="text-center py-[20px] my-0">
+          <span className="text-sm text-muted-foreground">
             Akkauntingiz yo'qmi?{' '}
-            <Link to="/signup" className="text-primary font-semibold hover:underline text-center">
+            <Link to="/signup" className="text-primary font-semibold hover:underline">
               Ro'yxatdan o'ting
             </Link>
           </span>
