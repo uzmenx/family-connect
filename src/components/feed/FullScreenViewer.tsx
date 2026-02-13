@@ -265,9 +265,9 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose }: FullScreenVie
         </button>
         
         {/* Post counter */}
-        <div className="text-sm font-medium bg-black/30 backdrop-blur-sm px-3 py-1 rounded-full text-white">
-          {currentPostIndex + 1} / {posts.length}
-        </div>
+        
+
+
       </div>
 
       {/* Media area */}
