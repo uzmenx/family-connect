@@ -1,28 +1,28 @@
-import { useState, useEffect } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
-import { AppLayout } from '@/components/layout/AppLayout';
-import { useConversations } from '@/hooks/useConversations';
-import { useGroupChats } from '@/hooks/useGroupChats';
-import { useNotifications } from '@/hooks/useNotifications';
-import { useAuth } from '@/contexts/AuthContext';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Search, MessageCircle, Users, Megaphone, Bell } from 'lucide-react';
-import { Input } from '@/components/ui/input';
-import { supabase } from '@/integrations/supabase/client';
-import { formatDistanceToNow } from 'date-fns';
-import { uz } from 'date-fns/locale';
-import { toast } from 'sonner';
-import { NotificationsTab } from '@/components/notifications/NotificationsTab';
+import { useState, useEffect } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
+import { AppLayout } from "@/components/layout/AppLayout";
+import { useConversations } from "@/hooks/useConversations";
+import { useGroupChats } from "@/hooks/useGroupChats";
+import { useNotifications } from "@/hooks/useNotifications";
+import { useAuth } from "@/contexts/AuthContext";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Badge } from "@/components/ui/badge";
+import { ArrowLeft, Search, MessageCircle, Users, Megaphone, Bell } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { supabase } from "@/integrations/supabase/client";
+import { formatDistanceToNow } from "date-fns";
+import { uz } from "date-fns/locale";
+import { toast } from "sonner";
+import { NotificationsTab } from "@/components/notifications/NotificationsTab";
 
 // Group components
-import { NewChatMenu } from '@/components/groups/NewChatMenu';
-import { CreateGroupDialog } from '@/components/groups/CreateGroupDialog';
-import { AddMembersDialog } from '@/components/groups/AddMembersDialog';
-import { ChannelVisibilityDialog } from '@/components/groups/ChannelVisibilityDialog';
-import { GroupChatItem } from '@/components/groups/GroupChatItem';
+import { NewChatMenu } from "@/components/groups/NewChatMenu";
+import { CreateGroupDialog } from "@/components/groups/CreateGroupDialog";
+import { AddMembersDialog } from "@/components/groups/AddMembersDialog";
+import { ChannelVisibilityDialog } from "@/components/groups/ChannelVisibilityDialog";
+import { GroupChatItem } from "@/components/groups/GroupChatItem";
 
 interface FollowUser {
   id: string;
@@ -31,7 +31,7 @@ interface FollowUser {
   avatar_url: string | null;
 }
 
-type TabValue = 'all' | 'groups' | 'channels' | 'followers' | 'following' | 'notifications';
+type TabValue = "all" | "groups" | "channels" | "followers" | "following" | "notifications";
 
 interface PendingGroupData {
   name: string;
@@ -47,16 +47,16 @@ const Messages = () => {
   const { conversations, isLoading: convLoading, totalUnread } = useConversations();
   const { groups, channels, isLoading: groupsLoading, createGroupChat, refetch: refetchGroups } = useGroupChats();
   const { unreadCount: notifUnreadCount } = useNotifications();
-  
+
   // Check if tab param is set to notifications
-  const initialTab = searchParams.get('tab') === 'notifications' ? 'notifications' : 'all';
+  const initialTab = searchParams.get("tab") === "notifications" ? "notifications" : "all";
   const [activeTab, setActiveTab] = useState<TabValue>(initialTab);
   const [followers, setFollowers] = useState<FollowUser[]>([]);
   const [following, setFollowing] = useState<FollowUser[]>([]);
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState("");
 
   // Group/Channel creation flow
-  const [createType, setCreateType] = useState<'group' | 'channel' | null>(null);
+  const [createType, setCreateType] = useState<"group" | "channel" | null>(null);
   const [showCreateDialog, setShowCreateDialog] = useState(false);
   const [showMembersDialog, setShowMembersDialog] = useState(false);
   const [showVisibilityDialog, setShowVisibilityDialog] = useState(false);
@@ -67,35 +67,29 @@ const Messages = () => {
 
     const fetchFollowUsers = async () => {
       // Fetch followers
-      const { data: followersData } = await supabase
-        .from('follows')
-        .select('follower_id')
-        .eq('following_id', user.id);
+      const { data: followersData } = await supabase.from("follows").select("follower_id").eq("following_id", user.id);
 
       if (followersData) {
-        const followerIds = followersData.map(f => f.follower_id);
+        const followerIds = followersData.map((f) => f.follower_id);
         if (followerIds.length > 0) {
           const { data: profiles } = await supabase
-            .from('profiles')
-            .select('id, name, username, avatar_url')
-            .in('id', followerIds);
+            .from("profiles")
+            .select("id, name, username, avatar_url")
+            .in("id", followerIds);
           setFollowers(profiles || []);
         }
       }
 
       // Fetch following
-      const { data: followingData } = await supabase
-        .from('follows')
-        .select('following_id')
-        .eq('follower_id', user.id);
+      const { data: followingData } = await supabase.from("follows").select("following_id").eq("follower_id", user.id);
 
       if (followingData) {
-        const followingIds = followingData.map(f => f.following_id);
+        const followingIds = followingData.map((f) => f.following_id);
         if (followingIds.length > 0) {
           const { data: profiles } = await supabase
-            .from('profiles')
-            .select('id, name, username, avatar_url')
-            .in('id', followingIds);
+            .from("profiles")
+            .select("id, name, username, avatar_url")
+            .in("id", followingIds);
           setFollowing(profiles || []);
         }
       }
@@ -105,8 +99,13 @@ const Messages = () => {
   }, [user?.id]);
 
   const getInitials = (name: string | null | undefined) => {
-    if (!name) return 'U';
-    return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
+    if (!name) return "U";
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
   };
 
   const formatTime = (dateStr: string) => {
@@ -122,45 +121,45 @@ const Messages = () => {
   };
 
   // Filter functions
-  const filteredConversations = conversations.filter(conv => {
+  const filteredConversations = conversations.filter((conv) => {
     if (!searchQuery) return true;
-    const name = conv.otherUser.name?.toLowerCase() || '';
-    const username = conv.otherUser.username?.toLowerCase() || '';
+    const name = conv.otherUser.name?.toLowerCase() || "";
+    const username = conv.otherUser.username?.toLowerCase() || "";
     return name.includes(searchQuery.toLowerCase()) || username.includes(searchQuery.toLowerCase());
   });
 
-  const filteredGroups = groups.filter(g => {
+  const filteredGroups = groups.filter((g) => {
     if (!searchQuery) return true;
     return g.name.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
-  const filteredChannels = channels.filter(c => {
+  const filteredChannels = channels.filter((c) => {
     if (!searchQuery) return true;
     return c.name.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
-  const filteredFollowers = followers.filter(f => {
+  const filteredFollowers = followers.filter((f) => {
     if (!searchQuery) return true;
-    const name = f.name?.toLowerCase() || '';
-    const username = f.username?.toLowerCase() || '';
+    const name = f.name?.toLowerCase() || "";
+    const username = f.username?.toLowerCase() || "";
     return name.includes(searchQuery.toLowerCase()) || username.includes(searchQuery.toLowerCase());
   });
 
-  const filteredFollowing = following.filter(f => {
+  const filteredFollowing = following.filter((f) => {
     if (!searchQuery) return true;
-    const name = f.name?.toLowerCase() || '';
-    const username = f.username?.toLowerCase() || '';
+    const name = f.name?.toLowerCase() || "";
+    const username = f.username?.toLowerCase() || "";
     return name.includes(searchQuery.toLowerCase()) || username.includes(searchQuery.toLowerCase());
   });
 
   // Create group/channel handlers
   const handleNewGroup = () => {
-    setCreateType('group');
+    setCreateType("group");
     setShowCreateDialog(true);
   };
 
   const handleNewChannel = () => {
-    setCreateType('channel');
+    setCreateType("channel");
     setShowCreateDialog(true);
   };
 
@@ -173,57 +172,57 @@ const Messages = () => {
   const handleMembersComplete = async (memberIds: string[]) => {
     if (!pendingGroupData || !createType) return;
 
-    if (createType === 'channel') {
+    if (createType === "channel") {
       setShowMembersDialog(false);
       setShowVisibilityDialog(true);
       // Store memberIds temporarily
       setPendingGroupData({
         ...pendingGroupData,
-        memberIds: memberIds as any
+        memberIds: memberIds as any,
       });
     } else {
       // Create group immediately
       const groupId = await createGroupChat(
         pendingGroupData.name,
-        'group',
+        "group",
         memberIds,
         pendingGroupData.description,
         pendingGroupData.avatarUrl || undefined,
-        'private'
+        "private",
       );
 
       if (groupId) {
-        toast.success('Guruh yaratildi!');
+        toast.success("Guruh yaratildi!");
         setShowMembersDialog(false);
         resetCreateFlow();
         navigate(`/group-chat/${groupId}`);
       } else {
-        toast.error('Xatolik yuz berdi');
+        toast.error("Xatolik yuz berdi");
       }
     }
   };
 
-  const handleVisibilityComplete = async (visibility: 'public' | 'private', inviteLink: string) => {
+  const handleVisibilityComplete = async (visibility: "public" | "private", inviteLink: string) => {
     if (!pendingGroupData || !createType) return;
 
     const memberIds = (pendingGroupData as any).memberIds || [];
-    
+
     const channelId = await createGroupChat(
       pendingGroupData.name,
-      'channel',
+      "channel",
       memberIds,
       pendingGroupData.description,
       pendingGroupData.avatarUrl || undefined,
-      visibility
+      visibility,
     );
 
     if (channelId) {
-      toast.success('Kanal yaratildi!');
+      toast.success("Kanal yaratildi!");
       setShowVisibilityDialog(false);
       resetCreateFlow();
       navigate(`/group-chat/${channelId}`);
     } else {
-      toast.error('Xatolik yuz berdi');
+      toast.error("Xatolik yuz berdi");
     }
   };
 
@@ -272,26 +271,26 @@ const Messages = () => {
           <div className="px-4 pb-2 space-y-2">
             <div className="flex gap-2">
               <Button
-                variant={activeTab === 'all' ? 'default' : 'outline'}
+                variant={activeTab === "all" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setActiveTab('all')}
+                onClick={() => setActiveTab("all")}
                 className="flex-1"
               >
                 Barcha
               </Button>
               <Button
-                variant={activeTab === 'groups' ? 'default' : 'outline'}
+                variant={activeTab === "groups" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setActiveTab('groups')}
+                onClick={() => setActiveTab("groups")}
                 className="flex-1"
               >
                 <Users className="h-4 w-4 mr-1" />
                 Guruhlar
               </Button>
               <Button
-                variant={activeTab === 'channels' ? 'default' : 'outline'}
+                variant={activeTab === "channels" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setActiveTab('channels')}
+                onClick={() => setActiveTab("channels")}
                 className="flex-1"
               >
                 <Megaphone className="h-4 w-4 mr-1" />
@@ -300,35 +299,35 @@ const Messages = () => {
             </div>
             <div className="flex gap-2">
               <Button
-                variant={activeTab === 'followers' ? 'default' : 'outline'}
+                variant={activeTab === "followers" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setActiveTab('followers')}
+                onClick={() => setActiveTab("followers")}
                 className="flex-1"
               >
                 Kuzatuvchilar
               </Button>
               <Button
-                variant={activeTab === 'following' ? 'default' : 'outline'}
+                variant={activeTab === "following" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setActiveTab('following')}
+                onClick={() => setActiveTab("following")}
                 className="flex-1"
               >
                 Kuzatilmoqda
               </Button>
               <Button
-                variant={activeTab === 'notifications' ? 'default' : 'outline'}
+                variant={activeTab === "notifications" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setActiveTab('notifications')}
+                onClick={() => setActiveTab("notifications")}
                 className="flex-1 relative"
               >
                 <Bell className="h-4 w-4 mr-1" />
-                Bildirishnomalar
+
                 {notifUnreadCount > 0 && (
-                  <Badge 
-                    variant="destructive" 
+                  <Badge
+                    variant="destructive"
                     className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-[10px] min-w-4"
                   >
-                    {notifUnreadCount > 9 ? '9+' : notifUnreadCount}
+                    {notifUnreadCount > 9 ? "9+" : notifUnreadCount}
                   </Badge>
                 )}
               </Button>
@@ -339,7 +338,7 @@ const Messages = () => {
         {/* Content */}
         <div className="divide-y divide-border">
           {/* All chats */}
-          {activeTab === 'all' && (
+          {activeTab === "all" && (
             <>
               {isLoading ? (
                 <div className="text-center py-12">
@@ -349,20 +348,12 @@ const Messages = () => {
                 <>
                   {/* Groups */}
                   {filteredGroups.map((group) => (
-                    <GroupChatItem
-                      key={group.id}
-                      chat={group}
-                      onClick={() => handleGroupClick(group.id)}
-                    />
+                    <GroupChatItem key={group.id} chat={group} onClick={() => handleGroupClick(group.id)} />
                   ))}
-                  
+
                   {/* Channels */}
                   {filteredChannels.map((channel) => (
-                    <GroupChatItem
-                      key={channel.id}
-                      chat={channel}
-                      onClick={() => handleGroupClick(channel.id)}
-                    />
+                    <GroupChatItem key={channel.id} chat={channel} onClick={() => handleGroupClick(channel.id)} />
                   ))}
 
                   {/* Conversations */}
@@ -379,14 +370,14 @@ const Messages = () => {
                         </Avatar>
                         {conv.unreadCount > 0 && (
                           <span className="absolute -top-1 -right-1 h-5 w-5 bg-primary text-primary-foreground text-xs rounded-full flex items-center justify-center">
-                            {conv.unreadCount > 9 ? '9+' : conv.unreadCount}
+                            {conv.unreadCount > 9 ? "9+" : conv.unreadCount}
                           </span>
                         )}
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
                           <h3 className="font-semibold truncate">
-                            {conv.otherUser.name || conv.otherUser.username || 'Foydalanuvchi'}
+                            {conv.otherUser.name || conv.otherUser.username || "Foydalanuvchi"}
                           </h3>
                           {conv.lastMessage && (
                             <span className="text-xs text-muted-foreground">
@@ -395,8 +386,10 @@ const Messages = () => {
                           )}
                         </div>
                         {conv.lastMessage && (
-                          <p className={`text-sm truncate ${conv.unreadCount > 0 ? 'text-foreground font-medium' : 'text-muted-foreground'}`}>
-                            {conv.lastMessage.sender_id === user?.id ? 'Siz: ' : ''}
+                          <p
+                            className={`text-sm truncate ${conv.unreadCount > 0 ? "text-foreground font-medium" : "text-muted-foreground"}`}
+                          >
+                            {conv.lastMessage.sender_id === user?.id ? "Siz: " : ""}
                             {conv.lastMessage.content}
                           </p>
                         )}
@@ -404,22 +397,22 @@ const Messages = () => {
                     </div>
                   ))}
 
-                  {filteredConversations.length === 0 && filteredGroups.length === 0 && filteredChannels.length === 0 && (
-                    <div className="text-center py-12 px-4">
-                      <MessageCircle className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
-                      <p className="text-muted-foreground">Hozircha chatlar yo'q</p>
-                      <p className="text-sm text-muted-foreground mt-1">
-                        Guruh yoki kanal yarating
-                      </p>
-                    </div>
-                  )}
+                  {filteredConversations.length === 0 &&
+                    filteredGroups.length === 0 &&
+                    filteredChannels.length === 0 && (
+                      <div className="text-center py-12 px-4">
+                        <MessageCircle className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
+                        <p className="text-muted-foreground">Hozircha chatlar yo'q</p>
+                        <p className="text-sm text-muted-foreground mt-1">Guruh yoki kanal yarating</p>
+                      </div>
+                    )}
                 </>
               )}
             </>
           )}
 
           {/* Groups */}
-          {activeTab === 'groups' && (
+          {activeTab === "groups" && (
             <>
               {groupsLoading ? (
                 <div className="text-center py-12">
@@ -435,18 +428,14 @@ const Messages = () => {
                 </div>
               ) : (
                 filteredGroups.map((group) => (
-                  <GroupChatItem
-                    key={group.id}
-                    chat={group}
-                    onClick={() => handleGroupClick(group.id)}
-                  />
+                  <GroupChatItem key={group.id} chat={group} onClick={() => handleGroupClick(group.id)} />
                 ))
               )}
             </>
           )}
 
           {/* Channels */}
-          {activeTab === 'channels' && (
+          {activeTab === "channels" && (
             <>
               {groupsLoading ? (
                 <div className="text-center py-12">
@@ -462,18 +451,14 @@ const Messages = () => {
                 </div>
               ) : (
                 filteredChannels.map((channel) => (
-                  <GroupChatItem
-                    key={channel.id}
-                    chat={channel}
-                    onClick={() => handleGroupClick(channel.id)}
-                  />
+                  <GroupChatItem key={channel.id} chat={channel} onClick={() => handleGroupClick(channel.id)} />
                 ))
               )}
             </>
           )}
 
           {/* Followers */}
-          {activeTab === 'followers' && (
+          {activeTab === "followers" && (
             <>
               {filteredFollowers.length === 0 ? (
                 <div className="text-center py-12 px-4">
@@ -491,12 +476,8 @@ const Messages = () => {
                       <AvatarFallback>{getInitials(follower.name)}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold truncate">
-                        {follower.name || 'Foydalanuvchi'}
-                      </h3>
-                      <p className="text-sm text-muted-foreground truncate">
-                        @{follower.username || 'username'}
-                      </p>
+                      <h3 className="font-semibold truncate">{follower.name || "Foydalanuvchi"}</h3>
+                      <p className="text-sm text-muted-foreground truncate">@{follower.username || "username"}</p>
                     </div>
                     <Button variant="outline" size="sm">
                       Xabar
@@ -508,7 +489,7 @@ const Messages = () => {
           )}
 
           {/* Following */}
-          {activeTab === 'following' && (
+          {activeTab === "following" && (
             <>
               {filteredFollowing.length === 0 ? (
                 <div className="text-center py-12 px-4">
@@ -526,12 +507,8 @@ const Messages = () => {
                       <AvatarFallback>{getInitials(followingUser.name)}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold truncate">
-                        {followingUser.name || 'Foydalanuvchi'}
-                      </h3>
-                      <p className="text-sm text-muted-foreground truncate">
-                        @{followingUser.username || 'username'}
-                      </p>
+                      <h3 className="font-semibold truncate">{followingUser.name || "Foydalanuvchi"}</h3>
+                      <p className="text-sm text-muted-foreground truncate">@{followingUser.username || "username"}</p>
                     </div>
                     <Button variant="outline" size="sm">
                       Xabar
@@ -543,9 +520,7 @@ const Messages = () => {
           )}
 
           {/* Notifications */}
-          {activeTab === 'notifications' && (
-            <NotificationsTab />
-          )}
+          {activeTab === "notifications" && <NotificationsTab />}
         </div>
       </div>
 
@@ -574,7 +549,7 @@ const Messages = () => {
               setShowCreateDialog(true);
             }}
           />
-          {createType === 'channel' && (
+          {createType === "channel" && (
             <ChannelVisibilityDialog
               open={showVisibilityDialog}
               onOpenChange={(open) => {
