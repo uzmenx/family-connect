@@ -90,7 +90,7 @@ const AuthLogin = () => {
       {/* Content */}
       <div className="flex-1 flex flex-col px-8 pt-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2 text-center">Xush kelibsiz!</h1>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Xush kelibsiz!</h1>
           <p className="text-muted-foreground">
           </p>
         </div>
@@ -163,7 +163,7 @@ const AuthLogin = () => {
           </div>
 
           <div className="text-center mb-4">
-            <span className="text-sm text-muted-foreground">Ijtimoiy tarmoq orqali kiring</span>
+            <span className="text-sm text-muted-foreground">​​google va telifon tez orada ishlaydi</span>
           </div>
 
           <div className="flex gap-3">
