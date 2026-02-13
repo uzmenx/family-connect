@@ -210,7 +210,7 @@ const AuthLogin = () => {
         </form>
 
         {/* Footer */}
-        <div className="text-center py-[20px] my-0">
+        <div className="text-center py-[20px] my-0 border border-dotted rounded-xl shadow-inner opacity-100">
           <span className="text-sm text-muted-foreground">
             Akkauntingiz yo'qmi?{' '}
             <Link to="/signup" className="text-primary font-semibold hover:underline">
