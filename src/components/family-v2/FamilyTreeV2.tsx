@@ -233,14 +233,14 @@ export const FamilyTreeV2 = () => {
             </div>
             <div>
               <h1 className="text-2xl font-bold text-foreground">Qarindosh</h1>
-              <p className="text-sm text-muted-foreground">Zoom va drag orqali harakatlanish mumkin</p>
+              <p className="text-sm text-muted-foreground">Uzingiz tanimagan uzoq qarindoshlaringizni toping
+avlodlarimiz uchun xotiralar qoldiraylik</p>
             </div>
           </div>
         </div>
         
         {/* Pending Invitations */}
-        {pendingInvitations.length > 0 &&
-        <div className="mt-4 rounded-xl border border-border overflow-hidden">
+        {pendingInvitations.length > 0 && <div className="mt-4 rounded-xl border border-border overflow-hidden">
             <div className="px-4 py-2 bg-muted/50 border-b border-border">
               <p className="text-sm font-medium">{pendingInvitations.length} ta taklifnoma kutmoqda</p>
             </div>
