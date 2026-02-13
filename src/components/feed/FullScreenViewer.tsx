@@ -356,7 +356,7 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose }: FullScreenVie
             onClick={(e) => {e.stopPropagation();goToNextMedia();}}
             className="absolute right-2 top-1/2 -translate-y-1/2 p-2 rounded-full bg-black/30 backdrop-blur-sm opacity-85 px-px py-[5px]">
 
-                <ChevronRight className="h-5 text-white w-[10px] shadow-2xs opacity-100" />
+                <ChevronRight className="h-5 text-white w-[10px] shadow-2xs opacity-100 px-px py-[5px]" />
               </button>
           }
           </>
