@@ -404,8 +404,8 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose }: FullScreenVie
       {/* Swipe indicators */}
       {currentPostIndex > 0 &&
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[120%] text-white/40 text-xs z-[1]">
-          ↑ Oldingi
-        </div>
+
+      </div>
       }
       {currentPostIndex < posts.length - 1 &&
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 translate-y-[100%] text-white/40 text-xs z-[1]">
