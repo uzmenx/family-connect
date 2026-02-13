@@ -14,8 +14,8 @@ interface PostActionsProps {
   initialCommentsCount?: number;
 }
 
-export const PostActions = ({ 
-  postId, 
+export const PostActions = ({
+  postId,
   initialLikesCount = 0,
   initialCommentsCount = 0
 }: PostActionsProps) => {
@@ -35,7 +35,7 @@ export const PostActions = ({
   const handleSaveClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (isSaving) return;
-    
+
     setIsSaving(true);
     const result = await toggleSavePost(postId);
     setIsSaved(result);
@@ -45,7 +45,7 @@ export const PostActions = ({
   const handleLikeClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (isLoading) return;
-    
+
     setIsAnimating(true);
     await toggleLike();
     setTimeout(() => setIsAnimating(false), 300);
@@ -74,42 +74,42 @@ export const PostActions = ({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
           {/* Like button */}
-          <button 
+          <button
             className="flex items-center gap-1.5 transition-colors"
             onClick={handleLikeClick}
-            disabled={isLoading}
-          >
-            <Heart 
+            disabled={isLoading}>
+
+            <Heart
               className={cn(
                 "h-6 w-6 transition-all",
                 isLiked && "fill-destructive text-destructive",
                 isAnimating && "scale-125"
-              )} 
-            />
+              )} />
+
           </button>
           
           {/* Comment button */}
-          <button 
+          <button
             className="flex items-center gap-1.5 transition-colors"
-            onClick={handleCommentsClick}
-          >
+            onClick={handleCommentsClick}>
+
             <MessageCircle className="h-6 w-6" />
           </button>
           
           {/* Share button */}
-          <button 
+          <button
             className="transition-colors"
-            onClick={handleShareClick}
-          >
+            onClick={handleShareClick}>
+
             <Share2 className="h-6 w-6" />
           </button>
         </div>
         
-        <button 
+        <button
           className="ml-auto transition-colors"
           onClick={handleSaveClick}
-          disabled={isSaving}
-        >
+          disabled={isSaving}>
+
           <Bookmark className={cn(
             "h-6 w-6 transition-all",
             isSaved && "fill-primary text-primary"
@@ -119,44 +119,44 @@ export const PostActions = ({
 
       {/* Counts */}
       <div className="space-y-1">
-        {displayLikesCount > 0 && (
-          <button 
-            onClick={handleLikesCountClick}
-            className="font-semibold text-sm hover:underline"
-          >
+        {displayLikesCount > 0 &&
+        <button
+          onClick={handleLikesCountClick}
+          className="font-semibold text-sm hover:underline text-slate-800 bg-primary-foreground">
+
             {formatCount(displayLikesCount)} ta yoqtirish
           </button>
-        )}
+        }
         
-        {initialCommentsCount > 0 && (
-          <button 
-            onClick={handleCommentsClick}
-            className="block text-sm text-muted-foreground hover:underline"
-          >
+        {initialCommentsCount > 0 &&
+        <button
+          onClick={handleCommentsClick}
+          className="block text-sm text-muted-foreground hover:underline">
+
             {formatCount(initialCommentsCount)} ta izohni ko'rish
           </button>
-        )}
+        }
       </div>
 
       {/* Dialogs */}
-      <LikersDialog 
-        open={showLikers} 
+      <LikersDialog
+        open={showLikers}
         onOpenChange={setShowLikers}
         users={likedUsers}
-        likesCount={displayLikesCount}
-      />
+        likesCount={displayLikesCount} />
+
       
       <CommentsSheet
         open={showComments}
         onOpenChange={setShowComments}
-        postId={postId}
-      />
+        postId={postId} />
+
       
       <ShareDialog
         open={showShare}
         onOpenChange={setShowShare}
-        postId={postId}
-      />
-    </>
-  );
+        postId={postId} />
+
+    </>);
+
 };
