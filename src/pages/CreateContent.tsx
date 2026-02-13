@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -10,17 +10,20 @@ import { supabase } from '@/integrations/supabase/client';
 import { uploadMedia } from '@/lib/r2Upload';
 import { cn } from '@/lib/utils';
 import {
-  ArrowLeft, Camera, Image, X, Check, Play, Scissors,
+  ArrowLeft, Camera, Image, X, Check, Play, Scissors, Pencil,
 } from 'lucide-react';
+import VideoTrimmer from '@/components/create/VideoTrimmer';
+import ImageEditor from '@/components/create/ImageEditor';
 
 /* ── types ── */
 interface MediaFile {
   file: File;
   preview: string;
   type: 'image' | 'video';
+  edited?: boolean;
 }
 
-type Step = 'pick' | 'edit';
+type Step = 'pick' | 'edit-media' | 'edit';
 
 /* ── component ── */
 const CreateContent = () => {
@@ -39,10 +42,9 @@ const CreateContent = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [showSuccess, setShowSuccess] = useState(false);
-  const [recentMedia, setRecentMedia] = useState<MediaFile[]>([]);
 
-  /* ── recent gallery thumbnails (last 3 via temp input) ── */
-  const recentInputRef = useRef<HTMLInputElement>(null);
+  /* edit state */
+  const [editingIndex, setEditingIndex] = useState<number | null>(null);
 
   /* ── handlers ── */
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -77,11 +79,56 @@ const CreateContent = () => {
   };
 
   const handleBack = () => {
-    if (step === 'edit' && selectedMedia.length > 0) {
+    if (step === 'edit-media') {
+      setEditingIndex(null);
+      setStep('edit');
+    } else if (step === 'edit' && selectedMedia.length > 0) {
       setStep('pick');
     } else {
       navigate(-1);
     }
+  };
+
+  /* ── open editor for a specific media ── */
+  const openEditor = (idx: number) => {
+    setEditingIndex(idx);
+    setStep('edit-media');
+  };
+
+  const handleVideoTrimmed = (blob: Blob) => {
+    if (editingIndex === null) return;
+    setSelectedMedia((prev) => {
+      const copy = [...prev];
+      URL.revokeObjectURL(copy[editingIndex].preview);
+      const newFile = new File([blob], `trimmed-${Date.now()}.mp4`, { type: 'video/mp4' });
+      copy[editingIndex] = {
+        file: newFile,
+        preview: URL.createObjectURL(blob),
+        type: 'video',
+        edited: true,
+      };
+      return copy;
+    });
+    setEditingIndex(null);
+    setStep('edit');
+  };
+
+  const handleImageSaved = (blob: Blob) => {
+    if (editingIndex === null) return;
+    setSelectedMedia((prev) => {
+      const copy = [...prev];
+      URL.revokeObjectURL(copy[editingIndex].preview);
+      const newFile = new File([blob], `edited-${Date.now()}.webp`, { type: 'image/webp' });
+      copy[editingIndex] = {
+        file: newFile,
+        preview: URL.createObjectURL(blob),
+        type: 'image',
+        edited: true,
+      };
+      return copy;
+    });
+    setEditingIndex(null);
+    setStep('edit');
   };
 
   /* ── publish ── */
@@ -100,7 +147,6 @@ const CreateContent = () => {
       let completed = 0;
       const tick = () => { completed++; setUploadProgress(Math.min(95, Math.round((completed / totalSteps) * 90) + 5)); };
 
-      /* upload all media for post */
       let postUrls: string[] = [];
       if (sharePost) {
         const uploads = await Promise.all(
@@ -113,14 +159,12 @@ const CreateContent = () => {
         postUrls = uploads.filter(Boolean);
       }
 
-      /* upload first media for story */
       let storyUrl: string | null = null;
       if (shareStory) {
         storyUrl = await uploadMedia(selectedMedia[0].file, 'stories', user.id);
         tick();
       }
 
-      /* db inserts */
       if (sharePost && postUrls.length > 0) {
         const { error } = await supabase.from('posts').insert({
           user_id: user.id,
@@ -144,10 +188,8 @@ const CreateContent = () => {
       setUploadProgress(100);
       tick();
 
-      /* cleanup */
       selectedMedia.forEach((m) => URL.revokeObjectURL(m.preview));
 
-      /* success animation */
       setShowSuccess(true);
       const postLabel = sharePost ? 'Post joylandi!' : '';
       const storyLabel = shareStory ? 'Story ham ulashildi!' : '';
@@ -196,7 +238,7 @@ const CreateContent = () => {
           {step === 'pick' ? <X className="h-6 w-6" /> : <ArrowLeft className="h-6 w-6" />}
         </Button>
         <h1 className="text-lg font-semibold">
-          {step === 'pick' ? 'Yaratish' : 'Tahrirlash'}
+          {step === 'pick' ? 'Yaratish' : step === 'edit-media' ? 'Tahrirlash' : 'Nashr qilish'}
         </h1>
         {step === 'edit' ? (
           <Button size="sm" onClick={handlePublish} disabled={isUploading || selectedMedia.length === 0}>
@@ -211,10 +253,9 @@ const CreateContent = () => {
       <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple className="hidden" onChange={handleFileSelect} />
       <input ref={cameraInputRef} type="file" accept="image/*,video/*" capture="environment" className="hidden" onChange={handleFileSelect} />
 
-      {/* ── STEP 1: PICK ── */}
+      {/* ── STEP: PICK ── */}
       {step === 'pick' && (
         <div className="flex-1 flex flex-col">
-          {/* recent media strip */}
           {selectedMedia.length > 0 && (
             <div className="px-4 py-3 border-b border-border">
               <p className="text-xs text-muted-foreground mb-2">Tanlangan ({selectedMedia.length}/5)</p>
@@ -235,14 +276,12 @@ const CreateContent = () => {
             </div>
           )}
 
-          {/* main area */}
           <div className="flex-1 flex flex-col items-center justify-center gap-6 px-6">
             <div className="text-center">
               <h2 className="text-xl font-semibold mb-1">Nima ulashmoqchisiz?</h2>
               <p className="text-sm text-muted-foreground">Rasm yoki video tanlang</p>
             </div>
 
-            {/* action buttons */}
             <div className="flex gap-4">
               <Button
                 variant="outline"
@@ -263,7 +302,6 @@ const CreateContent = () => {
             </div>
           </div>
 
-          {/* bottom: proceed if media already selected */}
           {selectedMedia.length > 0 && (
             <div className="px-4 pb-6 pt-2">
               <Button className="w-full h-12 text-base rounded-2xl" onClick={() => setStep('edit')}>
@@ -274,14 +312,37 @@ const CreateContent = () => {
         </div>
       )}
 
-      {/* ── STEP 2: EDIT ── */}
+      {/* ── STEP: EDIT MEDIA (video trim / image filter) ── */}
+      {step === 'edit-media' && editingIndex !== null && selectedMedia[editingIndex] && (
+        <div className="flex-1 overflow-y-auto">
+          <div className="max-w-lg mx-auto p-4">
+            {selectedMedia[editingIndex].type === 'video' ? (
+              <VideoTrimmer
+                src={selectedMedia[editingIndex].preview}
+                file={selectedMedia[editingIndex].file}
+                maxDuration={shareStory ? 15 : 60}
+                onTrimmed={handleVideoTrimmed}
+                onCancel={() => { setEditingIndex(null); setStep('edit'); }}
+              />
+            ) : (
+              <ImageEditor
+                src={selectedMedia[editingIndex].preview}
+                onSave={handleImageSaved}
+                onCancel={() => { setEditingIndex(null); setStep('edit'); }}
+              />
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* ── STEP: EDIT (publish form) ── */}
       {step === 'edit' && (
         <div className="flex-1 overflow-y-auto">
           <div className="max-w-lg mx-auto p-4 space-y-5">
             {/* media preview grid */}
             <div className="grid grid-cols-3 gap-2">
               {selectedMedia.map((m, i) => (
-                <div key={i} className="relative aspect-square rounded-xl overflow-hidden bg-muted">
+                <div key={i} className="relative aspect-square rounded-xl overflow-hidden bg-muted group">
                   {m.type === 'image' ? (
                     <img src={m.preview} alt="" className="w-full h-full object-cover" />
                   ) : (
@@ -290,6 +351,18 @@ const CreateContent = () => {
                       <div className="absolute inset-0 flex items-center justify-center">
                         <Play className="h-8 w-8 text-primary-foreground drop-shadow-lg" fill="currentColor" />
                       </div>
+                    </div>
+                  )}
+                  {/* edit button */}
+                  <button
+                    onClick={() => openEditor(i)}
+                    className="absolute bottom-1 left-1 w-7 h-7 bg-background/80 backdrop-blur-sm rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+                  >
+                    <Pencil className="h-3.5 w-3.5 text-foreground" />
+                  </button>
+                  {m.edited && (
+                    <div className="absolute top-1 left-1 px-1.5 py-0.5 bg-primary/80 rounded text-[9px] text-primary-foreground font-medium">
+                      Edited
                     </div>
                   )}
                   <button onClick={() => removeMedia(i)} className="absolute top-1 right-1 w-6 h-6 bg-destructive text-destructive-foreground rounded-full flex items-center justify-center">
@@ -307,6 +380,22 @@ const CreateContent = () => {
               )}
             </div>
 
+            {/* edit buttons row - always visible */}
+            <div className="flex gap-2 overflow-x-auto">
+              {selectedMedia.map((m, i) => (
+                <Button
+                  key={i}
+                  variant="outline"
+                  size="sm"
+                  className="flex-shrink-0 gap-1.5 rounded-xl"
+                  onClick={() => openEditor(i)}
+                >
+                  {m.type === 'video' ? <Scissors className="h-3.5 w-3.5" /> : <Pencil className="h-3.5 w-3.5" />}
+                  {m.type === 'video' ? `Video ${i + 1} kesish` : `Rasm ${i + 1} tahrirlash`}
+                </Button>
+              ))}
+            </div>
+
             {/* caption */}
             <Textarea
               placeholder="Izoh yozing... (ixtiyoriy)"
@@ -322,11 +411,7 @@ const CreateContent = () => {
               <p className="text-sm font-semibold">Qayerga joylash</p>
 
               <label className="flex items-center gap-3 cursor-pointer p-3 rounded-xl bg-background border border-border hover:border-primary/40 transition-colors">
-                <Checkbox
-                  checked={sharePost}
-                  onCheckedChange={(v) => setSharePost(!!v)}
-                  className="h-5 w-5"
-                />
+                <Checkbox checked={sharePost} onCheckedChange={(v) => setSharePost(!!v)} className="h-5 w-5" />
                 <div className="flex-1">
                   <p className="font-medium text-sm">📸 Post (Feed)</p>
                   <p className="text-xs text-muted-foreground">Barcha media lenta'ga joylanadi</p>
@@ -334,11 +419,7 @@ const CreateContent = () => {
               </label>
 
               <label className="flex items-center gap-3 cursor-pointer p-3 rounded-xl bg-background border border-border hover:border-primary/40 transition-colors">
-                <Checkbox
-                  checked={shareStory}
-                  onCheckedChange={(v) => setShareStory(!!v)}
-                  className="h-5 w-5"
-                />
+                <Checkbox checked={shareStory} onCheckedChange={(v) => setShareStory(!!v)} className="h-5 w-5" />
                 <div className="flex-1">
                   <p className="font-medium text-sm">⏳ Story</p>
                   <p className="text-xs text-muted-foreground">
@@ -348,7 +429,7 @@ const CreateContent = () => {
               </label>
             </div>
 
-            {/* story preview when both selected */}
+            {/* story preview */}
             {sharePost && shareStory && selectedMedia.length > 0 && (
               <div className="rounded-2xl border border-border bg-muted/30 p-4">
                 <p className="text-xs text-muted-foreground mb-2">Story uchun preview</p>
@@ -372,7 +453,7 @@ const CreateContent = () => {
               </div>
             )}
 
-            {/* bottom share button */}
+            {/* share button */}
             <Button
               className="w-full h-12 text-base font-semibold rounded-2xl"
               onClick={handlePublish}
