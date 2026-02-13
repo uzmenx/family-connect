@@ -37,46 +37,46 @@ export const FamilyTreeV2 = () => {
     updateMember,
     updatePosition,
     removeMember,
-    createSelfNode,
+    createSelfNode
   } = useLocalFamilyTree();
 
-  const { 
-    pendingInvitations, 
-    acceptInvitation, 
+  const {
+    pendingInvitations,
+    acceptInvitation,
     rejectInvitation,
     showMergeDialog,
     mergeData,
     executeMerge: executeTreeMerge,
     closeMergeDialog,
-    isMerging,
+    isMerging
   } = useFamilyInvitations();
- 
-   // Merge mode hook
-   const {
-     isActive: isMergeMode,
-     selectedIds: mergeSelectedIds,
-     mergedProfiles,
-     suggestions: mergeSuggestions,
-     isProcessing: isMergeProcessing,
-     startMergeMode,
-     toggleSelection: toggleMergeSelection,
-     cancelMerge,
-     executeMerge: executeManualMerge,
-     applySuggestion,
-    } = useMergeMode(members);
- 
+
+  // Merge mode hook
+  const {
+    isActive: isMergeMode,
+    selectedIds: mergeSelectedIds,
+    mergedProfiles,
+    suggestions: mergeSuggestions,
+    isProcessing: isMergeProcessing,
+    startMergeMode,
+    toggleSelection: toggleMergeSelection,
+    cancelMerge,
+    executeMerge: executeManualMerge,
+    applySuggestion
+  } = useMergeMode(members);
+
   // Spouse lock hook
   const { isPairLocked, toggleLock } = useSpouseLock();
- 
+
   const [modal, setModal] = useState<ModalState>({ type: 'none' });
   const [showGenderSelect, setShowGenderSelect] = useState(false);
   const [processingInvitation, setProcessingInvitation] = useState<string | null>(null);
 
   // Build positions map from members
   const positions = Object.fromEntries(
-    Object.values(members)
-      .filter((m) => m.position)
-      .map((m) => [m.id, m.position!])
+    Object.values(members).
+    filter((m) => m.position).
+    map((m) => [m.id, m.position!])
   );
 
   // Check if user needs to select gender on first visit
@@ -97,17 +97,17 @@ export const FamilyTreeV2 = () => {
 
     try {
       // Update profile with gender
-      await supabase
-        .from('profiles')
-        .update({ gender })
-        .eq('id', user.id);
+      await supabase.
+      from('profiles').
+      update({ gender }).
+      eq('id', user.id);
 
       // Refresh profile
       await refreshProfile();
-      
+
       // Create self node
       await createSelfNode(gender);
-      
+
       setShowGenderSelect(false);
     } catch (error) {
       console.error('Error setting gender:', error);
@@ -139,10 +139,10 @@ export const FamilyTreeV2 = () => {
   };
 
   const handleSaveFather = (data: AddMemberData) => {
-    setModal({ 
-      type: 'addParentMother', 
+    setModal({
+      type: 'addParentMother',
       targetId: modal.targetId,
-      fatherData: data,
+      fatherData: data
     });
   };
 
@@ -172,15 +172,15 @@ export const FamilyTreeV2 = () => {
   const handlePositionChange = useCallback((memberId: string, x: number, y: number) => {
     updatePosition(memberId, { x, y });
   }, [updatePosition]);
- 
-   // Merge mode handlers
-   const handleLongPress = useCallback((memberId: string) => {
-     startMergeMode(memberId);
-   }, [startMergeMode]);
- 
-   const handleToggleMergeSelect = useCallback((memberId: string) => {
-     toggleMergeSelection(memberId);
-   }, [toggleMergeSelection]);
+
+  // Merge mode handlers
+  const handleLongPress = useCallback((memberId: string) => {
+    startMergeMode(memberId);
+  }, [startMergeMode]);
+
+  const handleToggleMergeSelect = useCallback((memberId: string) => {
+    toggleMergeSelection(memberId);
+  }, [toggleMergeSelection]);
 
   const handleAcceptInvitation = async (invitation: any) => {
     setProcessingInvitation(invitation.id);
@@ -201,8 +201,8 @@ export const FamilyTreeV2 = () => {
           <TreeDeciduous className="w-12 h-12 mx-auto text-primary animate-pulse" />
           <p className="mt-4 text-muted-foreground">Yuklanmoqda...</p>
         </div>
-      </div>
-    );
+      </div>);
+
   }
 
   return (
@@ -210,19 +210,19 @@ export const FamilyTreeV2 = () => {
       {/* Gender Selection Modal */}
       <GenderSelectionModal
         isOpen={showGenderSelect}
-        onSelect={handleGenderSelect}
-      />
+        onSelect={handleGenderSelect} />
+
  
        {/* Merge Selection Overlay */}
        <MergeSelectionOverlay
-         isActive={isMergeMode}
-         selectedCount={mergeSelectedIds.length}
-         suggestions={mergeSuggestions}
-         isProcessing={isMergeProcessing}
-         onCancel={cancelMerge}
-         onConfirm={executeManualMerge}
-         onApplySuggestion={applySuggestion}
-       />
+        isActive={isMergeMode}
+        selectedCount={mergeSelectedIds.length}
+        suggestions={mergeSuggestions}
+        isProcessing={isMergeProcessing}
+        onCancel={cancelMerge}
+        onConfirm={executeManualMerge}
+        onApplySuggestion={applySuggestion} />
+
 
       {/* Header */}
       <div className="container mx-auto px-4 py-6">
@@ -232,31 +232,31 @@ export const FamilyTreeV2 = () => {
               <TreeDeciduous className="w-6 h-6 text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-foreground">Oilaviy Daraxt</h1>
+              <h1 className="text-2xl font-bold text-foreground">Qarindosh</h1>
               <p className="text-sm text-muted-foreground">Zoom va drag orqali harakatlanish mumkin</p>
             </div>
           </div>
         </div>
         
         {/* Pending Invitations */}
-        {pendingInvitations.length > 0 && (
-          <div className="mt-4 rounded-xl border border-border overflow-hidden">
+        {pendingInvitations.length > 0 &&
+        <div className="mt-4 rounded-xl border border-border overflow-hidden">
             <div className="px-4 py-2 bg-muted/50 border-b border-border">
               <p className="text-sm font-medium">{pendingInvitations.length} ta taklifnoma kutmoqda</p>
             </div>
             <div className="divide-y divide-border">
-              {pendingInvitations.map((inv) => (
-                <FamilyInvitationItem
-                  key={inv.id}
-                  invitation={inv}
-                  onAccept={handleAcceptInvitation}
-                  onReject={handleRejectInvitation}
-                  isProcessing={processingInvitation === inv.id}
-                />
-              ))}
+              {pendingInvitations.map((inv) =>
+            <FamilyInvitationItem
+              key={inv.id}
+              invitation={inv}
+              onAccept={handleAcceptInvitation}
+              onReject={handleRejectInvitation}
+              isProcessing={processingInvitation === inv.id} />
+
+            )}
             </div>
           </div>
-        )}
+        }
         
         {/* Legend */}
         <div className="flex flex-wrap gap-3 mt-4">
@@ -290,15 +290,15 @@ export const FamilyTreeV2 = () => {
             positions={positions}
             onOpenProfile={handleOpenProfile}
             onPositionChange={handlePositionChange}
-             // Merge mode props
-             isMergeMode={isMergeMode}
-             mergeSelectedIds={mergeSelectedIds}
-             mergedProfiles={mergedProfiles}
-             onLongPress={handleLongPress}
-             onToggleMergeSelect={handleToggleMergeSelect}
-             // Spouse lock props
-             isPairLocked={isPairLocked}
-          />
+            // Merge mode props
+            isMergeMode={isMergeMode}
+            mergeSelectedIds={mergeSelectedIds}
+            mergedProfiles={mergedProfiles}
+            onLongPress={handleLongPress}
+            onToggleMergeSelect={handleToggleMergeSelect}
+            // Spouse lock props
+            isPairLocked={isPairLocked} />
+
         </div>
       </div>
 
@@ -311,8 +311,8 @@ export const FamilyTreeV2 = () => {
         gender="male"
         title="Ota ma'lumotlari"
         showNextPrompt={true}
-        nextPromptText="Saqlangandan so'ng ona uchun ham ma'lumot kiritasiz"
-      />
+        nextPromptText="Saqlangandan so'ng ona uchun ham ma'lumot kiritasiz" />
+
 
       {/* Add Mother Modal */}
       <AddMemberModal
@@ -321,8 +321,8 @@ export const FamilyTreeV2 = () => {
         onSave={handleSaveMother}
         type="parents"
         gender="female"
-        title="Ona ma'lumotlari"
-      />
+        title="Ona ma'lumotlari" />
+
 
       {/* Add Spouse Modal */}
       <AddMemberModal
@@ -331,8 +331,8 @@ export const FamilyTreeV2 = () => {
         onSave={handleSaveSpouse}
         type="spouse"
         gender={members[modal.targetId || '']?.gender === 'male' ? 'female' : 'male'}
-        title="Juft ma'lumotlari"
-      />
+        title="Juft ma'lumotlari" />
+
 
       {/* Add Child Modal */}
       <AddMemberModal
@@ -341,46 +341,46 @@ export const FamilyTreeV2 = () => {
         onSave={handleSaveChild}
         type="child"
         gender="male"
-        title="Farzand ma'lumotlari"
-      />
+        title="Farzand ma'lumotlari" />
+
 
       {/* Profile Modal */}
-      {modal.member && (
-        <ProfileModal
-          isOpen={modal.type === 'profile'}
-          onClose={handleCloseModal}
-          member={modal.member}
-          onUpdate={updateMember}
-          onDelete={removeMember}
-          onAddParents={handleAddParents}
-          onAddSpouse={handleAddSpouse}
-          onAddChild={handleAddChild}
-          onSendInvitation={handleSendInvitation}
-          hasParents={(modal.member.parentIds?.length || 0) > 0}
-          hasSpouse={!!modal.member.spouseId}
-          canAddChild={!!modal.member.spouseId}
-          isSpouseLocked={isPairLocked(modal.member.id, modal.member.spouseId)}
-          onToggleSpouseLock={() => toggleLock(modal.member!.id, modal.member!.spouseId)}
-        />
-      )}
+      {modal.member &&
+      <ProfileModal
+        isOpen={modal.type === 'profile'}
+        onClose={handleCloseModal}
+        member={modal.member}
+        onUpdate={updateMember}
+        onDelete={removeMember}
+        onAddParents={handleAddParents}
+        onAddSpouse={handleAddSpouse}
+        onAddChild={handleAddChild}
+        onSendInvitation={handleSendInvitation}
+        hasParents={(modal.member.parentIds?.length || 0) > 0}
+        hasSpouse={!!modal.member.spouseId}
+        canAddChild={!!modal.member.spouseId}
+        isSpouseLocked={isPairLocked(modal.member.id, modal.member.spouseId)}
+        onToggleSpouseLock={() => toggleLock(modal.member!.id, modal.member!.spouseId)} />
+
+      }
 
       {/* Invitation Modal */}
       <SendInvitationModal
         isOpen={modal.type === 'invitation'}
         onClose={handleCloseModal}
-        member={modal.member || null}
-      />
+        member={modal.member || null} />
+
 
       {/* Tree Merge Dialog */}
-      {mergeData && (
-        <UnifiedMergeDialog
-          isOpen={showMergeDialog}
-          onClose={closeMergeDialog}
-          data={mergeData}
-          onConfirm={executeTreeMerge}
-          isProcessing={isMerging}
-        />
-      )}
-    </section>
-  );
+      {mergeData &&
+      <UnifiedMergeDialog
+        isOpen={showMergeDialog}
+        onClose={closeMergeDialog}
+        data={mergeData}
+        onConfirm={executeTreeMerge}
+        isProcessing={isMerging} />
+
+      }
+    </section>);
+
 };
