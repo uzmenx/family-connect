@@ -123,8 +123,8 @@ const Signup = () => {
       {/* Content */}
       <div className="flex-1 flex flex-col px-8 pt-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2 text-center">Salom!</h1>
-          <p className="text-muted-foreground text-center">Yangi akkaunt yarating</p>
+          <h1 className="text-3xl font-bold text-foreground mb-2">Salom!</h1>
+          <p className="text-muted-foreground">Yangi akkaunt yarating</p>
         </div>
 
         <form onSubmit={handleSignup} className="space-y-5 flex-1">
@@ -178,7 +178,7 @@ const Signup = () => {
           </div>
 
           {/* Gender Selection */}
-          <div className="space-y-3 py-2 border border-dashed rounded-lg opacity-90">
+          <div className="space-y-3 py-2 border-0 border-none">
             <Label className="text-muted-foreground">Jins (ixtiyoriy)</Label>
             <RadioGroup
               value={gender}
@@ -229,7 +229,7 @@ const Signup = () => {
           </div>
 
           <div className="text-center mb-4">
-            <span className="text-sm text-muted-foreground">​google va telifon tez orada ishlaydi      </span>
+            <span className="text-sm text-muted-foreground">Ijtimoiy tarmoq orqali ro'yxatdan o'ting</span>
           </div>
 
           <div className="flex gap-3">
