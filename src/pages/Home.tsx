@@ -56,7 +56,7 @@ const Home = () => {
   return (
     <AppLayout>
       <div className="max-w-lg mx-auto h-[calc(100vh-4rem)]">
-        <header className="sticky top-0 bg-background/95 backdrop-blur-sm border-b px-4 z-40 rounded-full shadow border border-primary-foreground gap-0 mx-0 my-0 py-[1.5px] flex-row flex items-center justify-between">
+        <header className="sticky top-0 bg-background/95 backdrop-blur-sm border-b px-4 z-40 rounded-full border border-primary-foreground gap-0 mx-0 my-0 py-[1.5px] flex-row flex items-center justify-between shadow-2xs">
           <h1 className="text-xl font-bold">Qarindosh</h1>
           <Button variant="ghost" size="icon" onClick={toggleGridLayout} className="h-9 w-9">
             {getGridIcon()}
