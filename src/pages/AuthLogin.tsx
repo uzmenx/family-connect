@@ -147,7 +147,7 @@ const AuthLogin = () => {
               to="/forgot-password"
               className="text-sm text-muted-foreground hover:text-primary transition-colors">
 
-              Parolni unutdingizmi?
+              ​
             </Link>
           </div>
 
