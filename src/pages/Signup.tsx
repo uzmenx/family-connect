@@ -229,7 +229,7 @@ const Signup = () => {
           </div>
 
           <div className="text-center mb-4">
-            <span className="text-sm text-muted-foreground">Ijtimoiy tarmoq orqali ro'yxatdan o'ting</span>
+            <span className="text-sm text-muted-foreground">​google va telifon tez orada ishlaydi      </span>
           </div>
 
           <div className="flex gap-3">
