@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { X, Play, Pause, ChevronLeft, ChevronRight, Heart } from 'lucide-react';
+import { Play, Pause, ChevronLeft, ChevronRight, Heart } from 'lucide-react';
 import { Post } from '@/types';
 import { cn } from '@/lib/utils';
 import { useColorExtractor } from '@/hooks/useColorExtractor';
@@ -261,7 +261,7 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose }: FullScreenVie
       {/* Header */}
       <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between p-4 bg-gradient-to-b from-black/50 to-transparent">
         <button onClick={onClose} className="p-2 rounded-full bg-black/30 backdrop-blur-sm">
-          <X className="h-5 w-5 text-white" />
+          
         </button>
         
         {/* Post counter */}
