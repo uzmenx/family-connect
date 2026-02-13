@@ -90,7 +90,7 @@ const AuthLogin = () => {
       {/* Content */}
       <div className="flex-1 flex flex-col px-8 pt-8">
         <div className="mb-8">
-          <h1 className="text-3xl font-bold text-foreground mb-2">Xush kelibsiz!</h1>
+          <h1 className="text-3xl font-bold text-foreground mb-2 text-center">Xush kelibsiz!</h1>
           <p className="text-muted-foreground">
           </p>
         </div>
@@ -166,7 +166,7 @@ const AuthLogin = () => {
             <span className="text-sm text-muted-foreground">Ijtimoiy tarmoq orqali kiring</span>
           </div>
 
-          <div className="gap-3 my-[120px] flex flex-col px-[10px] py-px mx-[20px]">
+          <div className="flex gap-3">
             <Button
               type="button"
               variant="outline"
@@ -210,7 +210,7 @@ const AuthLogin = () => {
         </form>
 
         {/* Footer */}
-        <div className="text-center py-[20px] my-0 border border-dotted rounded-xl shadow-inner opacity-100">
+        <div className="py-8 text-center">
           <span className="text-sm text-muted-foreground">
             Akkauntingiz yo'qmi?{' '}
             <Link to="/signup" className="text-primary font-semibold hover:underline">
