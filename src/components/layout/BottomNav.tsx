@@ -6,12 +6,12 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { Badge } from '@/components/ui/badge';
 
 const navItems = [
-  { icon: Home, label: 'Home', path: '/' },
-  { icon: Users, label: 'Relatives', path: '/relatives' },
-  { icon: PlusCircle, label: 'Add', path: '/create' },
-  { icon: MessageCircle, label: 'Messages', path: '/messages', badgeType: 'messages' as const },
-  { icon: User, label: 'Profile', path: '/profile' },
-];
+{ icon: Home, label: 'Home', path: '/' },
+{ icon: Users, label: 'Relatives', path: '/relatives' },
+{ icon: PlusCircle, label: 'Add', path: '/create' },
+{ icon: MessageCircle, label: 'Messages', path: '/messages', badgeType: 'messages' as const },
+{ icon: User, label: 'Profile', path: '/profile' }];
+
 
 export const BottomNav = () => {
   const location = useLocation();
@@ -26,7 +26,7 @@ export const BottomNav = () => {
 
   return (
     <nav className="fixed bottom-4 left-4 right-4 z-50">
-      <div className="flex justify-around items-center h-16 max-w-lg mx-auto rounded-2xl bg-background/10 backdrop-blur-xl border border-border/20 shadow-lg">
+      <div className="h-16 max-w-lg mx-auto rounded-2xl bg-background/10 backdrop-blur-xl border border-border/20 shadow-lg flex items-center justify-center py-0 my-0 gap-[10px]">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;
           const badgeCount = getBadgeCount(item.badgeType);
@@ -36,39 +36,39 @@ export const BottomNav = () => {
               to={item.path}
               className={cn(
                 "flex flex-col items-center gap-1 p-2 rounded-xl transition-all duration-200 relative",
-                isActive 
-                  ? "text-primary drop-shadow-[0_0_8px_hsl(var(--primary)/0.6)]" 
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
+                isActive ?
+                "text-primary drop-shadow-[0_0_8px_hsl(var(--primary)/0.6)]" :
+                "text-muted-foreground hover:text-foreground"
+              )}>
+
               <div className={cn(
                 "relative transition-all duration-200",
                 isActive && "drop-shadow-[0_0_12px_hsl(var(--primary)/0.8)]"
               )}>
-                <item.icon 
+                <item.icon
                   className={cn(
-                    "h-6 w-6 transition-transform duration-200", 
+                    "h-6 w-6 transition-transform duration-200",
                     item.path === '/create' && "h-7 w-7",
                     isActive && "scale-110"
-                  )} 
-                />
-                {badgeCount > 0 && (
-                  <Badge 
-                    variant="destructive" 
-                    className="absolute -top-2 -right-2 h-4 w-4 p-0 flex items-center justify-center text-[10px] min-w-4 border-2 border-background/20"
-                  >
+                  )} />
+
+                {badgeCount > 0 &&
+                <Badge
+                  variant="destructive"
+                  className="absolute -top-2 -right-2 h-4 w-4 p-0 flex items-center justify-center text-[10px] min-w-4 border-2 border-background/20">
+
                     {badgeCount > 9 ? '9+' : badgeCount}
                   </Badge>
-                )}
+                }
               </div>
-              <span className={cn(
-                "text-xs transition-all duration-200",
-                isActive && "font-medium"
+              <span className={cn("text-xs transition-all duration-200 text-center",
+
+              isActive && "font-medium"
               )}>{item.label}</span>
-            </Link>
-          );
+            </Link>);
+
         })}
       </div>
-    </nav>
-  );
+    </nav>);
+
 };
