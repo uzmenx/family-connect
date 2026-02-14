@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Search, MessageCircle, Users, Megaphone, Bell } from "lucide-react";
+import { ArrowLeft, Search, MessageCircle, Users, Megaphone, Bell, Bot, Sparkles } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
@@ -346,6 +346,33 @@ const Messages = () => {
                 </div>
               ) : (
                 <>
+                  {/* AI Do'stim - pinned contact */}
+                  <div
+                    onClick={() => navigate('/ai-chat')}
+                    className="flex items-center gap-3 p-4 cursor-pointer active:bg-muted transition-colors relative overflow-hidden group"
+                  >
+                    {/* Glass background effect */}
+                    <div className="absolute inset-0 bg-gradient-to-r from-violet-500/10 via-purple-500/5 to-pink-500/10 group-hover:from-violet-500/15 group-hover:to-pink-500/15 transition-all" />
+                    <div className="relative flex items-center gap-3 w-full">
+                      <div className="relative">
+                        <div className="h-12 w-12 rounded-full bg-gradient-to-br from-violet-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/30">
+                          <Bot className="h-6 w-6 text-white" />
+                        </div>
+                        <div className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-green-500 border-2 border-background" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-1.5">
+                          <h3 className="font-bold truncate text-foreground">AI Do'stim</h3>
+                          <Sparkles className="h-3.5 w-3.5 text-purple-400 flex-shrink-0" />
+                        </div>
+                        <p className="text-sm text-muted-foreground truncate">🤖 Har qanday savolga javob beraman!</p>
+                      </div>
+                      <Badge className="bg-gradient-to-r from-violet-500 to-pink-500 text-white border-0 text-[10px] px-2">
+                        AI
+                      </Badge>
+                    </div>
+                  </div>
+
                   {/* Groups */}
                   {filteredGroups.map((group) => (
                     <GroupChatItem key={group.id} chat={group} onClick={() => handleGroupClick(group.id)} />
