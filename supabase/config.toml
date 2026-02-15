@@ -26,3 +26,9 @@ verify_jwt = false
 
 [functions.ai-chat]
 verify_jwt = false
+
+[functions.ai-chat-groq]
+verify_jwt = false
+
+[functions.ai-image-gen]
+verify_jwt = false
