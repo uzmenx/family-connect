@@ -94,7 +94,7 @@ export const PostCard = ({ post, onDelete, onMediaClick }: PostCardProps) => {
 
       {/* Samsung Ultra Video Player overlay */}
       {showVideoPlayer && (
-        <div className="fixed inset-0 z-[60]">
+        <div className="fixed inset-0 z-[60]" style={{ overflow: 'hidden' }}>
           <SamsungUltraVideoPlayer
             src={videoPlayerSrc}
             title={post.content?.slice(0, 50) || 'Video'}
