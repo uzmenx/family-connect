@@ -41,7 +41,7 @@ export const FullscreenActions = ({
   const handleLikeClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (isLoading) return;
-    
+
     setIsAnimating(true);
     await toggleLike();
     setTimeout(() => setIsAnimating(false), 300);
@@ -66,132 +66,132 @@ export const FullscreenActions = ({
   const handleSaveClick = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (isSaving) return;
-    
+
     setIsSaving(true);
     const result = await toggleSavePost(postId);
     setIsSaved(result);
     setIsSaving(false);
   };
 
-  const ActionButton = ({ 
-    icon: Icon, 
-    count, 
-    onClick, 
+  const ActionButton = ({
+    icon: Icon,
+    count,
+    onClick,
     isActive = false,
     activeClass = "",
     animate = false
-  }: {
-    icon: React.ElementType;
-    count?: number;
-    onClick: (e: React.MouseEvent) => void;
-    isActive?: boolean;
-    activeClass?: string;
-    animate?: boolean;
-  }) => (
-    <button
-      onClick={onClick}
-      className="flex flex-col items-center gap-1 transition-transform hover:scale-110"
-    >
-      <div className={cn(
-        "p-2 rounded-full bg-black/20 backdrop-blur-sm",
-        isActive && "bg-black/40"
-      )}>
-        <Icon 
-          className={cn(
-            "h-6 w-6 text-white transition-all",
-            isActive && activeClass,
-            animate && "scale-125"
-          )} 
-        />
+
+
+
+
+
+
+
+  }: {icon: React.ElementType;count?: number;onClick: (e: React.MouseEvent) => void;isActive?: boolean;activeClass?: string;animate?: boolean;}) =>
+  <button
+    onClick={onClick}
+    className="flex flex-col items-center gap-1 transition-transform hover:scale-110">
+
+      <div className={cn("p-2 rounded-full bg-black/20 backdrop-blur-sm my-0 px-[8.1px] mx-[0.1px]",
+
+    isActive && "bg-black/40"
+    )}>
+        <Icon
+        className={cn(
+          "h-6 w-6 text-white transition-all",
+          isActive && activeClass,
+          animate && "scale-125"
+        )} />
+
       </div>
-      {count !== undefined && (
-        <span className="text-xs text-white font-medium">
+      {count !== undefined &&
+    <span className="text-xs text-white font-medium">
           {formatCount(count)}
         </span>
-      )}
-    </button>
-  );
+    }
+    </button>;
+
 
   return (
     <>
       <div className="flex flex-col items-center gap-4">
         {/* Share */}
-        <ActionButton 
-          icon={Send} 
-          onClick={handleShareClick}
-        />
+        <ActionButton
+          icon={Send}
+          onClick={handleShareClick} />
+
         
         {/* Like */}
         <button
           onClick={handleLikeClick}
-          className="flex flex-col items-center gap-1 transition-transform hover:scale-110"
-        >
+          className="flex flex-col items-center gap-1 transition-transform hover:scale-110">
+
           <div className={cn(
             "p-2 rounded-full bg-black/20 backdrop-blur-sm",
             isLiked && "bg-black/40"
           )}>
-            <Heart 
+            <Heart
               className={cn(
                 "h-6 w-6 text-white transition-all",
                 isLiked && "fill-destructive text-destructive",
                 isAnimating && "scale-125"
-              )} 
-            />
+              )} />
+
           </div>
-          <button 
+          <button
             onClick={handleLikesCountClick}
-            className="text-xs text-white font-medium hover:underline"
-          >
+            className="text-xs text-white font-medium hover:underline">
+
             {formatCount(displayLikesCount)}
           </button>
         </button>
         
         {/* Comments */}
-        <ActionButton 
-          icon={MessageCircle} 
+        <ActionButton
+          icon={MessageCircle}
           count={initialCommentsCount}
-          onClick={handleCommentsClick}
-        />
+          onClick={handleCommentsClick} />
+
         
         {/* Bookmark */}
-        <ActionButton 
-          icon={Bookmark} 
+        <ActionButton
+          icon={Bookmark}
           onClick={handleSaveClick}
           isActive={isSaved}
-          activeClass="fill-white"
-        />
+          activeClass="fill-white" />
+
 
         {/* Video Player - only for videos */}
-        {videoUrl && onOpenVideoPlayer && (
-          <ActionButton 
-            icon={Film} 
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenVideoPlayer(videoUrl);
-            }}
-          />
-        )}
+        {videoUrl && onOpenVideoPlayer &&
+        <ActionButton
+          icon={Film}
+          onClick={(e) => {
+            e.stopPropagation();
+            onOpenVideoPlayer(videoUrl);
+          }} />
+
+        }
       </div>
 
       {/* Dialogs */}
-      <LikersDialog 
-        open={showLikers} 
+      <LikersDialog
+        open={showLikers}
         onOpenChange={setShowLikers}
         users={likedUsers}
-        likesCount={displayLikesCount}
-      />
+        likesCount={displayLikesCount} />
+
       
       <CommentsSheet
         open={showComments}
         onOpenChange={setShowComments}
-        postId={postId}
-      />
+        postId={postId} />
+
       
       <ShareDialog
         open={showShare}
         onOpenChange={setShowShare}
-        postId={postId}
-      />
-    </>
-  );
+        postId={postId} />
+
+    </>);
+
 };
