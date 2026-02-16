@@ -378,15 +378,15 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose }: FullScreenVie
             setShowVideoPlayer(true);
             if (videoRef.current) videoRef.current.pause();
             setIsPlaying(false);
-          }}
-        />
+          }} />
+
 
       </div>
 
       {/* Bottom section - Author info and caption */}
       <div className="absolute bottom-0 left-0 right-16 bg-gradient-to-t from-black/70 via-black/50 to-transparent p-4 pt-12 z-[1] my-[61px] border-0 px-[16.1px]">
         {/* Author */}
-        <div className="flex items-center mb-3 gap-[8px]">
+        <div className="gap-[8px] items-center justify-center flex flex-row px-0 py-0 pb-0 pr-0 mb-0">
           <UserAvatar
             userId={currentPost.user_id}
             avatarUrl={currentPost.author?.avatar_url}
@@ -424,15 +424,15 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose }: FullScreenVie
       </div>
       }
       {/* Samsung Ultra Video Player overlay */}
-      {showVideoPlayer && (
-        <div className="fixed inset-0 z-[60]">
+      {showVideoPlayer &&
+      <div className="fixed inset-0 z-[60]">
           <SamsungUltraVideoPlayer
-            src={videoPlayerSrc}
-            title={currentPost.content?.slice(0, 50) || 'Video'}
-            onClose={() => setShowVideoPlayer(false)}
-          />
+          src={videoPlayerSrc}
+          title={currentPost.content?.slice(0, 50) || 'Video'}
+          onClose={() => setShowVideoPlayer(false)} />
+
         </div>
-      )}
+      }
     </div>);
 
 };
