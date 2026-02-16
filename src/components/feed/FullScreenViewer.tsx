@@ -351,7 +351,7 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose }: FullScreenVie
             onClick={(e) => {e.stopPropagation();goToPrevMedia();}}
             className="absolute left-2 top-1/2 -translate-y-1/2 p-2 bg-black/30 backdrop-blur-sm px-px py-[5px] border-0 rounded-2xl opacity-85 text-left text-sm mx-0 my-0">
 
-                <ChevronLeft className="h-5 w-5 text-white" />
+                <ChevronLeft className="h-5 text-white w-[9px]" />
               </button>
           }
             {currentMediaIndex < mediaUrls.length - 1 &&
@@ -386,7 +386,7 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose }: FullScreenVie
       {/* Bottom section - Author info and caption */}
       <div className="absolute bottom-0 left-0 right-16 bg-gradient-to-t from-black/70 via-black/50 to-transparent p-4 pt-12 z-[1] my-[61px] border-0 px-[16.1px]">
         {/* Author */}
-        <div className="gap-[8px] items-center justify-center flex flex-row px-0 py-0 pb-0 pr-0 mb-0">
+        <div className="flex items-center mb-3 gap-[8px]">
           <UserAvatar
             userId={currentPost.user_id}
             avatarUrl={currentPost.author?.avatar_url}
