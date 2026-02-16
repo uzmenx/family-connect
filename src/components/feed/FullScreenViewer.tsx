@@ -9,6 +9,7 @@ import { usePostLikes } from '@/hooks/usePostLikes';
 import { UserAvatar } from '@/components/user/UserAvatar';
 import { UserInfo } from '@/components/user/UserInfo';
 import { FollowButton } from '@/components/user/FollowButton';
+import { SamsungUltraVideoPlayer } from '@/components/video/SamsungUltraVideoPlayer';
 
 interface FullScreenViewerProps {
   posts: Post[];
@@ -23,6 +24,8 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose }: FullScreenVie
   const [isTransitioning, setIsTransitioning] = useState(false);
   const [slideDirection, setSlideDirection] = useState<'up' | 'down' | null>(null);
   const [showDoubleTapHeart, setShowDoubleTapHeart] = useState(false);
+  const [showVideoPlayer, setShowVideoPlayer] = useState(false);
+  const [videoPlayerSrc, setVideoPlayerSrc] = useState('');
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const touchStartY = useRef(0);
@@ -368,7 +371,15 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose }: FullScreenVie
         <FullscreenActions
           postId={currentPost.id}
           initialLikesCount={currentPost.likes_count}
-          initialCommentsCount={currentPost.comments_count} />
+          initialCommentsCount={currentPost.comments_count}
+          videoUrl={isVideo(currentMediaUrl) ? currentMediaUrl : undefined}
+          onOpenVideoPlayer={(url) => {
+            setVideoPlayerSrc(url);
+            setShowVideoPlayer(true);
+            if (videoRef.current) videoRef.current.pause();
+            setIsPlaying(false);
+          }}
+        />
 
       </div>
 
@@ -412,6 +423,16 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose }: FullScreenVie
 
       </div>
       }
+      {/* Samsung Ultra Video Player overlay */}
+      {showVideoPlayer && (
+        <div className="fixed inset-0 z-[60]">
+          <SamsungUltraVideoPlayer
+            src={videoPlayerSrc}
+            title={currentPost.content?.slice(0, 50) || 'Video'}
+            onClose={() => setShowVideoPlayer(false)}
+          />
+        </div>
+      )}
     </div>);
 
 };

@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Post } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
@@ -8,6 +9,7 @@ import { PostMenu } from '@/components/post/PostMenu';
 import { UserAvatar } from '@/components/user/UserAvatar';
 import { UserInfo } from '@/components/user/UserInfo';
 import { FollowButton } from '@/components/user/FollowButton';
+import { SamsungUltraVideoPlayer } from '@/components/video/SamsungUltraVideoPlayer';
 
 interface PostCardProps {
   post: Post;
@@ -16,6 +18,8 @@ interface PostCardProps {
 }
 
 export const PostCard = ({ post, onDelete, onMediaClick }: PostCardProps) => {
+  const [showVideoPlayer, setShowVideoPlayer] = useState(false);
+  const [videoPlayerSrc, setVideoPlayerSrc] = useState('');
   const timeAgo = formatDistanceToNow(new Date(post.created_at), { addSuffix: true });
   
   const mediaUrls = post.media_urls?.length > 0 
@@ -23,6 +27,9 @@ export const PostCard = ({ post, onDelete, onMediaClick }: PostCardProps) => {
     : post.image_url 
       ? [post.image_url] 
       : [];
+
+  const isVideo = (url: string) => url?.includes('.mp4') || url?.includes('.mov') || url?.includes('.webm');
+  const firstVideoUrl = mediaUrls.find(url => isVideo(url));
 
   return (
     <Card className="overflow-hidden border-0 rounded-none md:rounded-lg md:border">
@@ -67,6 +74,11 @@ export const PostCard = ({ post, onDelete, onMediaClick }: PostCardProps) => {
             postId={post.id}
             initialLikesCount={post.likes_count}
             initialCommentsCount={post.comments_count}
+            videoUrl={firstVideoUrl}
+            onOpenVideoPlayer={(url) => {
+              setVideoPlayerSrc(url);
+              setShowVideoPlayer(true);
+            }}
           />
           
           {post.content && (
@@ -79,6 +91,17 @@ export const PostCard = ({ post, onDelete, onMediaClick }: PostCardProps) => {
           <p className="text-xs text-muted-foreground uppercase">{timeAgo}</p>
         </div>
       </CardContent>
+
+      {/* Samsung Ultra Video Player overlay */}
+      {showVideoPlayer && (
+        <div className="fixed inset-0 z-[60]">
+          <SamsungUltraVideoPlayer
+            src={videoPlayerSrc}
+            title={post.content?.slice(0, 50) || 'Video'}
+            onClose={() => setShowVideoPlayer(false)}
+          />
+        </div>
+      )}
     </Card>
   );
 };
