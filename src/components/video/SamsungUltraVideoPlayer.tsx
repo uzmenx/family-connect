@@ -5,8 +5,8 @@ import {
   ChevronLeft, X, Sun, Moon, Lock, Unlock, PictureInPicture,
   Download, Share2, Bookmark, List, Smartphone, Monitor,
   Wifi, WifiOff, Battery, Signal, Clock, Info, AlertCircle,
-  Check, Repeat, Shuffle, Film, Zap, Droplet, Wind
-} from 'lucide-react';
+  Check, Repeat, Shuffle, Film, Zap, Droplet, Wind } from
+'lucide-react';
 
 // ═══════════════════════════════════════════════════════════════
 // TYPES & INTERFACES
@@ -70,9 +70,9 @@ interface TouchState {
 const formatTime = (seconds: number): string => {
   if (!seconds || isNaN(seconds)) return '0:00';
   const hrs = Math.floor(seconds / 3600);
-  const mins = Math.floor((seconds % 3600) / 60);
+  const mins = Math.floor(seconds % 3600 / 60);
   const secs = Math.floor(seconds % 60);
-  
+
   if (hrs > 0) {
     return `${hrs}:${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   }
@@ -197,29 +197,29 @@ export const SamsungUltraVideoPlayer = ({
   // ═══════════════════════════════════════════════════════════════
   // COMPUTED VALUES
   // ═══════════════════════════════════════════════════════════════
-  
+
   const progress = useMemo(
-    () => (duration > 0 ? (currentTime / duration) * 100 : 0),
+    () => duration > 0 ? currentTime / duration * 100 : 0,
     [currentTime, duration]
   );
 
   const currentChapter = useMemo(
-    () => chapters.filter(ch => ch.time <= currentTime).pop(),
+    () => chapters.filter((ch) => ch.time <= currentTime).pop(),
     [chapters, currentTime]
   );
 
   const availableQualities: VideoQuality[] = [
-    { label: '4K', resolution: '3840x2160', bitrate: '45 Mbps' },
-    { label: '1440p', resolution: '2560x1440', bitrate: '20 Mbps' },
-    { label: '1080p', resolution: '1920x1080', bitrate: '8 Mbps' },
-    { label: '720p', resolution: '1280x720', bitrate: '5 Mbps' },
-    { label: '480p', resolution: '854x480', bitrate: '2.5 Mbps' },
-    { label: '360p', resolution: '640x360', bitrate: '1 Mbps' },
-  ];
+  { label: '4K', resolution: '3840x2160', bitrate: '45 Mbps' },
+  { label: '1440p', resolution: '2560x1440', bitrate: '20 Mbps' },
+  { label: '1080p', resolution: '1920x1080', bitrate: '8 Mbps' },
+  { label: '720p', resolution: '1280x720', bitrate: '5 Mbps' },
+  { label: '480p', resolution: '854x480', bitrate: '2.5 Mbps' },
+  { label: '360p', resolution: '640x360', bitrate: '1 Mbps' }];
+
 
   const videoFilters = useMemo(
     () =>
-      `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%)`,
+    `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%)`,
     [brightness, contrast, saturation]
   );
 
@@ -252,11 +252,11 @@ export const SamsungUltraVideoPlayer = ({
     const handleWaiting = () => setLoading(true);
     const handleCanPlay = () => setLoading(false);
     const handleError = () => setError('Failed to load video');
-    
+
     const handleProgress = () => {
       if (video.buffered.length > 0) {
         const bufferedEnd = video.buffered.end(video.buffered.length - 1);
-        setBuffered((bufferedEnd / video.duration) * 100);
+        setBuffered(bufferedEnd / video.duration * 100);
       }
     };
 
@@ -286,7 +286,7 @@ export const SamsungUltraVideoPlayer = ({
   const resetControlsTimer = useCallback(() => {
     setShowControls(true);
     if (controlsTimer.current) clearTimeout(controlsTimer.current);
-    
+
     controlsTimer.current = setTimeout(() => {
       if (videoRef.current && !videoRef.current.paused && !showSettings && !showChapters) {
         setShowControls(false);
@@ -324,7 +324,7 @@ export const SamsungUltraVideoPlayer = ({
   const toggleMute = useCallback(() => {
     const video = videoRef.current;
     if (!video) return;
-    
+
     video.muted = !isMuted;
     setIsMuted(!isMuted);
   }, [isMuted]);
@@ -332,7 +332,7 @@ export const SamsungUltraVideoPlayer = ({
   const handleVolumeChange = useCallback((newVolume: number) => {
     const video = videoRef.current;
     if (!video) return;
-    
+
     const clampedVolume = Math.max(0, Math.min(1, newVolume));
     video.volume = clampedVolume;
     setVolume(clampedVolume);
@@ -342,20 +342,20 @@ export const SamsungUltraVideoPlayer = ({
   const skip = useCallback((seconds: number) => {
     const video = videoRef.current;
     if (!video) return;
-    
+
     video.currentTime = Math.max(0, Math.min(video.duration, video.currentTime + seconds));
   }, []);
 
   const seekTo = useCallback((time: number) => {
     const video = videoRef.current;
     if (!video) return;
-    
+
     video.currentTime = Math.max(0, Math.min(video.duration, time));
   }, []);
 
   const handleSeekBarClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (!progressRef.current || !videoRef.current) return;
-    
+
     const rect = progressRef.current.getBoundingClientRect();
     const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     seekTo(percent * duration);
@@ -364,7 +364,7 @@ export const SamsungUltraVideoPlayer = ({
 
   const handleSeekBarHover = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
     if (!progressRef.current) return;
-    
+
     const rect = progressRef.current.getBoundingClientRect();
     const percent = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     setSeekPreview(percent * duration);
@@ -415,7 +415,7 @@ export const SamsungUltraVideoPlayer = ({
     setShowGestureIndicator(true);
     setGestureIndicatorIcon(type);
     setGestureIndicatorText(text);
-    
+
     if (gestureTimer.current) clearTimeout(gestureTimer.current);
     gestureTimer.current = setTimeout(() => {
       setShowGestureIndicator(false);
@@ -440,7 +440,7 @@ export const SamsungUltraVideoPlayer = ({
       if (timeSinceLast < 300) {
         // Multi-tap detected
         const newTapCount = touchState.tapCount + 1;
-        
+
         if (newTapCount === 2) {
           // Double tap
           if (side === 'left') {
@@ -463,22 +463,22 @@ export const SamsungUltraVideoPlayer = ({
           }
         }
 
-        setTouchState(prev => ({ ...prev, tapCount: newTapCount, lastTap: now, side }));
+        setTouchState((prev) => ({ ...prev, tapCount: newTapCount, lastTap: now, side }));
       } else {
         // First tap
-        setTouchState(prev => ({ ...prev, tapCount: 1, lastTap: now, side }));
-        
+        setTouchState((prev) => ({ ...prev, tapCount: 1, lastTap: now, side }));
+
         // Start long press detection
         const longPressTimer = setTimeout(() => {
-          setTouchState(prev => ({ ...prev, isLongPress: true }));
+          setTouchState((prev) => ({ ...prev, isLongPress: true }));
           // Long press action - speed up playback
           if (videoRef.current) {
             videoRef.current.playbackRate = 2;
             showGestureUI('seek', 2, '2x Speed');
           }
         }, 500);
-        
-        setTouchState(prev => ({ ...prev, longPressTimer }));
+
+        setTouchState((prev) => ({ ...prev, longPressTimer }));
       }
 
       // Determine gesture type based on position
@@ -515,7 +515,7 @@ export const SamsungUltraVideoPlayer = ({
         touch2.clientY - touch1.clientY
       );
       pinchDistance.current = distance;
-      
+
       setGesture({
         isGesturing: true,
         gestureType: 'zoom',
@@ -538,12 +538,12 @@ export const SamsungUltraVideoPlayer = ({
       if (gesture.gestureType === 'brightness') {
         const newBrightness = Math.max(20, Math.min(200, gesture.startValue + deltaY * sensitivity));
         setBrightness(newBrightness);
-        setGesture(prev => ({ ...prev, currentValue: newBrightness }));
+        setGesture((prev) => ({ ...prev, currentValue: newBrightness }));
         showGestureUI('brightness', newBrightness, `${Math.round(newBrightness)}%`);
       } else if (gesture.gestureType === 'volume') {
         const newVolume = Math.max(0, Math.min(100, gesture.startValue + deltaY * sensitivity));
         handleVolumeChange(newVolume / 100);
-        setGesture(prev => ({ ...prev, currentValue: newVolume }));
+        setGesture((prev) => ({ ...prev, currentValue: newVolume }));
         showGestureUI('volume', newVolume, `${Math.round(newVolume)}%`);
       }
     } else if (e.touches.length === 2 && gesture.gestureType === 'zoom') {
@@ -553,11 +553,11 @@ export const SamsungUltraVideoPlayer = ({
         touch2.clientX - touch1.clientX,
         touch2.clientY - touch1.clientY
       );
-      
+
       const scale = distance / pinchDistance.current;
       const newZoom = Math.max(1, Math.min(3, gesture.startValue * scale));
       setZoom(newZoom);
-      
+
       // Calculate pan offset
       const centerX = (touch1.clientX + touch2.clientX) / 2;
       const centerY = (touch1.clientY + touch2.clientY) / 2;
@@ -576,18 +576,18 @@ export const SamsungUltraVideoPlayer = ({
     if (touchState.longPressTimer) {
       clearTimeout(touchState.longPressTimer);
     }
-    
+
     // Reset playback rate if it was sped up
     if (touchState.isLongPress && videoRef.current) {
       videoRef.current.playbackRate = playbackRate;
     }
-    
-    setTouchState(prev => ({ 
-      ...prev, 
-      longPressTimer: null, 
-      isLongPress: false 
+
+    setTouchState((prev) => ({
+      ...prev,
+      longPressTimer: null,
+      isLongPress: false
     }));
-    
+
     setGesture({
       isGesturing: false,
       gestureType: null,
@@ -599,7 +599,7 @@ export const SamsungUltraVideoPlayer = ({
 
     // Reset tap count after delay
     setTimeout(() => {
-      setTouchState(prev => ({ ...prev, tapCount: 0 }));
+      setTouchState((prev) => ({ ...prev, tapCount: 0 }));
     }, 300);
   }, [touchState, playbackRate]);
 
@@ -644,13 +644,13 @@ export const SamsungUltraVideoPlayer = ({
           togglePiP();
           break;
         case 'KeyC':
-          setShowChapters(prev => !prev);
+          setShowChapters((prev) => !prev);
           break;
         case 'KeyI':
-          setShowInfo(prev => !prev);
+          setShowInfo((prev) => !prev);
           break;
         case 'KeyL':
-          setIsLooping(prev => !prev);
+          setIsLooping((prev) => !prev);
           break;
         case 'Digit0':
           seekTo(0);
@@ -699,11 +699,11 @@ export const SamsungUltraVideoPlayer = ({
       time: currentTime,
       note: `Bookmark at ${formatTime(currentTime)}`
     };
-    setBookmarks(prev => [...prev, newBookmark]);
+    setBookmarks((prev) => [...prev, newBookmark]);
   }, [currentTime]);
 
   const removeBookmark = useCallback((id: string) => {
-    setBookmarks(prev => prev.filter(b => b.id !== id));
+    setBookmarks((prev) => prev.filter((b) => b.id !== id));
   }, []);
 
   const jumpToBookmark = useCallback((time: number) => {
@@ -772,8 +772,8 @@ export const SamsungUltraVideoPlayer = ({
       onMouseMove={resetControlsTimer}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
-      onTouchEnd={handleTouchEnd}
-    >
+      onTouchEnd={handleTouchEnd}>
+
       {/* ═══════════════════════════════════════════════════════════ */}
       {/* VIDEO ELEMENT */}
       {/* ═══════════════════════════════════════════════════════════ */}
@@ -787,14 +787,14 @@ export const SamsungUltraVideoPlayer = ({
           transform: `scale(${zoom}) translate(${zoomPan.x}%, ${zoomPan.y}%)`
         }}
         playsInline
-        loop={isLooping}
-      />
+        loop={isLooping} />
+
 
       {/* ═══════════════════════════════════════════════════════════ */}
       {/* LOADING SPINNER */}
       {/* ═══════════════════════════════════════════════════════════ */}
-      {loading && (
-        <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
+      {loading &&
+      <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
           <div className="relative">
             <div className="w-20 h-20 border-4 border-blue-500/30 border-t-blue-500 rounded-full animate-spin" />
             <div className="absolute inset-0 flex items-center justify-center">
@@ -802,37 +802,37 @@ export const SamsungUltraVideoPlayer = ({
             </div>
           </div>
         </div>
-      )}
+      }
 
       {/* ═══════════════════════════════════════════════════════════ */}
       {/* GESTURE INDICATOR */}
       {/* ═══════════════════════════════════════════════════════════ */}
-      {showGestureIndicator && (
-        <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
+      {showGestureIndicator &&
+      <div className="absolute inset-0 flex items-center justify-center z-30 pointer-events-none">
           <div className="px-8 py-6 rounded-3xl bg-black/80 backdrop-blur-xl border border-white/20 shadow-2xl animate-fade-in">
             <div className="flex flex-col items-center gap-3">
-              {gestureIndicatorIcon === 'volume' && (
-                <Volume2 className="text-white" size={48} strokeWidth={1.5} />
-              )}
-              {gestureIndicatorIcon === 'brightness' && (
-                <Sun className="text-white" size={48} strokeWidth={1.5} />
-              )}
-              {gestureIndicatorIcon === 'seek' && (
-                <FastForward className="text-white" size={48} strokeWidth={1.5} />
-              )}
+              {gestureIndicatorIcon === 'volume' &&
+            <Volume2 className="text-white" size={48} strokeWidth={1.5} />
+            }
+              {gestureIndicatorIcon === 'brightness' &&
+            <Sun className="text-white" size={48} strokeWidth={1.5} />
+            }
+              {gestureIndicatorIcon === 'seek' &&
+            <FastForward className="text-white" size={48} strokeWidth={1.5} />
+            }
               <span className="text-white text-2xl font-bold tracking-tight">
                 {gestureIndicatorText}
               </span>
             </div>
           </div>
         </div>
-      )}
+      }
 
       {/* ═══════════════════════════════════════════════════════════ */}
       {/* ERROR MESSAGE */}
       {/* ═══════════════════════════════════════════════════════════ */}
-      {error && (
-        <div className="absolute inset-0 flex items-center justify-center z-30">
+      {error &&
+      <div className="absolute inset-0 flex items-center justify-center z-30">
           <div className="px-6 py-4 rounded-2xl bg-red-500/90 backdrop-blur-xl border border-red-400/50 shadow-2xl">
             <div className="flex items-center gap-3">
               <AlertCircle className="text-white" size={24} />
@@ -840,16 +840,16 @@ export const SamsungUltraVideoPlayer = ({
             </div>
           </div>
         </div>
-      )}
+      }
 
       {/* ═══════════════════════════════════════════════════════════ */}
       {/* MAIN CONTROLS OVERLAY */}
       {/* ═══════════════════════════════════════════════════════════ */}
       <div
         className={`absolute inset-0 z-20 transition-all duration-300 ${
-          showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'
-        }`}
-      >
+        showControls ? 'opacity-100' : 'opacity-0 pointer-events-none'}`
+        }>
+
         {/* ─────────────────────────────────────────────────────── */}
         {/* TOP BAR - Status & System Info */}
         {/* ─────────────────────────────────────────────────────── */}
@@ -859,35 +859,35 @@ export const SamsungUltraVideoPlayer = ({
             <div className="flex items-center gap-4">
               <button
                 onClick={onClose}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl ${theme.buttonBg} ${theme.buttonHover} ${theme.border} border transition-all active:scale-95`}
-              >
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl ${theme.buttonBg} ${theme.buttonHover} ${theme.border} border transition-all active:scale-95`}>
+
                 <ChevronLeft className={theme.text} size={20} />
                 <span className={`${theme.text} font-semibold text-sm hidden sm:block`}>Back</span>
               </button>
               
               <div className="hidden md:block">
-                <h1 className={`${theme.text} text-lg font-bold tracking-tight truncate max-w-md`}>
-                  {title}
-                </h1>
-                {currentChapter && (
-                  <p className={`${theme.textMuted} text-xs mt-0.5`}>
+                
+
+
+                {currentChapter &&
+                <p className={`${theme.textMuted} text-xs mt-0.5`}>
                     {currentChapter.title}
                   </p>
-                )}
+                }
               </div>
             </div>
 
             {/* Right - Theme toggle */}
             <div className="flex items-center gap-3">
               <button
-                onClick={() => setIsDarkTheme(prev => !prev)}
-                className={`p-2 rounded-lg ${theme.buttonBg} ${theme.buttonHover} transition-all`}
-              >
-                {isDarkTheme ? (
-                  <Sun className={theme.text} size={18} />
-                ) : (
-                  <Moon className={theme.text} size={18} />
-                )}
+                onClick={() => setIsDarkTheme((prev) => !prev)}
+                className={`p-2 rounded-lg ${theme.buttonBg} ${theme.buttonHover} transition-all`}>
+
+                {isDarkTheme ?
+                <Sun className={theme.text} size={18} /> :
+
+                <Moon className={theme.text} size={18} />
+                }
               </button>
             </div>
           </div>
@@ -900,26 +900,26 @@ export const SamsungUltraVideoPlayer = ({
           <div className="flex items-center gap-12">
             <button
               onClick={() => skip(-10)}
-              className="pointer-events-auto p-5 rounded-full bg-black/40 backdrop-blur-xl border border-white/20 hover:bg-black/60 hover:scale-110 active:scale-95 transition-all"
-            >
+              className="pointer-events-auto p-5 rounded-full bg-black/40 backdrop-blur-xl border border-white/20 hover:bg-black/60 hover:scale-110 active:scale-95 transition-all">
+
               <Rewind className="text-white" size={32} />
             </button>
 
             <button
               onClick={togglePlay}
-              className="pointer-events-auto p-7 rounded-full bg-black/40 backdrop-blur-xl border border-white/20 hover:bg-black/60 hover:scale-110 active:scale-95 transition-all"
-            >
-              {isPlaying ? (
-                <Pause className="text-white" size={40} />
-              ) : (
-                <Play className="text-white ml-1" size={40} />
-              )}
+              className="pointer-events-auto p-7 rounded-full bg-black/40 backdrop-blur-xl border border-white/20 hover:bg-black/60 hover:scale-110 active:scale-95 transition-all">
+
+              {isPlaying ?
+              <Pause className="text-white" size={40} /> :
+
+              <Play className="text-white ml-1" size={40} />
+              }
             </button>
 
             <button
               onClick={() => skip(10)}
-              className="pointer-events-auto p-5 rounded-full bg-black/40 backdrop-blur-xl border border-white/20 hover:bg-black/60 hover:scale-110 active:scale-95 transition-all"
-            >
+              className="pointer-events-auto p-5 rounded-full bg-black/40 backdrop-blur-xl border border-white/20 hover:bg-black/60 hover:scale-110 active:scale-95 transition-all">
+
               <FastForward className="text-white" size={32} />
             </button>
           </div>
@@ -936,53 +936,53 @@ export const SamsungUltraVideoPlayer = ({
               className="relative h-2 bg-white/10 rounded-full cursor-pointer group hover:h-3 transition-all"
               onClick={handleSeekBarClick}
               onMouseMove={handleSeekBarHover}
-              onMouseLeave={() => setSeekPreview(null)}
-            >
+              onMouseLeave={() => setSeekPreview(null)}>
+
               {/* Buffered */}
               <div
                 className="absolute h-full bg-white/20 rounded-full transition-all"
-                style={{ width: `${buffered}%` }}
-              />
+                style={{ width: `${buffered}%` }} />
+
 
               {/* Progress */}
               <div
                 className="absolute h-full bg-blue-500 rounded-full transition-all"
-                style={{ width: `${progress}%` }}
-              >
+                style={{ width: `${progress}%` }}>
+
                 <div className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-4 bg-blue-500 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity border-2 border-white" />
               </div>
 
               {/* Chapter Markers */}
-              {chapters.map((chapter, idx) => (
-                <div
-                  key={idx}
-                  className="absolute top-0 bottom-0 w-0.5 bg-white/60"
-                  style={{ left: `${(chapter.time / duration) * 100}%` }}
-                >
+              {chapters.map((chapter, idx) =>
+              <div
+                key={idx}
+                className="absolute top-0 bottom-0 w-0.5 bg-white/60"
+                style={{ left: `${chapter.time / duration * 100}%` }}>
+
                   <div className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-black/80 rounded text-white text-xs font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                     {chapter.title}
                   </div>
                 </div>
-              ))}
+              )}
 
               {/* Bookmark Markers */}
-              {bookmarks.map((bookmark) => (
-                <div
-                  key={bookmark.id}
-                  className="absolute top-0 bottom-0 w-0.5 bg-yellow-400"
-                  style={{ left: `${(bookmark.time / duration) * 100}%` }}
-                />
-              ))}
+              {bookmarks.map((bookmark) =>
+              <div
+                key={bookmark.id}
+                className="absolute top-0 bottom-0 w-0.5 bg-yellow-400"
+                style={{ left: `${bookmark.time / duration * 100}%` }} />
+
+              )}
 
               {/* Seek Preview */}
-              {seekPreview !== null && (
-                <div
-                  className="absolute -top-12 -translate-x-1/2 px-3 py-2 bg-black/90 rounded-lg text-white text-sm font-semibold pointer-events-none shadow-xl border border-white/20"
-                  style={{ left: `${(seekPreview / duration) * 100}%` }}
-                >
+              {seekPreview !== null &&
+              <div
+                className="absolute -top-12 -translate-x-1/2 px-3 py-2 bg-black/90 rounded-lg text-white text-sm font-semibold pointer-events-none shadow-xl border border-white/20"
+                style={{ left: `${seekPreview / duration * 100}%` }}>
+
                   {formatTime(seekPreview)}
                 </div>
-              )}
+              }
             </div>
 
             {/* Time Display */}
@@ -1027,25 +1027,25 @@ export const SamsungUltraVideoPlayer = ({
                   step="0.01"
                   value={isMuted ? 0 : volume}
                   onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
-                  className="w-24 h-1 bg-white/20 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg"
-                />
+                  className="w-24 h-1 bg-white/20 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg" />
+
               </div>
             </div>
 
             {/* Center Info */}
             <div className="hidden lg:flex items-center gap-4">
-              {isLooping && (
-                <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-blue-500/20 border border-blue-500/30">
+              {isLooping &&
+              <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-blue-500/20 border border-blue-500/30">
                   <Repeat className="text-blue-400" size={14} />
                   <span className="text-blue-400 text-xs font-medium">Loop</span>
                 </div>
-              )}
+              }
               
-              {zoom > 1 && (
-                <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-purple-500/20 border border-purple-500/30">
+              {zoom > 1 &&
+              <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-purple-500/20 border border-purple-500/30">
                   <span className="text-purple-400 text-xs font-medium">{zoom.toFixed(1)}x Zoom</span>
                 </div>
-              )}
+              }
             </div>
 
             {/* Right Controls */}
@@ -1054,11 +1054,11 @@ export const SamsungUltraVideoPlayer = ({
                 <Bookmark size={18} />
               </ControlButton>
 
-              <ControlButton onClick={() => setShowChapters(prev => !prev)} theme={theme} title="Chapters (C)">
+              <ControlButton onClick={() => setShowChapters((prev) => !prev)} theme={theme} title="Chapters (C)">
                 <List size={18} />
               </ControlButton>
 
-              <ControlButton onClick={() => setShowInfo(prev => !prev)} theme={theme} title="Info (I)">
+              <ControlButton onClick={() => setShowInfo((prev) => !prev)} theme={theme} title="Info (I)">
                 <Info size={18} />
               </ControlButton>
 
@@ -1067,15 +1067,15 @@ export const SamsungUltraVideoPlayer = ({
               </ControlButton>
 
               <ControlButton
-                onClick={() => setIsRotationLocked(prev => !prev)}
+                onClick={() => setIsRotationLocked((prev) => !prev)}
                 theme={theme}
                 active={isRotationLocked}
-                title="Rotation Lock"
-              >
+                title="Rotation Lock">
+
                 {isRotationLocked ? <Lock size={18} /> : <Unlock size={18} />}
               </ControlButton>
 
-              <ControlButton onClick={() => setShowSettings(prev => !prev)} theme={theme} title="Settings">
+              <ControlButton onClick={() => setShowSettings((prev) => !prev)} theme={theme} title="Settings">
                 <Settings size={18} className={showSettings ? 'rotate-90 transition-transform' : 'transition-transform'} />
               </ControlButton>
 
@@ -1090,15 +1090,15 @@ export const SamsungUltraVideoPlayer = ({
       {/* ═══════════════════════════════════════════════════════════ */}
       {/* SETTINGS PANEL */}
       {/* ═══════════════════════════════════════════════════════════ */}
-      {showSettings && (
-        <div className="absolute right-6 bottom-24 z-30 w-96 max-h-[calc(100vh-200px)] overflow-y-auto">
+      {showSettings &&
+      <div className="absolute right-6 bottom-24 z-30 w-96 max-h-[calc(100vh-200px)] overflow-y-auto">
           <div className={`${theme.cardBg} backdrop-blur-2xl border ${theme.border} rounded-2xl shadow-2xl p-6 space-y-6 animate-slide-up`}>
             <div className="flex items-center justify-between">
               <h3 className={`${theme.text} text-xl font-bold`}>Settings</h3>
               <button
-                onClick={() => setShowSettings(false)}
-                className={`p-2 rounded-lg ${theme.buttonBg} ${theme.buttonHover} transition-all`}
-              >
+              onClick={() => setShowSettings(false)}
+              className={`p-2 rounded-lg ${theme.buttonBg} ${theme.buttonHover} transition-all`}>
+
                 <X className={theme.text} size={18} />
               </button>
             </div>
@@ -1109,22 +1109,22 @@ export const SamsungUltraVideoPlayer = ({
                 Playback Speed
               </label>
               <div className="grid grid-cols-4 gap-2">
-                {[0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2].map((rate) => (
-                  <button
-                    key={rate}
-                    onClick={() => {
-                      if (videoRef.current) videoRef.current.playbackRate = rate;
-                      setPlaybackRate(rate);
-                    }}
-                    className={`px-3 py-2 rounded-lg text-sm font-semibold transition-all ${
-                      playbackRate === rate
-                        ? `${theme.accent} text-white`
-                        : `${theme.buttonBg} ${theme.text} ${theme.buttonHover}`
-                    }`}
-                  >
+                {[0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2].map((rate) =>
+              <button
+                key={rate}
+                onClick={() => {
+                  if (videoRef.current) videoRef.current.playbackRate = rate;
+                  setPlaybackRate(rate);
+                }}
+                className={`px-3 py-2 rounded-lg text-sm font-semibold transition-all ${
+                playbackRate === rate ?
+                `${theme.accent} text-white` :
+                `${theme.buttonBg} ${theme.text} ${theme.buttonHover}`}`
+                }>
+
                     {rate}x
                   </button>
-                ))}
+              )}
               </div>
             </div>
 
@@ -1134,16 +1134,16 @@ export const SamsungUltraVideoPlayer = ({
                 Quality
               </label>
               <div className="space-y-2">
-                {availableQualities.map((quality) => (
-                  <button
-                    key={quality.label}
-                    onClick={() => setSelectedQuality(quality.label)}
-                    className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all ${
-                      selectedQuality === quality.label
-                        ? `${theme.accent} text-white`
-                        : `${theme.buttonBg} ${theme.text} ${theme.buttonHover}`
-                    }`}
-                  >
+                {availableQualities.map((quality) =>
+              <button
+                key={quality.label}
+                onClick={() => setSelectedQuality(quality.label)}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all ${
+                selectedQuality === quality.label ?
+                `${theme.accent} text-white` :
+                `${theme.buttonBg} ${theme.text} ${theme.buttonHover}`}`
+                }>
+
                     <span className="font-semibold">{quality.label}</span>
                     <div className="flex items-center gap-2 text-xs opacity-80">
                       <span>{quality.resolution}</span>
@@ -1151,7 +1151,7 @@ export const SamsungUltraVideoPlayer = ({
                       <span>{quality.bitrate}</span>
                     </div>
                   </button>
-                ))}
+              )}
               </div>
             </div>
 
@@ -1165,13 +1165,13 @@ export const SamsungUltraVideoPlayer = ({
                 <span className={theme.textMuted}>{brightness}%</span>
               </label>
               <input
-                type="range"
-                min="20"
-                max="200"
-                value={brightness}
-                onChange={(e) => setBrightness(parseInt(e.target.value))}
-                className="w-full h-2 bg-white/20 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg"
-              />
+              type="range"
+              min="20"
+              max="200"
+              value={brightness}
+              onChange={(e) => setBrightness(parseInt(e.target.value))}
+              className="w-full h-2 bg-white/20 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg" />
+
             </div>
 
             {/* Contrast */}
@@ -1184,13 +1184,13 @@ export const SamsungUltraVideoPlayer = ({
                 <span className={theme.textMuted}>{contrast}%</span>
               </label>
               <input
-                type="range"
-                min="50"
-                max="200"
-                value={contrast}
-                onChange={(e) => setContrast(parseInt(e.target.value))}
-                className="w-full h-2 bg-white/20 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg"
-              />
+              type="range"
+              min="50"
+              max="200"
+              value={contrast}
+              onChange={(e) => setContrast(parseInt(e.target.value))}
+              className="w-full h-2 bg-white/20 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg" />
+
             </div>
 
             {/* Saturation */}
@@ -1203,13 +1203,13 @@ export const SamsungUltraVideoPlayer = ({
                 <span className={theme.textMuted}>{saturation}%</span>
               </label>
               <input
-                type="range"
-                min="0"
-                max="200"
-                value={saturation}
-                onChange={(e) => setSaturation(parseInt(e.target.value))}
-                className="w-full h-2 bg-white/20 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg"
-              />
+              type="range"
+              min="0"
+              max="200"
+              value={saturation}
+              onChange={(e) => setSaturation(parseInt(e.target.value))}
+              className="w-full h-2 bg-white/20 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg" />
+
             </div>
 
             {/* Loop Toggle */}
@@ -1219,47 +1219,47 @@ export const SamsungUltraVideoPlayer = ({
                 Loop Video
               </label>
               <button
-                onClick={() => setIsLooping(prev => !prev)}
-                className={`relative w-14 h-7 rounded-full transition-all ${
-                  isLooping ? 'bg-blue-500' : 'bg-white/20'
-                }`}
-              >
+              onClick={() => setIsLooping((prev) => !prev)}
+              className={`relative w-14 h-7 rounded-full transition-all ${
+              isLooping ? 'bg-blue-500' : 'bg-white/20'}`
+              }>
+
                 <div
-                  className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow-lg transition-transform ${
-                    isLooping ? 'translate-x-8' : 'translate-x-1'
-                  }`}
-                />
+                className={`absolute top-1 w-5 h-5 bg-white rounded-full shadow-lg transition-transform ${
+                isLooping ? 'translate-x-8' : 'translate-x-1'}`
+                } />
+
               </button>
             </div>
           </div>
         </div>
-      )}
+      }
 
       {/* ═══════════════════════════════════════════════════════════ */}
       {/* CHAPTERS PANEL */}
       {/* ═══════════════════════════════════════════════════════════ */}
-      {showChapters && chapters.length > 0 && (
-        <div className="absolute left-6 bottom-24 z-30 w-80 max-h-96 overflow-y-auto">
+      {showChapters && chapters.length > 0 &&
+      <div className="absolute left-6 bottom-24 z-30 w-80 max-h-96 overflow-y-auto">
           <div className={`${theme.cardBg} backdrop-blur-2xl border ${theme.border} rounded-2xl shadow-2xl p-4 space-y-2 animate-slide-up`}>
             <div className="flex items-center justify-between mb-3">
               <h3 className={`${theme.text} text-lg font-bold`}>Chapters</h3>
               <button
-                onClick={() => setShowChapters(false)}
-                className={`p-2 rounded-lg ${theme.buttonBg} ${theme.buttonHover} transition-all`}
-              >
+              onClick={() => setShowChapters(false)}
+              className={`p-2 rounded-lg ${theme.buttonBg} ${theme.buttonHover} transition-all`}>
+
                 <X className={theme.text} size={16} />
               </button>
             </div>
-            {chapters.map((chapter, idx) => (
-              <button
-                key={idx}
-                onClick={() => seekTo(chapter.time)}
-                className={`w-full text-left px-4 py-3 rounded-xl transition-all ${
-                  currentChapter?.time === chapter.time
-                    ? `${theme.accent} text-white`
-                    : `${theme.buttonBg} ${theme.text} ${theme.buttonHover}`
-                }`}
-              >
+            {chapters.map((chapter, idx) =>
+          <button
+            key={idx}
+            onClick={() => seekTo(chapter.time)}
+            className={`w-full text-left px-4 py-3 rounded-xl transition-all ${
+            currentChapter?.time === chapter.time ?
+            `${theme.accent} text-white` :
+            `${theme.buttonBg} ${theme.text} ${theme.buttonHover}`}`
+            }>
+
                 <div className="flex items-center justify-between">
                   <span className="font-semibold text-sm">{chapter.title}</span>
                   <span className="text-xs opacity-80 tabular-nums">
@@ -1267,93 +1267,93 @@ export const SamsungUltraVideoPlayer = ({
                   </span>
                 </div>
               </button>
-            ))}
+          )}
           </div>
         </div>
-      )}
+      }
 
       {/* ═══════════════════════════════════════════════════════════ */}
       {/* INFO PANEL */}
       {/* ═══════════════════════════════════════════════════════════ */}
-      {showInfo && (
-        <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-30 w-full max-w-2xl mx-auto px-4">
+      {showInfo &&
+      <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-30 w-full max-w-2xl mx-auto px-4">
           <div className={`${theme.cardBg} backdrop-blur-2xl border ${theme.border} rounded-2xl shadow-2xl p-8 space-y-6 animate-fade-in`}>
             <div className="flex items-start justify-between">
               <div className="flex-1">
                 <h2 className={`${theme.text} text-2xl font-bold mb-2`}>{title}</h2>
-                {description && (
-                  <p className={`${theme.textMuted} text-sm leading-relaxed`}>
+                {description &&
+              <p className={`${theme.textMuted} text-sm leading-relaxed`}>
                     {description}
                   </p>
-                )}
+              }
               </div>
               <button
-                onClick={() => setShowInfo(false)}
-                className={`p-2 rounded-lg ${theme.buttonBg} ${theme.buttonHover} transition-all ml-4`}
-              >
+              onClick={() => setShowInfo(false)}
+              className={`p-2 rounded-lg ${theme.buttonBg} ${theme.buttonHover} transition-all ml-4`}>
+
                 <X className={theme.text} size={20} />
               </button>
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <InfoItem
-                label="Duration"
-                value={formatTime(duration)}
-                icon={<Clock size={16} />}
-                theme={theme}
-              />
+              label="Duration"
+              value={formatTime(duration)}
+              icon={<Clock size={16} />}
+              theme={theme} />
+
               <InfoItem
-                label="Quality"
-                value={selectedQuality}
-                icon={<Monitor size={16} />}
-                theme={theme}
-              />
+              label="Quality"
+              value={selectedQuality}
+              icon={<Monitor size={16} />}
+              theme={theme} />
+
               <InfoItem
-                label="Playback Speed"
-                value={`${playbackRate}x`}
-                icon={<Zap size={16} />}
-                theme={theme}
-              />
+              label="Playback Speed"
+              value={`${playbackRate}x`}
+              icon={<Zap size={16} />}
+              theme={theme} />
+
               <InfoItem
-                label="Network"
-                value={isOnline ? 'Connected' : 'Offline'}
-                icon={isOnline ? <Wifi size={16} /> : <WifiOff size={16} />}
-                theme={theme}
-              />
+              label="Network"
+              value={isOnline ? 'Connected' : 'Offline'}
+              icon={isOnline ? <Wifi size={16} /> : <WifiOff size={16} />}
+              theme={theme} />
+
             </div>
 
-            {bookmarks.length > 0 && (
-              <div>
+            {bookmarks.length > 0 &&
+          <div>
                 <h3 className={`${theme.text} text-sm font-bold mb-3 flex items-center gap-2`}>
                   <Bookmark size={16} />
                   Bookmarks ({bookmarks.length})
                 </h3>
                 <div className="space-y-2 max-h-40 overflow-y-auto">
-                  {bookmarks.map((bookmark) => (
-                    <div
-                      key={bookmark.id}
-                      className={`flex items-center justify-between px-3 py-2 rounded-lg ${theme.buttonBg}`}
-                    >
+                  {bookmarks.map((bookmark) =>
+              <div
+                key={bookmark.id}
+                className={`flex items-center justify-between px-3 py-2 rounded-lg ${theme.buttonBg}`}>
+
                       <button
-                        onClick={() => jumpToBookmark(bookmark.time)}
-                        className={`flex-1 text-left ${theme.text} text-sm font-medium hover:underline`}
-                      >
+                  onClick={() => jumpToBookmark(bookmark.time)}
+                  className={`flex-1 text-left ${theme.text} text-sm font-medium hover:underline`}>
+
                         {formatTime(bookmark.time)} - {bookmark.note}
                       </button>
                       <button
-                        onClick={() => removeBookmark(bookmark.id)}
-                        className={`p-1 rounded ${theme.buttonHover} transition-all`}
-                      >
+                  onClick={() => removeBookmark(bookmark.id)}
+                  className={`p-1 rounded ${theme.buttonHover} transition-all`}>
+
                         <X className={theme.textMuted} size={14} />
                       </button>
                     </div>
-                  ))}
+              )}
                 </div>
               </div>
-            )}
+          }
           </div>
         </div>
-      )}
+      }
 
       {/* ═══════════════════════════════════════════════════════════ */}
       {/* CUSTOM CSS ANIMATIONS */}
@@ -1389,8 +1389,8 @@ export const SamsungUltraVideoPlayer = ({
           animation: slide-up 0.3s ease-out;
         }
       `}</style>
-    </div>
-  );
+    </div>);
+
 };
 
 // ═══════════════════════════════════════════════════════════════
@@ -1405,19 +1405,19 @@ interface ControlButtonProps {
   title?: string;
 }
 
-const ControlButton = ({ onClick, children, theme, active, title }: ControlButtonProps) => (
-  <button
-    onClick={onClick}
-    title={title}
-    className={`p-3 rounded-xl transition-all hover:scale-105 active:scale-95 ${
-      active 
-        ? `${theme.accent} text-white` 
-        : `${theme.buttonBg} ${theme.text} ${theme.buttonHover}`
-    } border ${theme.border}`}
-  >
+const ControlButton = ({ onClick, children, theme, active, title }: ControlButtonProps) =>
+<button
+  onClick={onClick}
+  title={title}
+  className={`p-3 rounded-xl transition-all hover:scale-105 active:scale-95 ${
+  active ?
+  `${theme.accent} text-white` :
+  `${theme.buttonBg} ${theme.text} ${theme.buttonHover}`} border ${
+  theme.border}`}>
+
     {children}
-  </button>
-);
+  </button>;
+
 
 interface InfoItemProps {
   label: string;
@@ -1426,8 +1426,8 @@ interface InfoItemProps {
   theme: any;
 }
 
-const InfoItem = ({ label, value, icon, theme }: InfoItemProps) => (
-  <div className={`px-4 py-3 rounded-xl ${theme.buttonBg} border ${theme.border}`}>
+const InfoItem = ({ label, value, icon, theme }: InfoItemProps) =>
+<div className={`px-4 py-3 rounded-xl ${theme.buttonBg} border ${theme.border}`}>
     <div className="flex items-center gap-2 mb-1">
       <span className={theme.textMuted}>{icon}</span>
       <span className={`${theme.textMuted} text-xs font-medium uppercase tracking-wide`}>
@@ -1435,7 +1435,7 @@ const InfoItem = ({ label, value, icon, theme }: InfoItemProps) => (
       </span>
     </div>
     <span className={`${theme.text} text-lg font-bold`}>{value}</span>
-  </div>
-);
+  </div>;
+
 
 export default SamsungUltraVideoPlayer;
