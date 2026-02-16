@@ -853,7 +853,7 @@ export const SamsungUltraVideoPlayer = ({
         {/* ─────────────────────────────────────────────────────── */}
         {/* TOP BAR - Status & System Info */}
         {/* ─────────────────────────────────────────────────────── */}
-        <div className={`absolute top-0 left-0 right-0 ${theme.controlsBg} backdrop-blur-xl border-b ${theme.border} px-6 py-4`}>
+        <div className="">
           <div className="flex items-center justify-between">
             {/* Left - Back button & Title */}
             <div className="flex items-center gap-4">
