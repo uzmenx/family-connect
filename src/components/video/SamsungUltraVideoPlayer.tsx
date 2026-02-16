@@ -227,6 +227,14 @@ export const SamsungUltraVideoPlayer = ({
   // VIDEO EVENT HANDLERS
   // ═══════════════════════════════════════════════════════════════
 
+  // Block body scroll when player is open
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, []);
+
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
@@ -869,23 +877,8 @@ export const SamsungUltraVideoPlayer = ({
               </div>
             </div>
 
-            {/* Right - System indicators */}
+            {/* Right - Theme toggle */}
             <div className="flex items-center gap-3">
-              <div className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-black/20 backdrop-blur-sm">
-                <Clock className={theme.textMuted} size={14} />
-                <span className={`${theme.text} text-sm font-medium tabular-nums`}>
-                  {new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}
-                </span>
-              </div>
-
-              {isOnline ? (
-                <Wifi className="text-green-500" size={20} />
-              ) : (
-                <WifiOff className="text-red-500" size={20} />
-              )}
-
-              <Battery className={theme.text} size={20} />
-              
               <button
                 onClick={() => setIsDarkTheme(prev => !prev)}
                 className={`p-2 rounded-lg ${theme.buttonBg} ${theme.buttonHover} transition-all`}
