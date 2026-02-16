@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Heart, MessageCircle, Share2, Bookmark } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Bookmark, Film } from 'lucide-react';
 import { usePostLikes } from '@/hooks/usePostLikes';
 import { useSavedPosts } from '@/hooks/useSavedPosts';
 import { LikersDialog } from './LikersDialog';
@@ -12,12 +12,16 @@ interface PostActionsProps {
   postId: string;
   initialLikesCount?: number;
   initialCommentsCount?: number;
+  videoUrl?: string;
+  onOpenVideoPlayer?: (url: string) => void;
 }
 
 export const PostActions = ({
   postId,
   initialLikesCount = 0,
-  initialCommentsCount = 0
+  initialCommentsCount = 0,
+  videoUrl,
+  onOpenVideoPlayer
 }: PostActionsProps) => {
   const { isLiked, likesCount, likedUsers, toggleLike, fetchLikedUsers, isLoading } = usePostLikes(postId);
   const { isPostSaved, toggleSavePost } = useSavedPosts();
@@ -105,16 +109,27 @@ export const PostActions = ({
           </button>
         </div>
         
-        <button
-          className="ml-auto transition-colors"
-          onClick={handleSaveClick}
-          disabled={isSaving}>
-
-          <Bookmark className={cn(
-            "h-6 w-6 transition-all",
-            isSaved && "fill-primary text-primary"
-          )} />
-        </button>
+        <div className="flex items-center gap-2">
+          {videoUrl && onOpenVideoPlayer && (
+            <button
+              className="transition-colors"
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenVideoPlayer(videoUrl);
+              }}>
+              <Film className="h-6 w-6" />
+            </button>
+          )}
+          <button
+            className="ml-auto transition-colors"
+            onClick={handleSaveClick}
+            disabled={isSaving}>
+            <Bookmark className={cn(
+              "h-6 w-6 transition-all",
+              isSaved && "fill-primary text-primary"
+            )} />
+          </button>
+        </div>
       </div>
 
       {/* Counts */}

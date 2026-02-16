@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Heart, MessageCircle, Send, Bookmark } from 'lucide-react';
+import { Heart, MessageCircle, Send, Bookmark, Film } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePostLikes } from '@/hooks/usePostLikes';
 import { useSavedPosts } from '@/hooks/useSavedPosts';
@@ -12,12 +12,16 @@ interface FullscreenActionsProps {
   postId: string;
   initialLikesCount?: number;
   initialCommentsCount?: number;
+  videoUrl?: string;
+  onOpenVideoPlayer?: (url: string) => void;
 }
 
 export const FullscreenActions = ({
   postId,
   initialLikesCount = 0,
-  initialCommentsCount = 0
+  initialCommentsCount = 0,
+  videoUrl,
+  onOpenVideoPlayer
 }: FullscreenActionsProps) => {
   const { isLiked, likesCount, likedUsers, toggleLike, fetchLikedUsers, isLoading } = usePostLikes(postId);
   const { isPostSaved, toggleSavePost } = useSavedPosts();
@@ -156,6 +160,17 @@ export const FullscreenActions = ({
           isActive={isSaved}
           activeClass="fill-white"
         />
+
+        {/* Video Player - only for videos */}
+        {videoUrl && onOpenVideoPlayer && (
+          <ActionButton 
+            icon={Film} 
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenVideoPlayer(videoUrl);
+            }}
+          />
+        )}
       </div>
 
       {/* Dialogs */}
