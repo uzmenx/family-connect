@@ -5,6 +5,7 @@ import { useConversations } from "@/hooks/useConversations";
 import { useGroupChats } from "@/hooks/useGroupChats";
 import { useNotifications } from "@/hooks/useNotifications";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
@@ -41,6 +42,7 @@ interface PendingGroupData {
 }
 
 const Messages = () => {
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { user } = useAuth();
@@ -192,12 +194,12 @@ const Messages = () => {
       );
 
       if (groupId) {
-        toast.success("Guruh yaratildi!");
+        toast.success(t('groupCreated'));
         setShowMembersDialog(false);
         resetCreateFlow();
         navigate(`/group-chat/${groupId}`);
       } else {
-        toast.error("Xatolik yuz berdi");
+        toast.error(t('errorOccurred'));
       }
     }
   };
@@ -217,12 +219,12 @@ const Messages = () => {
     );
 
     if (channelId) {
-      toast.success("Kanal yaratildi!");
+      toast.success(t('channelCreated'));
       setShowVisibilityDialog(false);
       resetCreateFlow();
       navigate(`/group-chat/${channelId}`);
     } else {
-      toast.error("Xatolik yuz berdi");
+      toast.error(t('errorOccurred'));
     }
   };
 
@@ -242,7 +244,7 @@ const Messages = () => {
         {/* Header */}
         <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border">
           <div className="px-4 py-3 flex items-center gap-3">
-            <h1 className="text-xl font-bold flex-1">Xabarlar</h1>
+            <h1 className="text-xl font-bold flex-1">{t('messages')}</h1>
             {totalUnread > 0 && (
               <Badge variant="destructive" className="rounded-full">
                 {totalUnread}
@@ -256,7 +258,7 @@ const Messages = () => {
             <div className="relative">
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
               <Input
-                placeholder="Qidirish..."
+                placeholder={t('searchChats')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
                 className="pl-10"
@@ -266,50 +268,25 @@ const Messages = () => {
 
           {/* Tabs - 2 rows */}
           <div className="px-4 pb-2 space-y-2">
-            <div className="flex gap-2">
-              <Button
-                variant={activeTab === "all" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setActiveTab("all")}
-                className="flex-1"
-              >
-                Barcha
+             <div className="flex gap-2">
+              <Button variant={activeTab === "all" ? "default" : "outline"} size="sm" onClick={() => setActiveTab("all")} className="flex-1">
+                {t('allChats')}
               </Button>
-              <Button
-                variant={activeTab === "groups" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setActiveTab("groups")}
-                className="flex-1"
-              >
+              <Button variant={activeTab === "groups" ? "default" : "outline"} size="sm" onClick={() => setActiveTab("groups")} className="flex-1">
                 <Users className="h-4 w-4 mr-1" />
-                Guruhlar
+                {t('groups')}
               </Button>
-              <Button
-                variant={activeTab === "channels" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setActiveTab("channels")}
-                className="flex-1"
-              >
+              <Button variant={activeTab === "channels" ? "default" : "outline"} size="sm" onClick={() => setActiveTab("channels")} className="flex-1">
                 <Megaphone className="h-4 w-4 mr-1" />
-                Kanallar
+                {t('channels')}
               </Button>
             </div>
             <div className="flex gap-2">
-              <Button
-                variant={activeTab === "followers" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setActiveTab("followers")}
-                className="flex-1"
-              >
-                Kuzatuvchilar
+              <Button variant={activeTab === "followers" ? "default" : "outline"} size="sm" onClick={() => setActiveTab("followers")} className="flex-1">
+                {t('followersTab')}
               </Button>
-              <Button
-                variant={activeTab === "following" ? "default" : "outline"}
-                size="sm"
-                onClick={() => setActiveTab("following")}
-                className="flex-1"
-              >
-                Kuzatilmoqda
+              <Button variant={activeTab === "following" ? "default" : "outline"} size="sm" onClick={() => setActiveTab("following")} className="flex-1">
+                {t('followingTab')}
               </Button>
               <Button
                 variant={activeTab === "notifications" ? "default" : "outline"}
@@ -318,7 +295,6 @@ const Messages = () => {
                 className="flex-1 relative"
               >
                 <Bell className="h-4 w-4 mr-1" />
-
                 {notifUnreadCount > 0 && (
                   <Badge
                     variant="destructive"
@@ -339,7 +315,7 @@ const Messages = () => {
             <>
               {isLoading ? (
                 <div className="text-center py-12">
-                  <p className="text-muted-foreground">Yuklanmoqda...</p>
+                   <p className="text-muted-foreground">{t('loading')}</p>
                 </div>
               ) : (
                 <>
@@ -359,10 +335,10 @@ const Messages = () => {
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-1.5">
-                          <h3 className="font-bold truncate text-foreground">AI Do'stim</h3>
+                          <h3 className="font-bold truncate text-foreground">{t('aiName')}</h3>
                           <Sparkles className="h-3.5 w-3.5 text-purple-400 flex-shrink-0" />
                         </div>
-                        <p className="text-sm text-muted-foreground truncate">🤖 Har qanday savolga javob beraman!</p>
+                        <p className="text-sm text-muted-foreground truncate">🤖 {t('aiDesc')}</p>
                       </div>
                       <Badge className="bg-gradient-to-r from-violet-500 to-pink-500 text-white border-0 text-[10px] px-2">
                         AI
@@ -401,7 +377,7 @@ const Messages = () => {
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
                           <h3 className="font-semibold truncate">
-                            {conv.otherUser.name || conv.otherUser.username || "Foydalanuvchi"}
+                            {conv.otherUser.name || conv.otherUser.username || t('user')}
                           </h3>
                           {conv.lastMessage && (
                             <span className="text-xs text-muted-foreground">
@@ -413,7 +389,7 @@ const Messages = () => {
                           <p
                             className={`text-sm truncate ${conv.unreadCount > 0 ? "text-foreground font-medium" : "text-muted-foreground"}`}
                           >
-                            {conv.lastMessage.sender_id === user?.id ? "Siz: " : ""}
+                            {conv.lastMessage.sender_id === user?.id ? `${t('you')}: ` : ""}
                             {conv.lastMessage.content}
                           </p>
                         )}
@@ -424,10 +400,10 @@ const Messages = () => {
                   {filteredConversations.length === 0 &&
                     filteredGroups.length === 0 &&
                     filteredChannels.length === 0 && (
-                      <div className="text-center py-12 px-4">
-                        <MessageCircle className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
-                        <p className="text-muted-foreground">Hozircha chatlar yo'q</p>
-                        <p className="text-sm text-muted-foreground mt-1">Guruh yoki kanal yarating</p>
+                       <div className="text-center py-12 px-4">
+                         <MessageCircle className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
+                         <p className="text-muted-foreground">{t('noChats')}</p>
+                         <p className="text-sm text-muted-foreground mt-1">{t('createGroupOrChannel')}</p>
                       </div>
                     )}
                 </>
@@ -440,15 +416,13 @@ const Messages = () => {
             <>
               {groupsLoading ? (
                 <div className="text-center py-12">
-                  <p className="text-muted-foreground">Yuklanmoqda...</p>
+                   <p className="text-muted-foreground">{t('loading')}</p>
                 </div>
               ) : filteredGroups.length === 0 ? (
-                <div className="text-center py-12 px-4">
-                  <Users className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
-                  <p className="text-muted-foreground">Guruhlar yo'q</p>
-                  <Button variant="link" onClick={handleNewGroup}>
-                    Yangi guruh yaratish
-                  </Button>
+                 <div className="text-center py-12 px-4">
+                   <Users className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
+                   <p className="text-muted-foreground">{t('noGroups')}</p>
+                   <Button variant="link" onClick={handleNewGroup}>{t('createNewGroup')}</Button>
                 </div>
               ) : (
                 filteredGroups.map((group) => (
@@ -463,15 +437,13 @@ const Messages = () => {
             <>
               {groupsLoading ? (
                 <div className="text-center py-12">
-                  <p className="text-muted-foreground">Yuklanmoqda...</p>
+                  <p className="text-muted-foreground">{t('loading')}</p>
                 </div>
               ) : filteredChannels.length === 0 ? (
-                <div className="text-center py-12 px-4">
-                  <Megaphone className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
-                  <p className="text-muted-foreground">Kanallar yo'q</p>
-                  <Button variant="link" onClick={handleNewChannel}>
-                    Yangi kanal yaratish
-                  </Button>
+                 <div className="text-center py-12 px-4">
+                   <Megaphone className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
+                   <p className="text-muted-foreground">{t('noChannels')}</p>
+                   <Button variant="link" onClick={handleNewChannel}>{t('createNewChannel')}</Button>
                 </div>
               ) : (
                 filteredChannels.map((channel) => (
@@ -486,7 +458,7 @@ const Messages = () => {
             <>
               {filteredFollowers.length === 0 ? (
                 <div className="text-center py-12 px-4">
-                  <p className="text-muted-foreground">Kuzatuvchilar yo'q</p>
+                  <p className="text-muted-foreground">{t('noFollowers')}</p>
                 </div>
               ) : (
                 filteredFollowers.map((follower) => (
@@ -500,12 +472,12 @@ const Messages = () => {
                       <AvatarFallback>{getInitials(follower.name)}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold truncate">{follower.name || "Foydalanuvchi"}</h3>
+                      <h3 className="font-semibold truncate">{follower.name || t('user')}</h3>
                       <p className="text-sm text-muted-foreground truncate">@{follower.username || "username"}</p>
                     </div>
-                    <Button variant="outline" size="sm">
-                      Xabar
-                    </Button>
+                     <Button variant="outline" size="sm">
+                       {t('messageBtn')}
+                     </Button>
                   </div>
                 ))
               )}
@@ -517,7 +489,7 @@ const Messages = () => {
             <>
               {filteredFollowing.length === 0 ? (
                 <div className="text-center py-12 px-4">
-                  <p className="text-muted-foreground">Hech kimni kuzatmayapsiz</p>
+                  <p className="text-muted-foreground">{t('notFollowing')}</p>
                 </div>
               ) : (
                 filteredFollowing.map((followingUser) => (
@@ -531,12 +503,12 @@ const Messages = () => {
                       <AvatarFallback>{getInitials(followingUser.name)}</AvatarFallback>
                     </Avatar>
                     <div className="flex-1 min-w-0">
-                      <h3 className="font-semibold truncate">{followingUser.name || "Foydalanuvchi"}</h3>
+                      <h3 className="font-semibold truncate">{followingUser.name || t('user')}</h3>
                       <p className="text-sm text-muted-foreground truncate">@{followingUser.username || "username"}</p>
                     </div>
-                    <Button variant="outline" size="sm">
-                      Xabar
-                    </Button>
+                     <Button variant="outline" size="sm">
+                       {t('messageBtn')}
+                     </Button>
                   </div>
                 ))
               )}

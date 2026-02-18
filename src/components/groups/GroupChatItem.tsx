@@ -3,6 +3,7 @@ import { Users, Megaphone } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { uz } from 'date-fns/locale';
 import { GroupChat } from '@/hooks/useGroupChats';
+import { useLanguage } from '@/contexts/LanguageContext';
 
 interface GroupChatItemProps {
   chat: GroupChat;
@@ -10,6 +11,7 @@ interface GroupChatItemProps {
 }
 
 export const GroupChatItem = ({ chat, onClick }: GroupChatItemProps) => {
+  const { t } = useLanguage();
   const formatTime = (dateStr: string) => {
     return formatDistanceToNow(new Date(dateStr), { addSuffix: false, locale: uz });
   };
@@ -54,11 +56,11 @@ export const GroupChatItem = ({ chat, onClick }: GroupChatItemProps) => {
         <div className="flex items-center gap-2">
           <p className="text-sm text-muted-foreground truncate flex-1">
             {chat.lastMessage?.content || (
-              <span className="italic">Hozircha xabarlar yo'q</span>
+              <span className="italic">{t('noMessagesYet')}</span>
             )}
           </p>
           <span className="text-xs text-muted-foreground">
-            {chat.memberCount} a'zo
+            {chat.memberCount} {t('members')}
           </span>
         </div>
       </div>

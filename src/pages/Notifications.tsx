@@ -5,12 +5,14 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Bell, Users } from 'lucide-react';
 import { useFamilyTree } from '@/hooks/useFamilyTree';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { InvitationCard } from '@/components/family/InvitationCard';
 import { NotificationsTab } from '@/components/notifications/NotificationsTab';
 import { useState } from 'react';
 
 const Notifications = () => {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const { invitations, respondToInvitation } = useFamilyTree();
   const [loadingInvitation, setLoadingInvitation] = useState<string | null>(null);
 
@@ -33,7 +35,7 @@ const Notifications = () => {
     <AppLayout>
       <div className="max-w-lg mx-auto">
         <header className="sticky top-0 bg-background/80 backdrop-blur-sm border-b border-border p-4 z-40">
-          <h1 className="text-xl font-bold">Bildirishnomalar</h1>
+          <h1 className="text-xl font-bold">{t('notifications')}</h1>
         </header>
         
         <div className="space-y-0">
@@ -42,7 +44,7 @@ const Notifications = () => {
             <div className="p-4 border-b border-border">
               <div className="flex items-center gap-2 mb-3">
                 <Users className="h-5 w-5 text-primary" />
-                <h2 className="font-semibold">Oila daraxti taklifnomalari</h2>
+                <h2 className="font-semibold">{t('familyInvites')}</h2>
               </div>
               <div className="space-y-3">
                 {receivedInvitations.map((inv) => (
