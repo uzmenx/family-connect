@@ -2,10 +2,10 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import { Button } from "@/components/ui/button";
-import { Plus, Users, Megaphone } from "lucide-react";
+  DropdownMenuTrigger } from
+'@/components/ui/dropdown-menu';
+import { Button } from '@/components/ui/button';
+import { Edit, Users, Megaphone } from 'lucide-react';
 
 interface NewChatMenuProps {
   onNewGroup: () => void;
@@ -17,7 +17,7 @@ export const NewChatMenu = ({ onNewGroup, onNewChannel }: NewChatMenuProps) => {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon">
-          <Plus className="h-5 w-5" />
+          <Edit className="h-5 w-[25px]" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">
@@ -30,6 +30,6 @@ export const NewChatMenu = ({ onNewGroup, onNewChannel }: NewChatMenuProps) => {
           <span>Yangi kanal</span>
         </DropdownMenuItem>
       </DropdownMenuContent>
-    </DropdownMenu>
-  );
+    </DropdownMenu>);
+
 };
