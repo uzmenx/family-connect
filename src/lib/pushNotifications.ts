@@ -80,12 +80,26 @@ export function setSelectedRingtone(id: string) {
 }
 
 let currentAudioContext: AudioContext | null = null;
-let ringtoneTimeout: NodeJS.Timeout | null = null;
+let ringtoneTimeout: ReturnType<typeof setTimeout> | null = null;
+let customAudioEl: HTMLAudioElement | null = null;
 
 export function playRingtone(ringtoneId?: string) {
   stopRingtone();
   
   const id = ringtoneId || getSelectedRingtone();
+  
+  // Custom ringtone from local file
+  if (id === 'custom') {
+    const dataUrl = localStorage.getItem('custom_ringtone_data');
+    if (dataUrl) {
+      const audio = new Audio(dataUrl);
+      audio.loop = true;
+      customAudioEl = audio;
+      audio.play().catch(() => {});
+    }
+    return;
+  }
+  
   const ringtone = RINGTONE_OPTIONS.find(r => r.id === id) || RINGTONE_OPTIONS[0];
   
   try {
@@ -150,6 +164,11 @@ export function stopRingtone() {
   if (currentAudioContext) {
     currentAudioContext.close().catch(() => {});
     currentAudioContext = null;
+  }
+  if (customAudioEl) {
+    customAudioEl.pause();
+    customAudioEl.currentTime = 0;
+    customAudioEl = null;
   }
 }
 

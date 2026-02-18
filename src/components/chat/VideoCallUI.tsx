@@ -28,21 +28,18 @@ export const VideoCallUI = ({
   const localVideoRef = useRef<HTMLVideoElement>(null);
   const remoteVideoRef = useRef<HTMLVideoElement>(null);
   
-  // Layout
   const [layoutMode, setLayoutMode] = useState<LayoutMode>('pip');
   const [showControls, setShowControls] = useState(true);
-  const hideTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const hideTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
-  // PiP drag
+  // PiP drag state
   const [pipPosition, setPipPosition] = useState({ x: 16, y: 16 });
   const [pipSize, setPipSize] = useState({ w: 120, h: 170 });
   const [isDragging, setIsDragging] = useState(false);
-  const [isResizing, setIsResizing] = useState(false);
   const dragStartRef = useRef({ x: 0, y: 0, px: 0, py: 0 });
-  const resizeStartRef = useRef({ x: 0, y: 0, w: 0, h: 0 });
   
-  // Swapped: which video is in PiP
-  const [localInPip, setLocalInPip] = useState(true);
+  // Swapped: false = local in PiP (small), remote fullscreen; true = remote in PiP, local fullscreen
+  const [swapped, setSwapped] = useState(false);
 
   // Auto-hide controls
   const resetHideTimer = useCallback(() => {
@@ -56,50 +53,58 @@ export const VideoCallUI = ({
     return () => { if (hideTimerRef.current) clearTimeout(hideTimerRef.current); };
   }, []);
 
-  const handleScreenTap = () => {
-    resetHideTimer();
-  };
-
-  // Video tracks
+  // Attach local video track
   useEffect(() => {
     if (!callObject) return;
 
-    const updateLocal = () => {
+    const attachLocal = () => {
       const lp = callObject.participants()?.local;
       if (lp?.videoTrack && localVideoRef.current) {
-        localVideoRef.current.srcObject = new MediaStream([lp.videoTrack]);
-      }
-    };
-
-    const updateRemote = () => {
-      if (remoteParticipant?.videoTrack && remoteVideoRef.current) {
-        remoteVideoRef.current.srcObject = new MediaStream([remoteParticipant.videoTrack]);
-      }
-      if (remoteParticipant?.audioTrack) {
-        const audioEl = document.getElementById('remote-audio') as HTMLAudioElement;
-        if (audioEl) {
-          audioEl.srcObject = new MediaStream([remoteParticipant.audioTrack]);
-        } else {
-          const newEl = document.createElement('audio');
-          newEl.srcObject = new MediaStream([remoteParticipant.audioTrack]);
-          newEl.autoplay = true;
-          newEl.id = 'remote-audio';
-          document.body.appendChild(newEl);
+        const stream = new MediaStream([lp.videoTrack]);
+        if (localVideoRef.current.srcObject !== stream) {
+          localVideoRef.current.srcObject = stream;
         }
+      } else if (localVideoRef.current && !lp?.video) {
+        localVideoRef.current.srcObject = null;
       }
     };
 
-    updateLocal();
-    updateRemote();
-    callObject.on('participant-updated', () => { updateLocal(); updateRemote(); });
+    attachLocal();
+    
+    const handler = (evt: any) => {
+      if (evt?.participant?.local) attachLocal();
+    };
+    
+    callObject.on('participant-updated', handler);
+    return () => { callObject.off('participant-updated', handler); };
+  }, [callObject]);
 
-    return () => { 
+  // Attach remote video + audio tracks
+  useEffect(() => {
+    if (remoteParticipant?.videoTrack && remoteVideoRef.current) {
+      remoteVideoRef.current.srcObject = new MediaStream([remoteParticipant.videoTrack]);
+    } else if (remoteVideoRef.current && !remoteParticipant?.video) {
+      remoteVideoRef.current.srcObject = null;
+    }
+    
+    if (remoteParticipant?.audioTrack) {
+      let audioEl = document.getElementById('remote-audio') as HTMLAudioElement;
+      if (!audioEl) {
+        audioEl = document.createElement('audio');
+        audioEl.id = 'remote-audio';
+        audioEl.autoplay = true;
+        document.body.appendChild(audioEl);
+      }
+      audioEl.srcObject = new MediaStream([remoteParticipant.audioTrack]);
+    }
+
+    return () => {
       const el = document.getElementById('remote-audio');
       if (el) el.remove();
     };
-  }, [callObject, remoteParticipant]);
+  }, [remoteParticipant?.videoTrack, remoteParticipant?.audioTrack]);
 
-  // PiP Drag handlers
+  // PiP Drag
   const handlePipPointerDown = (e: React.PointerEvent) => {
     if (layoutMode !== 'pip') return;
     e.preventDefault();
@@ -121,97 +126,65 @@ export const VideoCallUI = ({
     });
   };
 
-  const handlePipPointerUp = () => {
-    setIsDragging(false);
-  };
+  const handlePipPointerUp = () => setIsDragging(false);
 
-  // Resize handlers
-  const handleResizePointerDown = (e: React.PointerEvent) => {
-    e.preventDefault();
+  const handleSwap = (e: React.MouseEvent) => {
     e.stopPropagation();
-    setIsResizing(true);
-    resizeStartRef.current = { x: e.clientX, y: e.clientY, w: pipSize.w, h: pipSize.h };
-    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+    setSwapped(prev => !prev);
   };
 
-  const handleResizePointerMove = (e: React.PointerEvent) => {
-    if (!isResizing) return;
-    const dx = e.clientX - resizeStartRef.current.x;
-    const dy = e.clientY - resizeStartRef.current.y;
-    const newW = Math.max(80, Math.min(250, resizeStartRef.current.w + dx));
-    const newH = Math.max(110, Math.min(350, resizeStartRef.current.h + dy));
-    setPipSize({ w: newW, h: newH });
-  };
+  // Who is fullscreen vs PiP
+  const fullscreenIsRemote = !swapped;
+  const fullscreenHasVideo = fullscreenIsRemote ? !!remoteParticipant?.video : cameraOn;
+  const pipHasVideo = fullscreenIsRemote ? cameraOn : !!remoteParticipant?.video;
 
-  const handleResizePointerUp = () => {
-    setIsResizing(false);
-  };
-
-  const renderVideo = (
-    ref: React.RefObject<HTMLVideoElement>,
+  const renderVideoElement = (
+    isLocal: boolean,
     hasVideo: boolean,
-    isMirror: boolean,
     className: string,
     label?: string
-  ) => (
-    <div className={cn("bg-muted flex items-center justify-center overflow-hidden", className)}>
-      {hasVideo ? (
-        <video
-          ref={ref}
-          autoPlay
-          playsInline
-          muted={isMirror}
-          className={cn("w-full h-full object-cover", isMirror && "scale-x-[-1]")}
-        />
-      ) : (
-        <div className="text-center text-muted-foreground">
-          <div className="w-16 h-16 bg-muted-foreground/20 rounded-full flex items-center justify-center mx-auto mb-2">
-            <VideoOff className="h-8 w-8" />
+  ) => {
+    const ref = isLocal ? localVideoRef : remoteVideoRef;
+    return (
+      <div className={cn("bg-muted flex items-center justify-center overflow-hidden", className)}>
+        {hasVideo ? (
+          <video
+            ref={ref}
+            autoPlay
+            playsInline
+            muted={isLocal}
+            className={cn("w-full h-full object-cover", isLocal && "scale-x-[-1]")}
+          />
+        ) : (
+          <div className="text-center text-muted-foreground">
+            <div className="w-16 h-16 bg-muted-foreground/20 rounded-full flex items-center justify-center mx-auto mb-2">
+              <VideoOff className="h-8 w-8" />
+            </div>
+            {label && <p className="text-xs">{label}</p>}
           </div>
-          {label && <p className="text-xs">{label}</p>}
-        </div>
-      )}
-    </div>
-  );
+        )}
+      </div>
+    );
+  };
 
   return (
     <div 
       className="fixed inset-0 z-50 bg-background" 
-      onClick={handleScreenTap}
-      onTouchStart={handleScreenTap}
+      onClick={resetHideTimer}
+      onTouchStart={resetHideTimer}
     >
       {layoutMode === 'split' ? (
-        /* 50/50 Split Mode */
         <div className="flex flex-col h-full">
-          {renderVideo(
-            localInPip ? remoteVideoRef : localVideoRef,
-            localInPip ? !!remoteParticipant?.video : cameraOn,
-            !localInPip,
-            "flex-1",
-            localInPip ? "Kutilmoqda..." : undefined
-          )}
+          {renderVideoElement(!fullscreenIsRemote, fullscreenIsRemote ? !!remoteParticipant?.video : cameraOn, "flex-1", fullscreenIsRemote ? "Kutilmoqda..." : undefined)}
           <div className="h-px bg-border" />
-          {renderVideo(
-            localInPip ? localVideoRef : remoteVideoRef,
-            localInPip ? cameraOn : !!remoteParticipant?.video,
-            localInPip,
-            "flex-1",
-            !localInPip ? "Kutilmoqda..." : undefined
-          )}
+          {renderVideoElement(fullscreenIsRemote, fullscreenIsRemote ? cameraOn : !!remoteParticipant?.video, "flex-1", !fullscreenIsRemote ? "Kutilmoqda..." : undefined)}
         </div>
       ) : (
-        /* PiP Mode */
         <>
-          {/* Main (full screen) */}
-          {renderVideo(
-            localInPip ? remoteVideoRef : localVideoRef,
-            localInPip ? !!remoteParticipant?.video : cameraOn,
-            !localInPip,
-            "absolute inset-0",
-            localInPip ? "Kutilmoqda..." : undefined
-          )}
+          {/* Fullscreen */}
+          {renderVideoElement(!fullscreenIsRemote, fullscreenHasVideo, "absolute inset-0", fullscreenIsRemote ? "Kutilmoqda..." : undefined)}
 
-          {/* PiP Window (draggable + resizable) */}
+          {/* PiP Window */}
           <div
             className="absolute rounded-2xl overflow-hidden shadow-2xl border-2 border-background/50 cursor-grab active:cursor-grabbing touch-none"
             style={{
@@ -224,31 +197,13 @@ export const VideoCallUI = ({
             onPointerDown={handlePipPointerDown}
             onPointerMove={handlePipPointerMove}
             onPointerUp={handlePipPointerUp}
-            onDoubleClick={(e) => {
-              e.stopPropagation();
-              setLocalInPip(!localInPip);
-            }}
           >
-            {renderVideo(
-              localInPip ? localVideoRef : remoteVideoRef,
-              localInPip ? cameraOn : !!remoteParticipant?.video,
-              localInPip,
-              "w-full h-full"
-            )}
-            {/* Resize handle */}
-            <div
-              className="absolute bottom-0 right-0 w-6 h-6 cursor-se-resize touch-none"
-              onPointerDown={handleResizePointerDown}
-              onPointerMove={handleResizePointerMove}
-              onPointerUp={handleResizePointerUp}
-            >
-              <div className="absolute bottom-1 right-1 w-3 h-3 border-b-2 border-r-2 border-white/60 rounded-br-sm" />
-            </div>
+            {renderVideoElement(fullscreenIsRemote, pipHasVideo, "w-full h-full")}
           </div>
         </>
       )}
 
-      {/* Controls — auto-hide */}
+      {/* Controls */}
       <div 
         className={cn(
           "absolute bottom-0 left-0 right-0 transition-all duration-300",
@@ -296,7 +251,7 @@ export const VideoCallUI = ({
               className="h-12 w-12 rounded-full bg-white/20 text-white backdrop-blur-md"
               onClick={(e) => {
                 e.stopPropagation();
-                setLayoutMode(layoutMode === 'pip' ? 'split' : 'pip');
+                setLayoutMode(prev => prev === 'pip' ? 'split' : 'pip');
               }}
             >
               {layoutMode === 'pip' ? <Maximize2 className="h-5 w-5" /> : <Minimize2 className="h-5 w-5" />}
@@ -306,10 +261,7 @@ export const VideoCallUI = ({
               variant="ghost"
               size="icon"
               className="h-12 w-12 rounded-full bg-white/20 text-white backdrop-blur-md"
-              onClick={(e) => {
-                e.stopPropagation();
-                setLocalInPip(!localInPip);
-              }}
+              onClick={handleSwap}
             >
               <RotateCcw className="h-5 w-5" />
             </Button>
