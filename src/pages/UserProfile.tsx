@@ -240,20 +240,22 @@ const UserProfilePage = () => {
         </div>
 
         {/* Posts Grid / List */}
-        {activeTab === 'posts' && (
+        {activeTab === 'posts' && (() => {
+          const displayPosts = selectedCollectionId ? collectionPosts : posts;
+          return (
           <PullToRefresh onRefresh={refetch}>
             {postsLoading ? (
               <div className="text-center py-12">
                 <p className="text-muted-foreground">Yuklanmoqda...</p>
               </div>
-            ) : posts.length === 0 ? (
+            ) : displayPosts.length === 0 ? (
               <div className="text-center py-12 px-4">
                 <Grid3X3 className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
-                <p className="text-muted-foreground">Hozircha postlar yo'q</p>
+                <p className="text-muted-foreground">{selectedCollectionId ? "Bu ro'yxatda postlar yo'q" : "Hozircha postlar yo'q"}</p>
               </div>
             ) : (
               <div className="space-y-4 px-0 md:px-4">
-                {posts.map((post, index) => (
+                {displayPosts.map((post, index) => (
                   <div key={post.id} onClick={() => openViewer(index)} className="cursor-pointer">
                     <PostCard post={post} />
                   </div>
