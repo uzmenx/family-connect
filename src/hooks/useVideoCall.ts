@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import DailyIframe, { DailyCall, DailyParticipant, DailyEventObject } from '@daily-co/daily-js';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
@@ -24,6 +24,7 @@ export const useVideoCall = (otherUserId: string | null) => {
   const [cameraOn, setCameraOn] = useState(true);
   const [micOn, setMicOn] = useState(true);
   const [remoteParticipant, setRemoteParticipant] = useState<DailyParticipant | null>(null);
+  const callHistorySavedRef = useRef(false);
 
   // Subscribe to incoming calls
   useEffect(() => {
@@ -96,6 +97,7 @@ export const useVideoCall = (otherUserId: string | null) => {
       
       console.log('Room created:', data);
       setCurrentCall(data.call);
+      callHistorySavedRef.current = false;
       
       // Join the room
       await joinRoom(data.room_url);
@@ -119,6 +121,7 @@ export const useVideoCall = (otherUserId: string | null) => {
         .eq('id', incomingCall.id);
 
       setCurrentCall(incomingCall);
+      callHistorySavedRef.current = false;
       await joinRoom(incomingCall.room_url);
       setIncomingCall(null);
       
@@ -215,52 +218,48 @@ export const useVideoCall = (otherUserId: string | null) => {
           },
         });
 
-        // Save call history as a chat message
-        try {
-          const otherUserId = currentCall.caller_id === user?.id 
-            ? currentCall.receiver_id 
-            : currentCall.caller_id;
-          
-          // Get or create conversation
-          const { data: existing } = await supabase
-            .from('conversations')
-            .select('id')
-            .or(`and(participant1_id.eq.${user?.id},participant2_id.eq.${otherUserId}),and(participant1_id.eq.${otherUserId},participant2_id.eq.${user?.id})`)
-            .maybeSingle();
-
-          let convId = existing?.id;
-          if (!convId) {
-            const { data: newConv } = await supabase
-              .from('conversations')
-              .insert({ participant1_id: user!.id, participant2_id: otherUserId })
-              .select('id')
-              .single();
-            convId = newConv?.id;
-          }
-
-          if (convId && user?.id) {
-            const startTime = new Date(currentCall.created_at);
-            const endTime = new Date();
-            const durationSec = Math.round((endTime.getTime() - startTime.getTime()) / 1000);
-            const mins = Math.floor(durationSec / 60);
-            const secs = durationSec % 60;
-            const durationText = mins > 0 ? `${mins} daqiqa ${secs} soniya` : `${secs} soniya`;
+        // Save call history ONLY ONCE
+        if (!callHistorySavedRef.current && user?.id) {
+          callHistorySavedRef.current = true;
+          try {
+            const otherUserId = currentCall.caller_id === user.id 
+              ? currentCall.receiver_id 
+              : currentCall.caller_id;
             
-            const isCaller = currentCall.caller_id === user.id;
-            const callIcon = '📹';
-            const callText = isCaller
-              ? `${callIcon} Video qo'ng'iroq — ${durationText}`
-              : `${callIcon} Video qo'ng'iroq — ${durationText}`;
+            const { data: existing } = await supabase
+              .from('conversations')
+              .select('id')
+              .or(`and(participant1_id.eq.${user.id},participant2_id.eq.${otherUserId}),and(participant1_id.eq.${otherUserId},participant2_id.eq.${user.id})`)
+              .maybeSingle();
 
-            await supabase.from('messages').insert({
-              conversation_id: convId,
-              sender_id: user.id,
-              content: callText,
-              status: 'sent',
-            });
+            let convId = existing?.id;
+            if (!convId) {
+              const { data: newConv } = await supabase
+                .from('conversations')
+                .insert({ participant1_id: user.id, participant2_id: otherUserId })
+                .select('id')
+                .single();
+              convId = newConv?.id;
+            }
+
+            if (convId) {
+              const startTime = new Date(currentCall.created_at);
+              const endTime = new Date();
+              const durationSec = Math.round((endTime.getTime() - startTime.getTime()) / 1000);
+              const mins = Math.floor(durationSec / 60);
+              const secs = durationSec % 60;
+              const durationText = mins > 0 ? `${mins} daqiqa ${secs} soniya` : `${secs} soniya`;
+
+              await supabase.from('messages').insert({
+                conversation_id: convId,
+                sender_id: user.id,
+                content: `📹 Video qo'ng'iroq — ${durationText}`,
+                status: 'sent',
+              });
+            }
+          } catch (historyErr) {
+            console.error('Error saving call history:', historyErr);
           }
-        } catch (historyErr) {
-          console.error('Error saving call history:', historyErr);
         }
       }
 
