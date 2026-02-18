@@ -74,10 +74,10 @@ const Messages = () => {
       if (followersData) {
         const followerIds = followersData.map((f) => f.follower_id);
         if (followerIds.length > 0) {
-          const { data: profiles } = await supabase
-            .from("profiles")
-            .select("id, name, username, avatar_url")
-            .in("id", followerIds);
+          const { data: profiles } = await supabase.
+          from("profiles").
+          select("id, name, username, avatar_url").
+          in("id", followerIds);
           setFollowers(profiles || []);
         }
       }
@@ -88,10 +88,10 @@ const Messages = () => {
       if (followingData) {
         const followingIds = followingData.map((f) => f.following_id);
         if (followingIds.length > 0) {
-          const { data: profiles } = await supabase
-            .from("profiles")
-            .select("id, name, username, avatar_url")
-            .in("id", followingIds);
+          const { data: profiles } = await supabase.
+          from("profiles").
+          select("id, name, username, avatar_url").
+          in("id", followingIds);
           setFollowing(profiles || []);
         }
       }
@@ -102,12 +102,12 @@ const Messages = () => {
 
   const getInitials = (name: string | null | undefined) => {
     if (!name) return "U";
-    return name
-      .split(" ")
-      .map((n) => n[0])
-      .join("")
-      .toUpperCase()
-      .slice(0, 2);
+    return name.
+    split(" ").
+    map((n) => n[0]).
+    join("").
+    toUpperCase().
+    slice(0, 2);
   };
 
   const formatTime = (dateStr: string) => {
@@ -180,7 +180,7 @@ const Messages = () => {
       // Store memberIds temporarily
       setPendingGroupData({
         ...pendingGroupData,
-        memberIds: memberIds as any,
+        memberIds: memberIds as any
       });
     } else {
       // Create group immediately
@@ -190,7 +190,7 @@ const Messages = () => {
         memberIds,
         pendingGroupData.description,
         pendingGroupData.avatarUrl || undefined,
-        "private",
+        "private"
       );
 
       if (groupId) {
@@ -215,7 +215,7 @@ const Messages = () => {
       memberIds,
       pendingGroupData.description,
       pendingGroupData.avatarUrl || undefined,
-      visibility,
+      visibility
     );
 
     if (channelId) {
@@ -243,13 +243,13 @@ const Messages = () => {
       <div className="min-h-screen pb-20">
         {/* Header */}
         <div className="sticky top-0 z-40 bg-background/60 backdrop-blur-xl border-b border-border/20">
-          <div className="px-4 py-3 flex items-center gap-3">
+          <div className="px-4 flex items-center gap-3 py-[5px]">
             <h1 className="text-xl font-bold flex-1">{t('messages')}</h1>
-            {totalUnread > 0 && (
-              <Badge variant="destructive" className="rounded-full">
+            {totalUnread > 0 &&
+            <Badge variant="destructive" className="rounded-full">
                 {totalUnread}
               </Badge>
-            )}
+            }
             <NewChatMenu onNewGroup={handleNewGroup} onNewChannel={handleNewChannel} />
           </div>
 
@@ -261,8 +261,8 @@ const Messages = () => {
                 placeholder={t('searchChats')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10"
-              />
+                className="pl-10" />
+
             </div>
           </div>
 
@@ -292,17 +292,17 @@ const Messages = () => {
                 variant={activeTab === "notifications" ? "default" : "outline"}
                 size="sm"
                 onClick={() => setActiveTab("notifications")}
-                className="flex-1 relative"
-              >
+                className="flex-1 relative">
+
                 <Bell className="h-4 w-4 mr-1" />
-                {notifUnreadCount > 0 && (
-                  <Badge
-                    variant="destructive"
-                    className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-[10px] min-w-4"
-                  >
+                {notifUnreadCount > 0 &&
+                <Badge
+                  variant="destructive"
+                  className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-[10px] min-w-4">
+
                     {notifUnreadCount > 9 ? "9+" : notifUnreadCount}
                   </Badge>
-                )}
+                }
               </Button>
             </div>
           </div>
@@ -311,19 +311,19 @@ const Messages = () => {
         {/* Content */}
         <div className="divide-y divide-border">
           {/* All chats */}
-          {activeTab === "all" && (
-            <>
-              {isLoading ? (
-                <div className="text-center py-12">
+          {activeTab === "all" &&
+          <>
+              {isLoading ?
+            <div className="text-center py-12">
                    <p className="text-muted-foreground">{t('loading')}</p>
-                </div>
-              ) : (
-                <>
+                </div> :
+
+            <>
                   {/* AI Do'stim - pinned contact */}
                   <div
-                    onClick={() => navigate('/ai-chat')}
-                    className="flex items-center gap-3 p-4 cursor-pointer active:bg-muted transition-colors relative overflow-hidden group"
-                  >
+                onClick={() => navigate('/ai-chat')}
+                className="flex items-center gap-3 p-4 cursor-pointer active:bg-muted transition-colors relative overflow-hidden group">
+
                     {/* Glass background effect */}
                     <div className="absolute inset-0 bg-gradient-to-r from-violet-500/10 via-purple-500/5 to-pink-500/10 group-hover:from-violet-500/15 group-hover:to-pink-500/15 transition-all" />
                     <div className="relative flex items-center gap-3 w-full">
@@ -347,126 +347,126 @@ const Messages = () => {
                   </div>
 
                   {/* Groups */}
-                  {filteredGroups.map((group) => (
-                    <GroupChatItem key={group.id} chat={group} onClick={() => handleGroupClick(group.id)} />
-                  ))}
+                  {filteredGroups.map((group) =>
+              <GroupChatItem key={group.id} chat={group} onClick={() => handleGroupClick(group.id)} />
+              )}
 
                   {/* Channels */}
-                  {filteredChannels.map((channel) => (
-                    <GroupChatItem key={channel.id} chat={channel} onClick={() => handleGroupClick(channel.id)} />
-                  ))}
+                  {filteredChannels.map((channel) =>
+              <GroupChatItem key={channel.id} chat={channel} onClick={() => handleGroupClick(channel.id)} />
+              )}
 
                   {/* Conversations */}
-                  {filteredConversations.map((conv) => (
-                    <div
-                      key={conv.id}
-                      onClick={() => handleUserClick(conv.otherUser.id)}
-                      className="flex items-center gap-3 p-4 hover:bg-muted/50 cursor-pointer active:bg-muted transition-colors"
-                    >
+                  {filteredConversations.map((conv) =>
+              <div
+                key={conv.id}
+                onClick={() => handleUserClick(conv.otherUser.id)}
+                className="flex items-center gap-3 p-4 hover:bg-muted/50 cursor-pointer active:bg-muted transition-colors">
+
                       <div className="relative">
                         <Avatar className="h-12 w-12">
                           <AvatarImage src={conv.otherUser.avatar_url || undefined} />
                           <AvatarFallback>{getInitials(conv.otherUser.name)}</AvatarFallback>
                         </Avatar>
-                        {conv.unreadCount > 0 && (
-                          <span className="absolute -top-1 -right-1 h-5 w-5 bg-primary text-primary-foreground text-xs rounded-full flex items-center justify-center">
+                        {conv.unreadCount > 0 &&
+                  <span className="absolute -top-1 -right-1 h-5 w-5 bg-primary text-primary-foreground text-xs rounded-full flex items-center justify-center">
                             {conv.unreadCount > 9 ? "9+" : conv.unreadCount}
                           </span>
-                        )}
+                  }
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
                           <h3 className="font-semibold truncate">
                             {conv.otherUser.name || conv.otherUser.username || t('user')}
                           </h3>
-                          {conv.lastMessage && (
-                            <span className="text-xs text-muted-foreground">
+                          {conv.lastMessage &&
+                    <span className="text-xs text-muted-foreground">
                               {formatTime(conv.lastMessage.created_at)}
                             </span>
-                          )}
+                    }
                         </div>
-                        {conv.lastMessage && (
-                          <p
-                            className={`text-sm truncate ${conv.unreadCount > 0 ? "text-foreground font-medium" : "text-muted-foreground"}`}
-                          >
+                        {conv.lastMessage &&
+                  <p
+                    className={`text-sm truncate ${conv.unreadCount > 0 ? "text-foreground font-medium" : "text-muted-foreground"}`}>
+
                             {conv.lastMessage.sender_id === user?.id ? `${t('you')}: ` : ""}
                             {conv.lastMessage.content}
                           </p>
-                        )}
+                  }
                       </div>
                     </div>
-                  ))}
+              )}
 
                   {filteredConversations.length === 0 &&
-                    filteredGroups.length === 0 &&
-                    filteredChannels.length === 0 && (
-                       <div className="text-center py-12 px-4">
+              filteredGroups.length === 0 &&
+              filteredChannels.length === 0 &&
+              <div className="text-center py-12 px-4">
                          <MessageCircle className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
                          <p className="text-muted-foreground">{t('noChats')}</p>
                          <p className="text-sm text-muted-foreground mt-1">{t('createGroupOrChannel')}</p>
                       </div>
-                    )}
+              }
                 </>
-              )}
+            }
             </>
-          )}
+          }
 
           {/* Groups */}
-          {activeTab === "groups" && (
-            <>
-              {groupsLoading ? (
-                <div className="text-center py-12">
+          {activeTab === "groups" &&
+          <>
+              {groupsLoading ?
+            <div className="text-center py-12">
                    <p className="text-muted-foreground">{t('loading')}</p>
-                </div>
-              ) : filteredGroups.length === 0 ? (
-                 <div className="text-center py-12 px-4">
+                </div> :
+            filteredGroups.length === 0 ?
+            <div className="text-center py-12 px-4">
                    <Users className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
                    <p className="text-muted-foreground">{t('noGroups')}</p>
                    <Button variant="link" onClick={handleNewGroup}>{t('createNewGroup')}</Button>
-                </div>
-              ) : (
-                filteredGroups.map((group) => (
-                  <GroupChatItem key={group.id} chat={group} onClick={() => handleGroupClick(group.id)} />
-                ))
-              )}
+                </div> :
+
+            filteredGroups.map((group) =>
+            <GroupChatItem key={group.id} chat={group} onClick={() => handleGroupClick(group.id)} />
+            )
+            }
             </>
-          )}
+          }
 
           {/* Channels */}
-          {activeTab === "channels" && (
-            <>
-              {groupsLoading ? (
-                <div className="text-center py-12">
+          {activeTab === "channels" &&
+          <>
+              {groupsLoading ?
+            <div className="text-center py-12">
                   <p className="text-muted-foreground">{t('loading')}</p>
-                </div>
-              ) : filteredChannels.length === 0 ? (
-                 <div className="text-center py-12 px-4">
+                </div> :
+            filteredChannels.length === 0 ?
+            <div className="text-center py-12 px-4">
                    <Megaphone className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
                    <p className="text-muted-foreground">{t('noChannels')}</p>
                    <Button variant="link" onClick={handleNewChannel}>{t('createNewChannel')}</Button>
-                </div>
-              ) : (
-                filteredChannels.map((channel) => (
-                  <GroupChatItem key={channel.id} chat={channel} onClick={() => handleGroupClick(channel.id)} />
-                ))
-              )}
+                </div> :
+
+            filteredChannels.map((channel) =>
+            <GroupChatItem key={channel.id} chat={channel} onClick={() => handleGroupClick(channel.id)} />
+            )
+            }
             </>
-          )}
+          }
 
           {/* Followers */}
-          {activeTab === "followers" && (
-            <>
-              {filteredFollowers.length === 0 ? (
-                <div className="text-center py-12 px-4">
+          {activeTab === "followers" &&
+          <>
+              {filteredFollowers.length === 0 ?
+            <div className="text-center py-12 px-4">
                   <p className="text-muted-foreground">{t('noFollowers')}</p>
-                </div>
-              ) : (
-                filteredFollowers.map((follower) => (
-                  <div
-                    key={follower.id}
-                    onClick={() => handleUserClick(follower.id)}
-                    className="flex items-center gap-3 p-4 hover:bg-muted/50 cursor-pointer active:bg-muted transition-colors"
-                  >
+                </div> :
+
+            filteredFollowers.map((follower) =>
+            <div
+              key={follower.id}
+              onClick={() => handleUserClick(follower.id)}
+              className="flex items-center gap-3 p-4 hover:bg-muted/50 cursor-pointer active:bg-muted transition-colors">
+
                     <Avatar className="h-12 w-12">
                       <AvatarImage src={follower.avatar_url || undefined} />
                       <AvatarFallback>{getInitials(follower.name)}</AvatarFallback>
@@ -479,25 +479,25 @@ const Messages = () => {
                        {t('messageBtn')}
                      </Button>
                   </div>
-                ))
-              )}
+            )
+            }
             </>
-          )}
+          }
 
           {/* Following */}
-          {activeTab === "following" && (
-            <>
-              {filteredFollowing.length === 0 ? (
-                <div className="text-center py-12 px-4">
+          {activeTab === "following" &&
+          <>
+              {filteredFollowing.length === 0 ?
+            <div className="text-center py-12 px-4">
                   <p className="text-muted-foreground">{t('notFollowing')}</p>
-                </div>
-              ) : (
-                filteredFollowing.map((followingUser) => (
-                  <div
-                    key={followingUser.id}
-                    onClick={() => handleUserClick(followingUser.id)}
-                    className="flex items-center gap-3 p-4 hover:bg-muted/50 cursor-pointer active:bg-muted transition-colors"
-                  >
+                </div> :
+
+            filteredFollowing.map((followingUser) =>
+            <div
+              key={followingUser.id}
+              onClick={() => handleUserClick(followingUser.id)}
+              className="flex items-center gap-3 p-4 hover:bg-muted/50 cursor-pointer active:bg-muted transition-colors">
+
                     <Avatar className="h-12 w-12">
                       <AvatarImage src={followingUser.avatar_url || undefined} />
                       <AvatarFallback>{getInitials(followingUser.name)}</AvatarFallback>
@@ -510,10 +510,10 @@ const Messages = () => {
                        {t('messageBtn')}
                      </Button>
                   </div>
-                ))
-              )}
+            )
+            }
             </>
-          )}
+          }
 
           {/* Notifications */}
           {activeTab === "notifications" && <NotificationsTab />}
@@ -521,48 +521,48 @@ const Messages = () => {
       </div>
 
       {/* Dialogs */}
-      {createType && (
-        <>
+      {createType &&
+      <>
           <CreateGroupDialog
-            open={showCreateDialog}
-            onOpenChange={(open) => {
-              if (!open) resetCreateFlow();
-              setShowCreateDialog(open);
-            }}
-            type={createType}
-            onNext={handleCreateNext}
-          />
+          open={showCreateDialog}
+          onOpenChange={(open) => {
+            if (!open) resetCreateFlow();
+            setShowCreateDialog(open);
+          }}
+          type={createType}
+          onNext={handleCreateNext} />
+
           <AddMembersDialog
-            open={showMembersDialog}
-            onOpenChange={(open) => {
-              if (!open) resetCreateFlow();
-              setShowMembersDialog(open);
-            }}
-            type={createType}
-            onComplete={handleMembersComplete}
-            onBack={() => {
-              setShowMembersDialog(false);
-              setShowCreateDialog(true);
-            }}
-          />
-          {createType === "channel" && (
-            <ChannelVisibilityDialog
-              open={showVisibilityDialog}
-              onOpenChange={(open) => {
-                if (!open) resetCreateFlow();
-                setShowVisibilityDialog(open);
-              }}
-              onComplete={handleVisibilityComplete}
-              onBack={() => {
-                setShowVisibilityDialog(false);
-                setShowMembersDialog(true);
-              }}
-            />
-          )}
+          open={showMembersDialog}
+          onOpenChange={(open) => {
+            if (!open) resetCreateFlow();
+            setShowMembersDialog(open);
+          }}
+          type={createType}
+          onComplete={handleMembersComplete}
+          onBack={() => {
+            setShowMembersDialog(false);
+            setShowCreateDialog(true);
+          }} />
+
+          {createType === "channel" &&
+        <ChannelVisibilityDialog
+          open={showVisibilityDialog}
+          onOpenChange={(open) => {
+            if (!open) resetCreateFlow();
+            setShowVisibilityDialog(open);
+          }}
+          onComplete={handleVisibilityComplete}
+          onBack={() => {
+            setShowVisibilityDialog(false);
+            setShowMembersDialog(true);
+          }} />
+
+        }
         </>
-      )}
-    </AppLayout>
-  );
+      }
+    </AppLayout>);
+
 };
 
 export default Messages;
