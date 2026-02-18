@@ -4,20 +4,22 @@ import { motion } from 'framer-motion';
 import { cn } from '@/lib/utils';
 import { useConversations } from '@/hooks/useConversations';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { Badge } from '@/components/ui/badge';
-
-const navItems = [
-  { icon: Home, label: 'Home', path: '/' },
-  { icon: Users, label: 'Relatives', path: '/relatives' },
-  { icon: PlusCircle, label: 'Add', path: '/create' },
-  { icon: MessageCircle, label: 'Messages', path: '/messages', badgeType: 'messages' as const },
-  { icon: User, label: 'Profile', path: '/profile' },
-];
 
 export const BottomNav = () => {
   const location = useLocation();
   const { totalUnread } = useConversations();
   const { unreadCount: notifUnread } = useNotifications();
+  const { t } = useLanguage();
+
+  const navItems = [
+    { icon: Home, label: t('home'), path: '/' },
+    { icon: Users, label: t('relativesNav'), path: '/relatives' },
+    { icon: PlusCircle, label: t('addNav'), path: '/create' },
+    { icon: MessageCircle, label: t('messagesNav'), path: '/messages', badgeType: 'messages' as const },
+    { icon: User, label: t('profileNav'), path: '/profile' },
+  ];
 
   const getBadgeCount = (badgeType?: 'messages' | 'notifications') => {
     if (badgeType === 'messages') return totalUnread;
@@ -52,9 +54,7 @@ export const BottomNav = () => {
                 )}
                 <motion.span
                   className="relative z-10 flex items-center justify-center"
-                  animate={{
-                    scale: isActive ? 1.1 : 1,
-                  }}
+                  animate={{ scale: isActive ? 1.1 : 1 }}
                   transition={{ type: 'spring', stiffness: 400, damping: 25 }}
                 >
                   <Icon className={cn("h-6 w-6", item.path === '/create' && "h-7 w-7")} />
@@ -68,12 +68,7 @@ export const BottomNav = () => {
                   </Badge>
                 )}
               </motion.div>
-              <span
-                className={cn(
-                  "text-xs transition-all duration-200 text-center",
-                  isActive && "font-semibold text-primary"
-                )}
-              >
+              <span className={cn("text-xs transition-all duration-200 text-center", isActive && "font-semibold text-primary")}>
                 {item.label}
               </span>
             </Link>

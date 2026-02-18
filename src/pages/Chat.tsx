@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { useMessages, Message } from '@/hooks/useMessages';
 import { useConversations } from '@/hooks/useConversations';
 import { useVideoCall } from '@/hooks/useVideoCall';
@@ -33,6 +34,7 @@ const Chat = () => {
   const { userId } = useParams<{ userId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { t } = useLanguage();
   const { getOrCreateConversation } = useConversations();
   const [conversationId, setConversationId] = useState<string | null>(null);
   const [otherUser, setOtherUser] = useState<UserProfile | null>(null);
@@ -137,7 +139,7 @@ const Chat = () => {
     newDeleted.add(messageId);
     setDeletedMessageIds(newDeleted);
     localStorage.setItem(`deleted_messages_${conversationId}`, JSON.stringify([...newDeleted]));
-    toast.success('Xabar o\'chirildi');
+    toast.success(t('msgDeleted'));
   };
 
   const handleDeleteForAll = async (messageId: string) => {
@@ -148,11 +150,11 @@ const Chat = () => {
         .eq('id', messageId);
 
       if (error) throw error;
-      toast.success('Xabar barcha uchun o\'chirildi');
+      toast.success(t('msgDeletedAll'));
       refetch();
     } catch (error) {
       console.error('Error deleting message:', error);
-      toast.error('Xatolik yuz berdi');
+      toast.error(t('errorOccurred'));
     }
   };
 
@@ -162,8 +164,8 @@ const Chat = () => {
 
   const formatDateSeparator = (dateStr: string) => {
     const date = new Date(dateStr);
-    if (isToday(date)) return "Bugun";
-    if (isYesterday(date)) return "Kecha";
+    if (isToday(date)) return t('today');
+    if (isYesterday(date)) return t('yesterday');
     return format(date, 'd MMMM', { locale: uz });
   };
 
@@ -229,7 +231,7 @@ const Chat = () => {
   if (!otherUser) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground">Yuklanmoqda...</p>
+        <p className="text-muted-foreground">{t('loading')}</p>
       </div>
     );
   }
@@ -282,11 +284,11 @@ const Chat = () => {
               <AvatarFallback>{getInitials(otherUser.name)}</AvatarFallback>
             </Avatar>
             <div className="flex-1" onClick={() => navigate(`/user/${userId}`)}>
-              <h1 className="font-semibold">{otherUser.name || 'Foydalanuvchi'}</h1>
+              <h1 className="font-semibold">{otherUser.name || t('user')}</h1>
               {otherUserTyping ? (
-                <p className="text-xs text-primary">yozyapti...</p>
+                <p className="text-xs text-primary">{t('typing')}</p>
               ) : (
-                <p className="text-xs text-muted-foreground">oxirgi faollik</p>
+                <p className="text-xs text-muted-foreground">{t('lastActivity')}</p>
               )}
             </div>
             <Button 
@@ -315,7 +317,7 @@ const Chat = () => {
         >
           {isLoading ? (
             <div className="flex items-center justify-center h-full">
-              <p className="text-muted-foreground">Yuklanmoqda...</p>
+              <p className="text-muted-foreground">{t('loading')}</p>
             </div>
           ) : visibleMessages.length === 0 ? (
             <div className="flex items-center justify-center h-full">
@@ -324,9 +326,9 @@ const Chat = () => {
                   <AvatarImage src={otherUser.avatar_url || undefined} />
                   <AvatarFallback className="text-2xl">{getInitials(otherUser.name)}</AvatarFallback>
                 </Avatar>
-                <h3 className="font-semibold">{otherUser.name || 'Foydalanuvchi'}</h3>
-                <p className="text-sm text-muted-foreground">@{otherUser.username || 'username'}</p>
-                <p className="text-sm text-muted-foreground mt-4">Suhbatni boshlang!</p>
+                 <h3 className="font-semibold">{otherUser.name || t('user')}</h3>
+                 <p className="text-sm text-muted-foreground">@{otherUser.username || 'username'}</p>
+                 <p className="text-sm text-muted-foreground mt-4">{t('startChat')}</p>
               </div>
             </div>
           ) : (

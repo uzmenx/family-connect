@@ -8,6 +8,7 @@ import { EndOfFeed } from "@/components/feed/EndOfFeed";
 import { StoriesRow } from "@/components/stories/StoriesRow";
 import { StoryViewer } from "@/components/stories/StoryViewer";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { useStories } from "@/hooks/useStories";
 import { usePostsCache } from "@/hooks/usePostsCache";
 import { Grid2X2, LayoutList } from "lucide-react";
@@ -18,6 +19,7 @@ type GridLayout = 1 | 2;
 
 const Home = () => {
   const { user } = useAuth();
+  const { t } = useLanguage();
   const { storyGroups, refetch: refetchStories } = useStories();
   const { posts, isLoading, isRefreshing, isLoadingMore, hasMore, fetchPosts, loadMore } = usePostsCache();
   const [gridLayout, setGridLayout] = useState<GridLayout>(1);
@@ -91,7 +93,7 @@ const Home = () => {
           transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
           className="sticky top-0 z-40 px-4 py-3 flex items-center justify-between rounded-2xl mx-3 mt-2 mb-0 border border-white/10 bg-background/40 backdrop-blur-xl shadow-lg"
         >
-          <h1 className="text-xl font-bold tracking-tight">Qarindosh</h1>
+          <h1 className="text-xl font-bold tracking-tight">{t('feed')}</h1>
           <Button variant="ghost" size="icon" onClick={toggleGridLayout} className="h-9 w-9 rounded-xl">
             {getGridIcon()}
           </Button>
@@ -103,12 +105,12 @@ const Home = () => {
         <PullToRefresh onRefresh={handleRefresh}>
           {isLoading ?
           <div className="text-center py-12">
-              <p className="text-muted-foreground">Yuklanmoqda...</p>
+               <p className="text-muted-foreground">{t('loading')}</p>
             </div> :
           posts.length === 0 ?
-          <div className="text-center py-12">
-              <p className="text-muted-foreground">Hozircha postlar yo'q</p>
-              <p className="text-sm text-muted-foreground mt-2">Birinchi postni yarating!</p>
+           <div className="text-center py-12">
+               <p className="text-muted-foreground">{t('noPostsYet')}</p>
+               <p className="text-sm text-muted-foreground mt-2">{t('createFirstPost')}</p>
             </div> :
           gridLayout === 1 ?
           <div className="space-y-4 pb-20 px-3">
@@ -122,7 +124,7 @@ const Home = () => {
             ))}
               <div ref={loadMoreSentinelRef} className="h-4 min-h-4" aria-hidden />
               {isLoadingMore && (
-                <div className="text-center py-4 text-muted-foreground text-sm">Yuklanmoqda...</div>
+                 <div className="text-center py-4 text-muted-foreground text-sm">{t('loading')}</div>
               )}
               {!hasMore && posts.length > 0 && <EndOfFeed />}
             </div> :
@@ -170,7 +172,7 @@ const Home = () => {
               </div>
               <div ref={loadMoreSentinelRef} className="h-4 min-h-4" aria-hidden />
               {isLoadingMore && (
-                <div className="text-center py-4 text-muted-foreground text-sm">Yuklanmoqda...</div>
+                <div className="text-center py-4 text-muted-foreground text-sm">{t('loading')}</div>
               )}
               {!hasMore && posts.length > 0 && <EndOfFeed />}
             </div>

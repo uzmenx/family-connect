@@ -1,6 +1,7 @@
  import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -17,6 +18,7 @@ import { uploadToR2, compressImage } from '@/lib/r2Upload';
 
 const EditProfile = () => {
   const { profile, user, refreshProfile } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const { toast } = useToast();
   
@@ -94,12 +96,12 @@ const EditProfile = () => {
 
       await refreshProfile();
       
-      toast({ title: "Saqlandi!", description: "Profil yangilandi" });
+      toast({ title: t('saved'), description: t('profileUpdated') });
       navigate('/profile');
     } catch (error: any) {
       toast({ 
-        title: "Xato", 
-        description: error.message || "Profilni yangilashda xato", 
+        title: t('error'), 
+        description: error.message || t('updateError'), 
         variant: "destructive" 
       });
     } finally {
@@ -156,7 +158,7 @@ const EditProfile = () => {
          setFormData(prev => ({ ...prev, cover_url: url }));
        }
      } catch (error) {
-       toast({ title: "Xato", description: "Rasm yuklanmadi", variant: "destructive" });
+       toast({ title: t('error'), description: t('uploadError'), variant: "destructive" });
      }
      
      URL.revokeObjectURL(croppedUrl);
@@ -180,7 +182,7 @@ const EditProfile = () => {
            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
              <div className="flex items-center gap-2 text-white">
                <ImagePlus className="h-6 w-6" />
-               <span>Muqova rasmini o'zgartirish</span>
+               <span>{t('changeCover')}</span>
              </div>
            </div>
            <input
@@ -223,18 +225,18 @@ const EditProfile = () => {
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="text-xl font-bold">Profilni tahrirlash</h1>
+          <h1 className="text-xl font-bold">{t('editProfile')}</h1>
         </div>
 
         <Card>
            <CardHeader>
-             <CardTitle className="text-lg">Profil ma'lumotlari</CardTitle>
+             <CardTitle className="text-lg">{t('profileInfo')}</CardTitle>
            </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-6">
               {/* Gender Selection */}
               <div className="space-y-3">
-                <Label>Jins</Label>
+                <Label>{t('gender')}</Label>
                 <RadioGroup 
                   value={formData.gender} 
                   onValueChange={(value) => setFormData(prev => ({ ...prev, gender: value as 'male' | 'female' }))}
@@ -244,33 +246,29 @@ const EditProfile = () => {
                     <RadioGroupItem value="male" id="male" className="border-sky-500 text-sky-500" />
                     <Label htmlFor="male" className="cursor-pointer flex items-center gap-2">
                       <div className="w-4 h-4 rounded-full bg-sky-500"></div>
-                      Erkak
+                      {t('male')}
                     </Label>
                   </div>
                   <div className="flex items-center space-x-2">
                     <RadioGroupItem value="female" id="female" className="border-pink-500 text-pink-500" />
                     <Label htmlFor="female" className="cursor-pointer flex items-center gap-2">
                       <div className="w-4 h-4 rounded-full bg-pink-500"></div>
-                      Ayol
+                      {t('female')}
                     </Label>
                   </div>
                 </RadioGroup>
               </div>
 
               {/* Name */}
-              <div className="space-y-2">
-                <Label htmlFor="name">To'liq ism</Label>
-                <Input
-                  id="name"
-                  placeholder="Ismingiz"
-                  value={formData.name}
-                  onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))}
-                />
+               <div className="space-y-2">
+                 <Label htmlFor="name">{t('fullName')}</Label>
+                 <Input id="name" placeholder={t('yourName')} value={formData.name}
+                   onChange={(e) => setFormData(prev => ({ ...prev, name: e.target.value }))} />
               </div>
 
               {/* Username */}
               <div className="space-y-2">
-                <Label htmlFor="username">Foydalanuvchi nomi</Label>
+                <Label htmlFor="username">{t('username')}</Label>
                 <Input
                   id="username"
                   placeholder="username"
@@ -287,18 +285,14 @@ const EditProfile = () => {
                      {formData.bio.length}/{BIO_MAX_LENGTH}
                    </span>
                  </div>
-                <Textarea
-                  id="bio"
-                  placeholder="O'zingiz haqingizda qisqacha..."
-                  value={formData.bio}
-                   onChange={(e) => setFormData(prev => ({ ...prev, bio: e.target.value.slice(0, BIO_MAX_LENGTH + 50) }))}
-                  rows={3}
-                   maxLength={BIO_MAX_LENGTH + 50}
-                />
+                 <Textarea id="bio" placeholder={t('bioPlaceholder')} value={formData.bio}
+                    onChange={(e) => setFormData(prev => ({ ...prev, bio: e.target.value.slice(0, BIO_MAX_LENGTH + 50) }))}
+                   rows={3}
+                    maxLength={BIO_MAX_LENGTH + 50} />
                  {formData.bio.length > BIO_MAX_LENGTH && (
-                   <p className="text-xs text-destructive">
-                     Bio {BIO_MAX_LENGTH} belgidan oshmasligi kerak
-                   </p>
+                    <p className="text-xs text-destructive">
+                      Bio {BIO_MAX_LENGTH} {t('bioLimit')}
+                    </p>
                  )}
               </div>
 
@@ -311,12 +305,9 @@ const EditProfile = () => {
  
               <Button type="submit" className="w-full" disabled={isLoading}>
                 {isLoading ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Saqlanmoqda...
-                  </>
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" />{t('saving')}</>
                 ) : (
-                  "Saqlash"
+                  t('save')
                 )}
               </Button>
             </form>
@@ -332,7 +323,7 @@ const EditProfile = () => {
            aspectRatio={cropperState.type === 'avatar' ? 1 : 3}
            shape={cropperState.type === 'avatar' ? 'circle' : 'rect'}
            onCropComplete={uploadCroppedImage}
-           title={cropperState.type === 'avatar' ? 'Profil rasmini kesish' : 'Muqova rasmini kesish'}
+           title={cropperState.type === 'avatar' ? t('cropAvatar') : t('cropCover')}
          />
       </div>
     </AppLayout>

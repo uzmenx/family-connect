@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
@@ -21,6 +22,7 @@ import { formatCount } from '@/lib/formatCount';
 
 const Profile = () => {
   const { profile, user } = useAuth();
+  const { t } = useLanguage();
   const navigate = useNavigate();
   const { posts, isLoading, postsCount, refetch, removePost } = useUserPosts(user?.id);
   const { savedPosts, isLoading: savedLoading, fetchSavedPosts } = useSavedPosts();
@@ -69,7 +71,7 @@ const Profile = () => {
 
           <div className="flex items-start justify-between mb-4">
             <div>
-              <h1 className="text-2xl font-bold">{profile?.name || 'Foydalanuvchi'}</h1>
+              <h1 className="text-2xl font-bold">{profile?.name || t('user')}</h1>
               <p className="text-muted-foreground">
                 @{profile?.username || user?.email?.split('@')[0] || 'username'}
               </p>
@@ -124,17 +126,17 @@ const Profile = () => {
           <Card className="mb-6">
             <CardContent className="py-4">
               <div className="grid grid-cols-3 gap-4 text-center">
-                <div>
-                  <p className="text-2xl font-bold">{formatCount(postsCount)}</p>
-                  <p className="text-sm text-muted-foreground">Postlar</p>
+                 <div>
+                   <p className="text-2xl font-bold">{formatCount(postsCount)}</p>
+                   <p className="text-sm text-muted-foreground">{t('posts')}</p>
                 </div>
-                <div>
-                  <p className="text-2xl font-bold">{formatCount(followersCount)}</p>
-                  <p className="text-sm text-muted-foreground">Kuzatuvchilar</p>
+                 <div>
+                   <p className="text-2xl font-bold">{formatCount(followersCount)}</p>
+                   <p className="text-sm text-muted-foreground">{t('followers')}</p>
                 </div>
-                <div>
-                  <p className="text-2xl font-bold">{formatCount(followingCount)}</p>
-                  <p className="text-sm text-muted-foreground">Kuzatilmoqda</p>
+                 <div>
+                   <p className="text-2xl font-bold">{formatCount(followingCount)}</p>
+                   <p className="text-sm text-muted-foreground">{t('following')}</p>
                 </div>
               </div>
             </CardContent>
@@ -172,13 +174,13 @@ const Profile = () => {
           <PullToRefresh onRefresh={refetch}>
             {isLoading ? (
               <div className="text-center py-12">
-                <p className="text-muted-foreground">Yuklanmoqda...</p>
+                 <p className="text-muted-foreground">{t('loading')}</p>
               </div>
             ) : posts.length === 0 ? (
               <div className="text-center py-12 px-4">
-                <Grid3X3 className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
-                <p className="text-muted-foreground">Hozircha postlar yo'q</p>
-                <p className="text-sm text-muted-foreground mt-1">Birinchi postingizni yarating!</p>
+               <Grid3X3 className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
+                 <p className="text-muted-foreground">{t('noPosts')}</p>
+                 <p className="text-sm text-muted-foreground mt-1">{t('createFirst')}</p>
               </div>
             ) : (
               <div className="space-y-4 px-0 md:px-4">
@@ -200,13 +202,13 @@ const Profile = () => {
           <PullToRefresh onRefresh={fetchSavedPosts}>
             {savedLoading ? (
               <div className="text-center py-12">
-                <p className="text-muted-foreground">Yuklanmoqda...</p>
+                <p className="text-muted-foreground">{t('loading')}</p>
               </div>
             ) : savedPosts.length === 0 ? (
               <div className="text-center py-12 px-4">
-                <Bookmark className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
-                <p className="text-muted-foreground">Saqlangan postlar yo'q</p>
-                <p className="text-sm text-muted-foreground mt-1">Postlarni saqlash uchun bookmark tugmasini bosing</p>
+               <Bookmark className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
+                 <p className="text-muted-foreground">{t('noSaved')}</p>
+                 <p className="text-sm text-muted-foreground mt-1">{t('savedHint')}</p>
               </div>
             ) : (
               <div className="space-y-4 px-0 md:px-4">
