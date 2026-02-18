@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { LanguageProvider } from "@/contexts/LanguageContext";
 import { PushNotification } from "@/components/notifications/PushNotification";
 import { useEffect } from "react";
 
@@ -80,6 +81,7 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <ThemeInitializer>
+        <LanguageProvider>
         <AuthProvider>
           <Toaster />
           <Sonner />
@@ -108,6 +110,7 @@ const App = () => (
             </Routes>
           </BrowserRouter>
         </AuthProvider>
+        </LanguageProvider>
       </ThemeInitializer>
     </TooltipProvider>
   </QueryClientProvider>
