@@ -194,6 +194,32 @@ const Settings = () => {
             </CardContent>
           </Card>
 
+          {/* Privacy / Visibility */}
+          <Card>
+            <CardHeader className="pb-3">
+              <CardTitle className="text-base flex items-center gap-2">
+                <EyeOff className="h-4 w-4" />
+                Maxfiylik
+              </CardTitle>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium">Hikoya lentani yashirish</p>
+                  <p className="text-xs text-muted-foreground">Profildan highlights ko'rinmasin</p>
+                </div>
+                <Switch checked={hideHighlights} onCheckedChange={() => toggleVisibility('hide_highlights', hideHighlights)} />
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium">Post ro'yxatlarni yashirish</p>
+                  <p className="text-xs text-muted-foreground">Collections boshqalarga ko'rinmasin</p>
+                </div>
+                <Switch checked={hideCollections} onCheckedChange={() => toggleVisibility('hide_collections', hideCollections)} />
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Logout */}
           <Button 
             variant="destructive" 
