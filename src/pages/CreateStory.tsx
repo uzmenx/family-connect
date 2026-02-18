@@ -58,7 +58,7 @@ const CreateStory = () => {
       // Create story record
       const mediaType = selectedFile.type.startsWith('video/') ? 'video' : 'image';
       
-      const { error: storyError } = await supabase
+      const { data: storyData, error: storyError } = await supabase
         .from('stories')
         .insert({
           user_id: user.id,
@@ -66,9 +66,16 @@ const CreateStory = () => {
           media_type: mediaType,
           caption: caption || null,
           ring_id: selectedRingId,
-        });
+        })
+        .select()
+        .single();
 
       if (storyError) throw storyError;
+
+      // Auto-save to year highlight
+      if (storyData) {
+        await autoSaveStoryToHighlight(storyData.id, publicUrl, mediaType, caption || null);
+      }
 
       toast.success('Hikoya yaratildi!');
       navigate('/');
