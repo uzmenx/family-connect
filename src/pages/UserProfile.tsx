@@ -6,6 +6,10 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Grid3X3, Bookmark, Users } from 'lucide-react';
+import { useStoryHighlights } from '@/hooks/useStoryHighlights';
+import { usePostCollections } from '@/hooks/usePostCollections';
+import { HighlightsRow } from '@/components/profile/HighlightsRow';
+import { CollectionsFilter } from '@/components/profile/CollectionsFilter';
 import { useUserPosts } from '@/hooks/useUserPosts';
 import { useFollow } from '@/hooks/useFollow';
 import { PostCard } from '@/components/feed/PostCard';
@@ -43,6 +47,9 @@ const UserProfilePage = () => {
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
   
+  const { highlights } = useStoryHighlights(userId);
+  const { collections, selectedCollectionId, setSelectedCollectionId, collectionPosts } = usePostCollections(userId);
+
   // Family tree states
   const { members, addMember, sendInvitation } = useFamilyTree();
   const [selectMemberOpen, setSelectMemberOpen] = useState(false);
@@ -187,7 +194,24 @@ const UserProfilePage = () => {
               </div>
             </CardContent>
           </Card>
+        </div>
 
+        {/* Story Highlights */}
+        {highlights.length > 0 && (
+          <HighlightsRow highlights={highlights} isOwner={false} />
+        )}
+
+        {/* Collections filter */}
+        {collections.length > 0 && activeTab === 'posts' && (
+          <CollectionsFilter
+            collections={collections}
+            selectedId={selectedCollectionId}
+            onSelect={setSelectedCollectionId}
+            isOwner={false}
+          />
+        )}
+
+        <div className="px-4">
           {/* Tabs */}
           <div className="flex border-b border-border mb-4">
             <button
@@ -216,20 +240,22 @@ const UserProfilePage = () => {
         </div>
 
         {/* Posts Grid / List */}
-        {activeTab === 'posts' && (
+        {activeTab === 'posts' && (() => {
+          const displayPosts = selectedCollectionId ? collectionPosts : posts;
+          return (
           <PullToRefresh onRefresh={refetch}>
             {postsLoading ? (
               <div className="text-center py-12">
                 <p className="text-muted-foreground">Yuklanmoqda...</p>
               </div>
-            ) : posts.length === 0 ? (
+            ) : displayPosts.length === 0 ? (
               <div className="text-center py-12 px-4">
                 <Grid3X3 className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
-                <p className="text-muted-foreground">Hozircha postlar yo'q</p>
+                <p className="text-muted-foreground">{selectedCollectionId ? "Bu ro'yxatda postlar yo'q" : "Hozircha postlar yo'q"}</p>
               </div>
             ) : (
               <div className="space-y-4 px-0 md:px-4">
-                {posts.map((post, index) => (
+                {displayPosts.map((post, index) => (
                   <div key={post.id} onClick={() => openViewer(index)} className="cursor-pointer">
                     <PostCard post={post} />
                   </div>
@@ -238,7 +264,8 @@ const UserProfilePage = () => {
               </div>
             )}
           </PullToRefresh>
-        )}
+          );
+        })()}
 
         {activeTab === 'saved' && (
           <div className="text-center py-12 px-4">

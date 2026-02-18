@@ -9,11 +9,13 @@ import { toast } from 'sonner';
 import { uploadMedia } from '@/lib/r2Upload';
 import { STORY_RINGS, type StoryRingId } from '@/components/stories/storyRings';
 import { StoryRingPreview } from '@/components/stories/StoryRingPreview';
+import { useStoryHighlights } from '@/hooks/useStoryHighlights';
 
 const CreateStory = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { autoSaveStoryToHighlight } = useStoryHighlights();
   
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
@@ -56,7 +58,7 @@ const CreateStory = () => {
       // Create story record
       const mediaType = selectedFile.type.startsWith('video/') ? 'video' : 'image';
       
-      const { error: storyError } = await supabase
+      const { data: storyData, error: storyError } = await supabase
         .from('stories')
         .insert({
           user_id: user.id,
@@ -64,9 +66,16 @@ const CreateStory = () => {
           media_type: mediaType,
           caption: caption || null,
           ring_id: selectedRingId,
-        });
+        })
+        .select()
+        .single();
 
       if (storyError) throw storyError;
+
+      // Auto-save to year highlight
+      if (storyData) {
+        await autoSaveStoryToHighlight(storyData.id, publicUrl, mediaType, caption || null);
+      }
 
       toast.success('Hikoya yaratildi!');
       navigate('/');

@@ -7,15 +7,20 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Settings, Edit, Grid3X3, Bookmark, Bell } from 'lucide-react';
- import { SocialLinksList } from '@/components/profile';
+import { SocialLinksList } from '@/components/profile';
 import { useUserPosts } from '@/hooks/useUserPosts';
 import { useSavedPosts } from '@/hooks/useSavedPosts';
 import { useFollow } from '@/hooks/useFollow';
 import { useNotifications } from '@/hooks/useNotifications';
+import { useStoryHighlights } from '@/hooks/useStoryHighlights';
+import { usePostCollections } from '@/hooks/usePostCollections';
 import { PostCard } from '@/components/feed/PostCard';
 import { FullScreenViewer } from '@/components/feed/FullScreenViewer';
 import { PullToRefresh } from '@/components/feed/PullToRefresh';
 import { EndOfFeed } from '@/components/feed/EndOfFeed';
+import { HighlightsRow } from '@/components/profile/HighlightsRow';
+import { HighlightEditor } from '@/components/profile/HighlightEditor';
+import { CollectionsFilter } from '@/components/profile/CollectionsFilter';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { formatCount } from '@/lib/formatCount';
@@ -28,10 +33,16 @@ const Profile = () => {
   const { savedPosts, isLoading: savedLoading, fetchSavedPosts } = useSavedPosts();
   const { followersCount, followingCount } = useFollow(user?.id);
   const { unreadCount } = useNotifications();
+  const { highlights, fetchHighlights } = useStoryHighlights();
+  const { collections, selectedCollectionId, setSelectedCollectionId, collectionPosts, createCollection } = usePostCollections();
   const [activeTab, setActiveTab] = useState<'posts' | 'saved'>('posts');
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
   const [viewerPosts, setViewerPosts] = useState<typeof posts>([]);
+  const [showNewHighlight, setShowNewHighlight] = useState(false);
+
+  const hideHighlights = (profile as any)?.hide_highlights === true;
+  const hideCollections = (profile as any)?.hide_collections === true;
 
   const getInitials = (name: string | null | undefined) => {
     if (!name) return 'U';
@@ -44,19 +55,17 @@ const Profile = () => {
     setViewerOpen(true);
   };
 
+  const displayPosts = selectedCollectionId ? collectionPosts : posts;
+
   return (
     <AppLayout>
       <div className="min-h-screen pb-20">
         {/* Cover Image */}
-         <div className="h-32 bg-gradient-to-r from-primary to-accent overflow-hidden">
-           {(profile as any)?.cover_url && (
-             <img 
-               src={(profile as any).cover_url} 
-               alt="Cover" 
-               className="w-full h-full object-cover"
-             />
-           )}
-         </div>
+        <div className="h-32 bg-gradient-to-r from-primary to-accent overflow-hidden">
+          {(profile as any)?.cover_url && (
+            <img src={(profile as any).cover_url} alt="Cover" className="w-full h-full object-cover" />
+          )}
+        </div>
         
         {/* Profile Info */}
         <div className="px-4">
@@ -77,80 +86,79 @@ const Profile = () => {
               </p>
             </div>
             <div className="flex gap-2">
-              <Button 
-                variant="outline" 
-                size="icon"
-                onClick={() => navigate('/messages?tab=notifications')}
-                className="relative"
-              >
+              <Button variant="outline" size="icon" onClick={() => navigate('/messages?tab=notifications')} className="relative">
                 <Bell className="h-4 w-4" />
                 {unreadCount > 0 && (
-                  <Badge 
-                    variant="destructive" 
-                    className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs"
-                  >
+                  <Badge variant="destructive" className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
                     {unreadCount > 9 ? '9+' : unreadCount}
                   </Badge>
                 )}
               </Button>
-              <Button 
-                variant="outline" 
-                size="icon"
-                onClick={() => navigate('/settings')}
-              >
+              <Button variant="outline" size="icon" onClick={() => navigate('/settings')}>
                 <Settings className="h-4 w-4" />
               </Button>
-              <Button 
-                variant="outline" 
-                size="icon"
-                onClick={() => navigate('/edit-profile')}
-              >
+              <Button variant="outline" size="icon" onClick={() => navigate('/edit-profile')}>
                 <Edit className="h-4 w-4" />
               </Button>
             </div>
           </div>
 
-          {profile?.bio && (
-            <p className="text-sm mb-4">{profile.bio}</p>
+          {profile?.bio && <p className="text-sm mb-4">{profile.bio}</p>}
+
+          {(profile as any)?.social_links && (
+            <SocialLinksList links={(profile as any).social_links} className="mb-4" />
           )}
 
-           {/* Social Links */}
-           {(profile as any)?.social_links && (
-             <SocialLinksList 
-               links={(profile as any).social_links} 
-               className="mb-4"
-             />
-           )}
- 
           {/* Stats */}
-          <Card className="mb-6">
+          <Card className="mb-4">
             <CardContent className="py-4">
               <div className="grid grid-cols-3 gap-4 text-center">
-                 <div>
-                   <p className="text-2xl font-bold">{formatCount(postsCount)}</p>
-                   <p className="text-sm text-muted-foreground">{t('posts')}</p>
+                <div>
+                  <p className="text-2xl font-bold">{formatCount(postsCount)}</p>
+                  <p className="text-sm text-muted-foreground">{t('posts')}</p>
                 </div>
-                 <div>
-                   <p className="text-2xl font-bold">{formatCount(followersCount)}</p>
-                   <p className="text-sm text-muted-foreground">{t('followers')}</p>
+                <div>
+                  <p className="text-2xl font-bold">{formatCount(followersCount)}</p>
+                  <p className="text-sm text-muted-foreground">{t('followers')}</p>
                 </div>
-                 <div>
-                   <p className="text-2xl font-bold">{formatCount(followingCount)}</p>
-                   <p className="text-sm text-muted-foreground">{t('following')}</p>
+                <div>
+                  <p className="text-2xl font-bold">{formatCount(followingCount)}</p>
+                  <p className="text-sm text-muted-foreground">{t('following')}</p>
                 </div>
               </div>
             </CardContent>
           </Card>
+        </div>
 
+        {/* Story Highlights Row */}
+        {!hideHighlights && (
+          <HighlightsRow
+            highlights={highlights}
+            isOwner={true}
+            onCreateNew={() => setShowNewHighlight(true)}
+            onRefresh={fetchHighlights}
+          />
+        )}
+
+        {/* Collections filter chips */}
+        {!hideCollections && activeTab === 'posts' && (
+          <CollectionsFilter
+            collections={collections}
+            selectedId={selectedCollectionId}
+            onSelect={setSelectedCollectionId}
+            isOwner={true}
+            onCreateCollection={(name) => createCollection(name)}
+          />
+        )}
+
+        <div className="px-4">
           {/* Tabs */}
           <div className="flex border-b border-border mb-4">
             <button
-              onClick={() => setActiveTab('posts')}
+              onClick={() => { setActiveTab('posts'); setSelectedCollectionId(null); }}
               className={cn(
                 "flex-1 py-3 flex items-center justify-center gap-2 border-b-2 transition-colors",
-                activeTab === 'posts' 
-                  ? "border-primary text-primary" 
-                  : "border-transparent text-muted-foreground"
+                activeTab === 'posts' ? "border-primary text-primary" : "border-transparent text-muted-foreground"
               )}
             >
               <Grid3X3 className="h-5 w-5" />
@@ -159,9 +167,7 @@ const Profile = () => {
               onClick={() => setActiveTab('saved')}
               className={cn(
                 "flex-1 py-3 flex items-center justify-center gap-2 border-b-2 transition-colors",
-                activeTab === 'saved' 
-                  ? "border-primary text-primary" 
-                  : "border-transparent text-muted-foreground"
+                activeTab === 'saved' ? "border-primary text-primary" : "border-transparent text-muted-foreground"
               )}
             >
               <Bookmark className="h-5 w-5" />
@@ -169,27 +175,24 @@ const Profile = () => {
           </div>
         </div>
 
-        {/* Posts Grid / List */}
+        {/* Posts */}
         {activeTab === 'posts' && (
           <PullToRefresh onRefresh={refetch}>
             {isLoading ? (
               <div className="text-center py-12">
-                 <p className="text-muted-foreground">{t('loading')}</p>
+                <p className="text-muted-foreground">{t('loading')}</p>
               </div>
-            ) : posts.length === 0 ? (
+            ) : displayPosts.length === 0 ? (
               <div className="text-center py-12 px-4">
-               <Grid3X3 className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
-                 <p className="text-muted-foreground">{t('noPosts')}</p>
-                 <p className="text-sm text-muted-foreground mt-1">{t('createFirst')}</p>
+                <Grid3X3 className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
+                <p className="text-muted-foreground">{selectedCollectionId ? "Bu ro'yxatda postlar yo'q" : t('noPosts')}</p>
+                <p className="text-sm text-muted-foreground mt-1">{!selectedCollectionId && t('createFirst')}</p>
               </div>
             ) : (
               <div className="space-y-4 px-0 md:px-4">
-                {posts.map((post, index) => (
-                  <div key={post.id} onClick={() => openViewer(index, posts)} className="cursor-pointer">
-                    <PostCard 
-                      post={post} 
-                      onDelete={() => removePost(post.id)}
-                    />
+                {displayPosts.map((post, index) => (
+                  <div key={post.id} onClick={() => openViewer(index, displayPosts)} className="cursor-pointer">
+                    <PostCard post={post} onDelete={() => removePost(post.id)} />
                   </div>
                 ))}
                 <EndOfFeed />
@@ -206,9 +209,9 @@ const Profile = () => {
               </div>
             ) : savedPosts.length === 0 ? (
               <div className="text-center py-12 px-4">
-               <Bookmark className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
-                 <p className="text-muted-foreground">{t('noSaved')}</p>
-                 <p className="text-sm text-muted-foreground mt-1">{t('savedHint')}</p>
+                <Bookmark className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
+                <p className="text-muted-foreground">{t('noSaved')}</p>
+                <p className="text-sm text-muted-foreground mt-1">{t('savedHint')}</p>
               </div>
             ) : (
               <div className="space-y-4 px-0 md:px-4">
@@ -223,13 +226,12 @@ const Profile = () => {
           </PullToRefresh>
         )}
 
-        {/* Full screen viewer */}
         {viewerOpen && viewerPosts.length > 0 && (
-          <FullScreenViewer
-            posts={viewerPosts}
-            initialIndex={viewerInitialIndex}
-            onClose={() => setViewerOpen(false)}
-          />
+          <FullScreenViewer posts={viewerPosts} initialIndex={viewerInitialIndex} onClose={() => setViewerOpen(false)} />
+        )}
+
+        {showNewHighlight && (
+          <HighlightEditor open={showNewHighlight} onClose={() => { setShowNewHighlight(false); fetchHighlights(); }} isNew />
         )}
       </div>
     </AppLayout>
