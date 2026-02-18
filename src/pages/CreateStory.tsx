@@ -9,6 +9,7 @@ import { toast } from 'sonner';
 import { uploadMedia } from '@/lib/r2Upload';
 import { STORY_RINGS, type StoryRingId } from '@/components/stories/storyRings';
 import { StoryRingPreview } from '@/components/stories/StoryRingPreview';
+import { useStoryHighlights } from '@/hooks/useStoryHighlights';
 
 const CreateStory = () => {
   const navigate = useNavigate();
