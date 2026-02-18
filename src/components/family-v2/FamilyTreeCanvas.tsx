@@ -259,7 +259,7 @@ export const FamilyTreeCanvas = ({
         minZoom={0.2}
         maxZoom={2}
         attributionPosition="bottom-left"
-        className="bg-background"
+        className="!bg-transparent"
       >
         <Background 
           variant={BackgroundVariant.Dots} 

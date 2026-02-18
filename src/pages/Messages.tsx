@@ -242,7 +242,7 @@ const Messages = () => {
     <AppLayout>
       <div className="min-h-screen pb-20">
         {/* Header */}
-        <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border">
+        <div className="sticky top-0 z-40 bg-background/60 backdrop-blur-xl border-b border-border/20">
           <div className="px-4 py-3 flex items-center gap-3">
             <h1 className="text-xl font-bold flex-1">{t('messages')}</h1>
             {totalUnread > 0 && (
