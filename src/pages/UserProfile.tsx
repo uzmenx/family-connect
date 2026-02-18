@@ -194,7 +194,24 @@ const UserProfilePage = () => {
               </div>
             </CardContent>
           </Card>
+        </div>
 
+        {/* Story Highlights */}
+        {highlights.length > 0 && (
+          <HighlightsRow highlights={highlights} isOwner={false} />
+        )}
+
+        {/* Collections filter */}
+        {collections.length > 0 && activeTab === 'posts' && (
+          <CollectionsFilter
+            collections={collections}
+            selectedId={selectedCollectionId}
+            onSelect={setSelectedCollectionId}
+            isOwner={false}
+          />
+        )}
+
+        <div className="px-4">
           {/* Tabs */}
           <div className="flex border-b border-border mb-4">
             <button
