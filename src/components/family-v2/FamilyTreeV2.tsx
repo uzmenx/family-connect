@@ -196,7 +196,7 @@ export const FamilyTreeV2 = () => {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
+      <div className="min-h-screen flex items-center justify-center">
         <div className="text-center">
           <TreeDeciduous className="w-12 h-12 mx-auto text-primary animate-pulse" />
           <p className="mt-4 text-muted-foreground">Yuklanmoqda...</p>
@@ -206,7 +206,7 @@ export const FamilyTreeV2 = () => {
   }
 
   return (
-    <section className="min-h-screen bg-background flex flex-col">
+    <section className="min-h-screen flex flex-col">
       {/* Gender Selection Modal */}
       <GenderSelectionModal
         isOpen={showGenderSelect}
