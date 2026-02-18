@@ -203,6 +203,42 @@ All colors MUST be HSL.
   animation: pulse-heart 1.5s ease-in-out infinite;
 }
 
+/* Home: animated gradient background (blue → purple → red) */
+@keyframes gradient-shift {
+  0%, 100% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+}
+
+.home-gradient-bg {
+  background: linear-gradient(
+    135deg,
+    #0a0a0a 0%,
+    #0f172a 20%,
+    #1e1b4b 40%,
+    #4c1d95 60%,
+    #7c2d12 80%,
+    #0a0a0a 100%
+  );
+  background-size: 200% 200%;
+  animation: gradient-shift 14s ease infinite;
+}
+
+/* Rotating gradient ring for story circles */
+@keyframes gradient-rotate {
+  to { transform: rotate(360deg); }
+}
+
+.story-gradient-ring {
+  background: conic-gradient(from 0deg, #00c853, #7c3aed, #ec4899, #00c853);
+  animation: gradient-rotate 3s linear infinite;
+}
+
+/* Smooth scroll with momentum (iOS-style) */
+.smooth-scroll-momentum {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 /* React Flow overrides for family tree */
 .react-flow__node {
   cursor: pointer !important;

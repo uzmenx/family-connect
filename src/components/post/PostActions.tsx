@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { Heart, MessageCircle, Share2, Bookmark, Film } from 'lucide-react';
 import { usePostLikes } from '@/hooks/usePostLikes';
 import { useSavedPosts } from '@/hooks/useSavedPosts';
@@ -77,20 +78,27 @@ export const PostActions = ({
     <>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          {/* Like button */}
-          <button
+          {/* Like button with heart pop */}
+          <motion.button
             className="flex items-center gap-1.5 transition-colors"
             onClick={handleLikeClick}
-            disabled={isLoading}>
-
-            <Heart
-              className={cn(
-                "h-6 w-6 transition-all",
-                isLiked && "fill-destructive text-destructive",
-                isAnimating && "scale-125"
-              )} />
-
-          </button>
+            disabled={isLoading}
+            whileTap={{ scale: 0.9 }}
+          >
+            <motion.div
+              animate={{
+                scale: isAnimating ? [1, 1.35, 1.15] : 1,
+              }}
+              transition={{ duration: 0.4, times: [0, 0.4, 1] }}
+            >
+              <Heart
+                className={cn(
+                  "h-6 w-6 transition-colors duration-200",
+                  isLiked && "fill-destructive text-destructive"
+                )}
+              />
+            </motion.div>
+          </motion.button>
           
           {/* Comment button */}
           <button

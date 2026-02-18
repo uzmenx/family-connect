@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { createPortal } from 'react-dom';
+import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
 import { Post } from '@/types';
 import { formatDistanceToNow } from 'date-fns';
@@ -15,9 +17,10 @@ interface PostCardProps {
   post: Post;
   onDelete?: () => void;
   onMediaClick?: () => void;
+  index?: number;
 }
 
-export const PostCard = ({ post, onDelete, onMediaClick }: PostCardProps) => {
+export const PostCard = ({ post, onDelete, onMediaClick, index = 0 }: PostCardProps) => {
   const [showVideoPlayer, setShowVideoPlayer] = useState(false);
   const [videoPlayerSrc, setVideoPlayerSrc] = useState('');
   const timeAgo = formatDistanceToNow(new Date(post.created_at), { addSuffix: true });
@@ -31,8 +34,8 @@ export const PostCard = ({ post, onDelete, onMediaClick }: PostCardProps) => {
   const isVideo = (url: string) => url?.includes('.mp4') || url?.includes('.mov') || url?.includes('.webm');
   const firstVideoUrl = mediaUrls.find(url => isVideo(url));
 
-  return (
-    <Card className="overflow-hidden border-0 rounded-none md:rounded-lg md:border">
+  const card = (
+    <Card className="overflow-hidden border-0 rounded-[20px] border border-white/10 bg-card/80 backdrop-blur-sm shadow-xl shadow-black/20">
       <CardContent className="p-0">
         {/* Header */}
         <div className="flex items-center justify-between p-3">
@@ -92,16 +95,33 @@ export const PostCard = ({ post, onDelete, onMediaClick }: PostCardProps) => {
         </div>
       </CardContent>
 
-      {/* Samsung Ultra Video Player overlay */}
-      {showVideoPlayer && (
-        <div className="fixed inset-0 z-[60]" style={{ overflow: 'hidden' }}>
-          <SamsungUltraVideoPlayer
-            src={videoPlayerSrc}
-            title={post.content?.slice(0, 50) || 'Video'}
-            onClose={() => setShowVideoPlayer(false)}
-          />
-        </div>
-      )}
     </Card>
+  );
+
+  // Video pleer overlay: body ga portal orqali (scroll/post card transform ta'sir qilmasin)
+  const videoPlayerOverlay = showVideoPlayer && (
+    <div
+      className="fixed inset-0 z-[60] w-full h-full min-h-[100dvh] overflow-hidden bg-black"
+      style={{ height: '100dvh', maxHeight: '100dvh' }}
+    >
+      <SamsungUltraVideoPlayer
+        src={videoPlayerSrc}
+        title={post.content?.slice(0, 50) || 'Video'}
+        onClose={() => setShowVideoPlayer(false)}
+      />
+    </div>
+  );
+
+  return (
+    <>
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: Math.min(index * 0.06, 0.4), ease: [0.25, 0.46, 0.45, 0.94] }}
+      >
+        {card}
+      </motion.div>
+      {typeof document !== 'undefined' && videoPlayerOverlay && createPortal(videoPlayerOverlay, document.body)}
+    </>
   );
 };

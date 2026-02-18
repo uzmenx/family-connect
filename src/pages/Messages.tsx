@@ -9,7 +9,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { ArrowLeft, Search, MessageCircle, Users, Megaphone, Bell, Bot, Sparkles } from "lucide-react";
+import { Search, MessageCircle, Users, Megaphone, Bell, Bot, Sparkles } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
@@ -242,9 +242,6 @@ const Messages = () => {
         {/* Header */}
         <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border">
           <div className="px-4 py-3 flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-              <ArrowLeft className="h-5 w-5" />
-            </Button>
             <h1 className="text-xl font-bold flex-1">Xabarlar</h1>
             {totalUnread > 0 && (
               <Badge variant="destructive" className="rounded-full">

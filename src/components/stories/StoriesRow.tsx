@@ -1,4 +1,5 @@
 import { useRef } from "react";
+import { motion } from "framer-motion";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useStories, StoryGroup } from "@/hooks/useStories";
@@ -89,9 +90,11 @@ export const StoriesRow = ({ onStoryClick }: StoriesRowProps) => {
                 isOwn
               />
             ) : (
-              <button
+              <motion.button
                 onClick={() => navigate("/create-story")}
-                className="w-16 h-16 rounded-full bg-muted flex items-center justify-center border-2 border-dashed border-muted-foreground/30 hover:border-primary transition-colors"
+                className="w-16 h-16 rounded-full bg-muted/80 backdrop-blur-sm flex items-center justify-center border-2 border-dashed border-muted-foreground/30 hover:border-primary transition-colors"
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.98 }}
               >
                 {profile?.avatar_url ? (
                   <img
@@ -102,16 +105,18 @@ export const StoriesRow = ({ onStoryClick }: StoriesRowProps) => {
                 ) : (
                   <Plus className="h-6 w-6 text-muted-foreground" />
                 )}
-              </button>
+              </motion.button>
             )}
             {/* Add button overlay for own story */}
             {!myStoryGroup && (
-              <button
+              <motion.button
                 onClick={() => navigate("/create-story")}
-                className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-primary flex items-center justify-center border-2 border-background"
+                className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-primary flex items-center justify-center border-2 border-background shadow-lg"
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.95 }}
               >
                 <Plus className="h-3.5 w-3.5 text-primary-foreground" />
-              </button>
+              </motion.button>
             )}
           </div>
           <span className="text-xs text-muted-foreground truncate w-16 text-center">
@@ -137,28 +142,39 @@ interface StoryAvatarProps {
 
 const StoryAvatar = ({ group, onClick, isOwn }: StoryAvatarProps) => {
   const displayName = group.user.name || group.user.username || "Foydalanuvchi";
+  const avatarEl = group.user.avatar_url ? (
+    <img src={group.user.avatar_url} alt={displayName} className="w-full h-full rounded-full object-cover" />
+  ) : (
+    <div className="w-full h-full rounded-full bg-muted flex items-center justify-center text-muted-foreground text-lg font-medium">
+      {displayName.charAt(0).toUpperCase()}
+    </div>
+  );
 
   return (
     <div className="flex flex-col items-center gap-1 flex-shrink-0">
-      <button
+      <motion.button
         onClick={onClick}
-        className={cn(
-          "w-16 h-16 rounded-full p-0.5",
-          group.has_unviewed
-            ? "bg-gradient-to-tr from-yellow-400 via-pink-500 to-purple-600"
-            : "bg-muted-foreground/30",
-        )}
+        className="relative w-[68px] h-[68px] rounded-full flex items-center justify-center"
+        whileHover={{ scale: 1.08 }}
+        whileTap={{ scale: 0.95 }}
       >
-        <div className="w-full h-full rounded-full bg-background p-0.5">
-          {group.user.avatar_url ? (
-            <img src={group.user.avatar_url} alt={displayName} className="w-full h-full rounded-full object-cover" />
-          ) : (
-            <div className="w-full h-full rounded-full bg-muted flex items-center justify-center text-muted-foreground text-lg font-medium">
-              {displayName.charAt(0).toUpperCase()}
-            </div>
-          )}
-        </div>
-      </button>
+        {group.has_unviewed ? (
+          <>
+            <span className="absolute inset-0 rounded-full story-gradient-ring p-[3px]" aria-hidden>
+              <span className="block w-full h-full rounded-full bg-background" />
+            </span>
+            <span className="relative z-10 w-[58px] h-[58px] rounded-full overflow-hidden bg-background">
+              {avatarEl}
+            </span>
+          </>
+        ) : (
+          <span className="w-full h-full rounded-full bg-muted-foreground/30 p-[3px] block">
+            <span className="w-full h-full rounded-full bg-background overflow-hidden block">
+              {avatarEl}
+            </span>
+          </span>
+        )}
+      </motion.button>
       <span className="text-xs text-foreground truncate w-16 text-center">
         {isOwn ? "" : displayName.substring(0, 10)}
       </span>

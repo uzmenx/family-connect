@@ -55,7 +55,7 @@ export const PullToRefresh = ({ onRefresh, children }: PullToRefreshProps) => {
   return (
     <div
       ref={containerRef}
-      className="relative h-full overflow-y-auto overscroll-y-contain"
+      className="relative h-full overflow-y-auto overscroll-y-contain smooth-scroll-momentum"
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}

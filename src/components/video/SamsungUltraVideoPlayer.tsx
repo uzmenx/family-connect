@@ -115,6 +115,7 @@ export const SamsungUltraVideoPlayer = ({
   const progressRef = useRef<HTMLDivElement>(null);
   const controlsTimer = useRef<NodeJS.Timeout | null>(null);
   const gestureTimer = useRef<NodeJS.Timeout | null>(null);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const pinchDistance = useRef<number>(0);
 
   // ─────────────────────────────────────────────────────────────
@@ -199,9 +200,12 @@ export const SamsungUltraVideoPlayer = ({
   // ═══════════════════════════════════════════════════════════════
 
   const progress = useMemo(
-    () => duration > 0 ? currentTime / duration * 100 : 0,
+    () => (duration > 0 && Number.isFinite(duration) ? (currentTime / duration) * 100 : 0),
     [currentTime, duration]
   );
+
+  /** Use for percentage positions (progress bar markers) to avoid division by zero / NaN */
+  const safeDuration = duration > 0 && Number.isFinite(duration) ? duration : 1;
 
   const currentChapter = useMemo(
     () => chapters.filter((ch) => ch.time <= currentTime).pop(),
@@ -235,12 +239,24 @@ export const SamsungUltraVideoPlayer = ({
     };
   }, []);
 
+  // Reset state when src changes (e.g. new video opened)
+  useEffect(() => {
+    setError(null);
+    setDuration(0);
+    setCurrentTime(0);
+    setBuffered(0);
+    setLoading(true);
+  }, [src]);
+
   useEffect(() => {
     const video = videoRef.current;
     if (!video) return;
 
     const handleTimeUpdate = () => setCurrentTime(video.currentTime);
-    const handleLoadedMetadata = () => setDuration(video.duration);
+    const handleLoadedMetadata = () => {
+      const d = video.duration;
+      setDuration(Number.isFinite(d) && d >= 0 ? d : 0);
+    };
     const handleEnded = () => {
       setIsPlaying(false);
       if (isLooping) {
@@ -255,8 +271,10 @@ export const SamsungUltraVideoPlayer = ({
 
     const handleProgress = () => {
       if (video.buffered.length > 0) {
+        const d = video.duration;
+        if (!Number.isFinite(d) || d <= 0) return;
         const bufferedEnd = video.buffered.end(video.buffered.length - 1);
-        setBuffered(bufferedEnd / video.duration * 100);
+        setBuffered((bufferedEnd / d) * 100);
       }
     };
 
@@ -341,16 +359,19 @@ export const SamsungUltraVideoPlayer = ({
 
   const skip = useCallback((seconds: number) => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || !Number.isFinite(video.duration)) return;
 
-    video.currentTime = Math.max(0, Math.min(video.duration, video.currentTime + seconds));
+    const next = video.currentTime + seconds;
+    video.currentTime = Math.max(0, Math.min(video.duration, next));
   }, []);
 
   const seekTo = useCallback((time: number) => {
     const video = videoRef.current;
-    if (!video) return;
+    if (!video || !Number.isFinite(time) || time < 0) return;
 
-    video.currentTime = Math.max(0, Math.min(video.duration, time));
+    const d = video.duration;
+    if (!Number.isFinite(d)) return;
+    video.currentTime = Math.max(0, Math.min(d, time));
   }, []);
 
   const handleSeekBarClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
@@ -406,6 +427,28 @@ export const SamsungUltraVideoPlayer = ({
       console.error('PiP error:', err);
     }
   }, [isPiP]);
+
+  // Sync fullscreen state when user exits via ESC or system UI
+  useEffect(() => {
+    const onFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    document.addEventListener('fullscreenchange', onFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', onFullscreenChange);
+  }, []);
+
+  // Sync PiP state when user closes PiP from system
+  useEffect(() => {
+    const onPiPChange = () => {
+      setIsPiP(!!document.pictureInPictureElement);
+    };
+    document.addEventListener('enterpictureinpicture', onPiPChange);
+    document.addEventListener('leavepictureinpicture', onPiPChange);
+    return () => {
+      document.removeEventListener('enterpictureinpicture', onPiPChange);
+      document.removeEventListener('leavepictureinpicture', onPiPChange);
+    };
+  }, []);
 
   // ═══════════════════════════════════════════════════════════════
   // GESTURE HANDLERS - TOUCH & MOUSE
@@ -468,17 +511,16 @@ export const SamsungUltraVideoPlayer = ({
         // First tap
         setTouchState((prev) => ({ ...prev, tapCount: 1, lastTap: now, side }));
 
-        // Start long press detection
-        const longPressTimer = setTimeout(() => {
+        // Start long press detection (ref ensures we can clear it in touchEnd even before state updates)
+        if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+        longPressTimerRef.current = setTimeout(() => {
+          longPressTimerRef.current = null;
           setTouchState((prev) => ({ ...prev, isLongPress: true }));
-          // Long press action - speed up playback
           if (videoRef.current) {
             videoRef.current.playbackRate = 2;
             showGestureUI('seek', 2, '2x Speed');
           }
         }, 500);
-
-        setTouchState((prev) => ({ ...prev, longPressTimer }));
       }
 
       // Determine gesture type based on position
@@ -572,12 +614,13 @@ export const SamsungUltraVideoPlayer = ({
   }, [gesture, handleVolumeChange, showGestureUI]);
 
   const handleTouchEnd = useCallback(() => {
-    // Clear long press timer
-    if (touchState.longPressTimer) {
-      clearTimeout(touchState.longPressTimer);
+    // Clear long press timer via ref (state may not have updated yet)
+    if (longPressTimerRef.current) {
+      clearTimeout(longPressTimerRef.current);
+      longPressTimerRef.current = null;
     }
 
-    // Reset playback rate if it was sped up
+    // Reset playback rate if it was sped up by long press
     if (touchState.isLongPress && videoRef.current) {
       videoRef.current.playbackRate = playbackRate;
     }
@@ -768,20 +811,21 @@ export const SamsungUltraVideoPlayer = ({
   return (
     <div
       ref={containerRef}
-      className={`relative w-full h-screen overflow-hidden bg-gradient-to-br ${theme.bg} select-none`}
+      className={`relative w-full h-full min-h-[100dvh] overflow-hidden bg-gradient-to-br ${theme.bg} select-none`}
+      style={{ height: '100dvh', maxHeight: '100dvh' }}
       onMouseMove={resetControlsTimer}
       onTouchStart={handleTouchStart}
       onTouchMove={handleTouchMove}
       onTouchEnd={handleTouchEnd}>
 
       {/* ═══════════════════════════════════════════════════════════ */}
-      {/* VIDEO ELEMENT */}
+      {/* VIDEO ELEMENT - object-cover: butun ekranni to'ldiradi */}
       {/* ═══════════════════════════════════════════════════════════ */}
       <video
         ref={videoRef}
         src={src}
         poster={poster}
-        className="absolute inset-0 w-full h-full object-contain transition-all duration-300"
+        className="absolute inset-0 w-full h-full object-cover object-center transition-all duration-300"
         style={{
           filter: videoFilters,
           transform: `scale(${zoom}) translate(${zoomPan.x}%, ${zoomPan.y}%)`
@@ -957,7 +1001,7 @@ export const SamsungUltraVideoPlayer = ({
               <div
                 key={idx}
                 className="absolute top-0 bottom-0 w-0.5 bg-white/60"
-                style={{ left: `${chapter.time / duration * 100}%` }}>
+                style={{ left: `${(chapter.time / safeDuration) * 100}%` }}>
 
                   <div className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-black/80 rounded text-white text-xs font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
                     {chapter.title}
@@ -970,7 +1014,7 @@ export const SamsungUltraVideoPlayer = ({
               <div
                 key={bookmark.id}
                 className="absolute top-0 bottom-0 w-0.5 bg-yellow-400"
-                style={{ left: `${bookmark.time / duration * 100}%` }} />
+                style={{ left: `${(bookmark.time / safeDuration) * 100}%` }} />
 
               )}
 
@@ -978,7 +1022,7 @@ export const SamsungUltraVideoPlayer = ({
               {seekPreview !== null &&
               <div
                 className="absolute -top-12 -translate-x-1/2 px-3 py-2 bg-black/90 rounded-lg text-white text-sm font-semibold pointer-events-none shadow-xl border border-white/20"
-                style={{ left: `${seekPreview / duration * 100}%` }}>
+                style={{ left: `${(seekPreview / safeDuration) * 100}%` }}>
 
                   {formatTime(seekPreview)}
                 </div>

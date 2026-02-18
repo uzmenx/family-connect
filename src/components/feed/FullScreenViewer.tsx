@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { Play, Pause, ChevronLeft, ChevronRight, Heart } from 'lucide-react';
 import { Post } from '@/types';
 import { cn } from '@/lib/utils';
@@ -244,6 +245,7 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose }: FullScreenVie
   if (!currentPost) return null;
 
   return (
+    <>
     <div
       ref={containerRef}
       className="fixed inset-0 z-50 flex flex-col overflow-hidden"
@@ -423,16 +425,20 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose }: FullScreenVie
 
       </div>
       }
-      {/* Samsung Ultra Video Player overlay */}
-      {showVideoPlayer &&
-      <div className="fixed inset-0 z-[60]">
-          <SamsungUltraVideoPlayer
+    </div>
+    {typeof document !== 'undefined' && showVideoPlayer && createPortal(
+      <div
+        className="fixed inset-0 z-[60] w-full h-full min-h-[100dvh] overflow-hidden bg-black"
+        style={{ height: '100dvh', maxHeight: '100dvh' }}
+      >
+        <SamsungUltraVideoPlayer
           src={videoPlayerSrc}
-          title={currentPost.content?.slice(0, 50) || 'Video'}
-          onClose={() => setShowVideoPlayer(false)} />
-
-        </div>
-      }
-    </div>);
+          title={currentPost?.content?.slice(0, 50) || 'Video'}
+          onClose={() => setShowVideoPlayer(false)}
+        />
+      </div>,
+      document.body
+    )}
+    </>);
 
 };

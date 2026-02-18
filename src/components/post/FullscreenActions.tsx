@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { motion } from 'framer-motion';
 import { Heart, MessageCircle, Send, Bookmark, Film } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePostLikes } from '@/hooks/usePostLikes';
@@ -130,13 +131,17 @@ export const FullscreenActions = ({
             "p-2 rounded-full bg-black/20 backdrop-blur-sm",
             isLiked && "bg-black/40"
           )}>
-            <Heart
-              className={cn(
-                "h-6 w-6 text-white transition-all",
-                isLiked && "fill-destructive text-destructive",
-                isAnimating && "scale-125"
-              )} />
-
+            <motion.div
+              animate={{ scale: isAnimating ? [1, 1.35, 1.15] : 1 }}
+              transition={{ duration: 0.4, times: [0, 0.4, 1] }}
+            >
+              <Heart
+                className={cn(
+                  "h-6 w-6 text-white transition-colors duration-200",
+                  isLiked && "fill-destructive text-destructive"
+                )}
+              />
+            </motion.div>
           </div>
           <button
             onClick={handleLikesCountClick}
