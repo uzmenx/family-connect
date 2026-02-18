@@ -684,6 +684,7 @@ export type Database = {
           id: string
           media_type: string
           media_url: string
+          ring_id: string
           user_id: string
         }
         Insert: {
@@ -693,6 +694,7 @@ export type Database = {
           id?: string
           media_type?: string
           media_url: string
+          ring_id?: string
           user_id: string
         }
         Update: {
@@ -702,6 +704,7 @@ export type Database = {
           id?: string
           media_type?: string
           media_url?: string
+          ring_id?: string
           user_id?: string
         }
         Relationships: []
