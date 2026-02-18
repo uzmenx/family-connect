@@ -264,7 +264,8 @@ const UserProfilePage = () => {
               </div>
             )}
           </PullToRefresh>
-        )}
+          );
+        })()}
 
         {activeTab === 'saved' && (
           <div className="text-center py-12 px-4">
