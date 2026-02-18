@@ -166,7 +166,7 @@ const EditProfile = () => {
 
   return (
     <AppLayout showNav={false}>
-       <div className="min-h-screen bg-background">
+       <div className="min-h-screen">
          {/* Cover Image Section */}
          <div 
            className="relative h-36 bg-gradient-to-r from-primary to-accent cursor-pointer group"

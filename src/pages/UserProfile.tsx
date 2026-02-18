@@ -92,7 +92,7 @@ const UserProfilePage = () => {
   if (isLoading) {
     return (
       <AppLayout>
-        <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="min-h-screen flex items-center justify-center">
           <p className="text-muted-foreground">Yuklanmoqda...</p>
         </div>
       </AppLayout>
@@ -102,7 +102,7 @@ const UserProfilePage = () => {
   if (!profile) {
     return (
       <AppLayout>
-        <div className="min-h-screen bg-background flex flex-col items-center justify-center gap-4">
+        <div className="min-h-screen flex flex-col items-center justify-center gap-4">
           <p className="text-muted-foreground">Foydalanuvchi topilmadi</p>
           <Button variant="outline" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-4 w-4 mr-2" />
@@ -115,7 +115,7 @@ const UserProfilePage = () => {
 
   return (
     <AppLayout>
-      <div className="min-h-screen bg-background pb-20">
+      <div className="min-h-screen pb-20">
         {/* Header with back button */}
         <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3 flex items-center gap-3">
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
