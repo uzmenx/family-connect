@@ -47,6 +47,9 @@ const UserProfilePage = () => {
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
   
+  const { highlights } = useStoryHighlights(userId);
+  const { collections, selectedCollectionId, setSelectedCollectionId, collectionPosts } = usePostCollections(userId);
+
   // Family tree states
   const { members, addMember, sendInvitation } = useFamilyTree();
   const [selectMemberOpen, setSelectMemberOpen] = useState(false);
