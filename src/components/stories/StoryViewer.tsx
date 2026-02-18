@@ -6,8 +6,11 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sh
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { StoryGroup, Story, useStories } from '@/hooks/useStories';
 import { useAuth } from '@/contexts/AuthContext';
+import { useConversations } from '@/hooks/useConversations';
+import { supabase } from '@/integrations/supabase/client';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { toast } from 'sonner';
 
 interface StoryViewerProps {
   storyGroups: StoryGroup[];
@@ -24,6 +27,7 @@ export const StoryViewer = ({
 }: StoryViewerProps) => {
   const { user } = useAuth();
   const { recordView, toggleLike, getStoryViewers, getStoryLikers } = useStories();
+  const { getOrCreateConversation } = useConversations();
   
   const [currentGroupIndex, setCurrentGroupIndex] = useState(initialGroupIndex);
   const [currentStoryIndex, setCurrentStoryIndex] = useState(initialStoryIndex);
@@ -310,7 +314,27 @@ export const StoryViewer = ({
                 variant="ghost"
                 size="icon"
                 className="text-white hover:bg-white/20"
-                onClick={(e) => e.stopPropagation()}
+                disabled={!reply.trim()}
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  if (!reply.trim() || !currentStory) return;
+                  try {
+                    const convId = await getOrCreateConversation(currentStory.user_id);
+                    if (!convId || !user?.id) return;
+                    const storyReplyText = `📷 Story'ga javob:\n${reply.trim()}`;
+                    await supabase.from('messages').insert({
+                      conversation_id: convId,
+                      sender_id: user.id,
+                      content: storyReplyText,
+                      status: 'sent',
+                    });
+                    toast.success("Javob yuborildi");
+                    setReply('');
+                  } catch (err) {
+                    console.error('Story reply error:', err);
+                    toast.error("Xatolik yuz berdi");
+                  }
+                }}
               >
                 <Send className="h-5 w-5" />
               </Button>

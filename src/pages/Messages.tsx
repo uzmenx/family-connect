@@ -10,12 +10,13 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Search, MessageCircle, Users, Megaphone, Bell, Bot, Sparkles } from "lucide-react";
+import { Search, MessageCircle, Users, Megaphone, Bell, Bot, Sparkles, Edit2, Trash2, X, CheckSquare } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 import { uz } from "date-fns/locale";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 import { NotificationsTab } from "@/components/notifications/NotificationsTab";
 
 // Group components
@@ -56,6 +57,10 @@ const Messages = () => {
   const [followers, setFollowers] = useState<FollowUser[]>([]);
   const [following, setFollowing] = useState<FollowUser[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  
+  // Edit mode
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [selectedConvIds, setSelectedConvIds] = useState<Set<string>>(new Set());
 
   // Group/Channel creation flow
   const [createType, setCreateType] = useState<"group" | "channel" | null>(null);
@@ -244,13 +249,46 @@ const Messages = () => {
         {/* Header */}
         <div className="sticky top-0 z-40 bg-background/60 backdrop-blur-xl border-b border-border/20">
           <div className="px-4 flex items-center gap-3 py-[5px]">
-            <h1 className="text-xl font-bold flex-1">{t('messages')}</h1>
-            {totalUnread > 0 &&
-            <Badge variant="destructive" className="rounded-full">
-                {totalUnread}
-              </Badge>
-            }
-            <NewChatMenu onNewGroup={handleNewGroup} onNewChannel={handleNewChannel} />
+            {isEditMode ? (
+              <>
+                <Button variant="ghost" size="icon" onClick={() => { setIsEditMode(false); setSelectedConvIds(new Set()); }}>
+                  <X className="h-5 w-5" />
+                </Button>
+                <span className="flex-1 font-semibold">{selectedConvIds.size} tanlandi</span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="text-destructive"
+                  disabled={selectedConvIds.size === 0}
+                  onClick={async () => {
+                    for (const id of selectedConvIds) {
+                      // Delete all messages first, then conversation
+                      await supabase.from('messages').delete().eq('conversation_id', id);
+                      await supabase.from('conversations').delete().eq('id', id);
+                    }
+                    setSelectedConvIds(new Set());
+                    setIsEditMode(false);
+                    toast.success("O'chirildi");
+                    // Refetch handled by realtime
+                  }}
+                >
+                  <Trash2 className="h-5 w-5" />
+                </Button>
+              </>
+            ) : (
+              <>
+                <h1 className="text-xl font-bold flex-1">{t('messages')}</h1>
+                {totalUnread > 0 &&
+                  <Badge variant="destructive" className="rounded-full">
+                    {totalUnread}
+                  </Badge>
+                }
+                <Button variant="ghost" size="icon" onClick={() => setIsEditMode(true)}>
+                  <Edit2 className="h-5 w-5" />
+                </Button>
+                <NewChatMenu onNewGroup={handleNewGroup} onNewChannel={handleNewChannel} />
+              </>
+            )}
           </div>
 
           {/* Search */}
@@ -360,9 +398,37 @@ const Messages = () => {
                   {filteredConversations.map((conv) =>
               <div
                 key={conv.id}
-                onClick={() => handleUserClick(conv.otherUser.id)}
-                className="flex items-center gap-3 p-4 hover:bg-muted/50 cursor-pointer active:bg-muted transition-colors">
+                onClick={() => {
+                  if (isEditMode) {
+                    setSelectedConvIds(prev => {
+                      const next = new Set(prev);
+                      if (next.has(conv.id)) next.delete(conv.id);
+                      else next.add(conv.id);
+                      return next;
+                    });
+                  } else {
+                    handleUserClick(conv.otherUser.id);
+                  }
+                }}
+                className={cn(
+                  "flex items-center gap-3 p-4 cursor-pointer active:bg-muted transition-colors",
+                  isEditMode && selectedConvIds.has(conv.id) 
+                    ? "bg-primary/10" 
+                    : "hover:bg-muted/50"
+                )}>
 
+                      {isEditMode && (
+                        <div className={cn(
+                          "w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0",
+                          selectedConvIds.has(conv.id) 
+                            ? "bg-primary border-primary" 
+                            : "border-muted-foreground/40"
+                        )}>
+                          {selectedConvIds.has(conv.id) && (
+                            <CheckSquare className="h-3 w-3 text-primary-foreground" />
+                          )}
+                        </div>
+                      )}
                       <div className="relative">
                         <Avatar className="h-12 w-12">
                           <AvatarImage src={conv.otherUser.avatar_url || undefined} />
