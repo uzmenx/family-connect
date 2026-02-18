@@ -1,16 +1,24 @@
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { useLanguage, Language } from '@/contexts/LanguageContext';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Switch } from '@/components/ui/switch';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, LogOut, Moon, Shield, Mail } from 'lucide-react';
+import { ArrowLeft, LogOut, Moon, Shield, Mail, Globe } from 'lucide-react';
 import { useState, useEffect } from 'react';
+
+const langLabels: Record<Language, string> = {
+  uz: "O'zbek",
+  ru: "Русский",
+  en: "English",
+};
 
 const Settings = () => {
   const { user, logout } = useAuth();
+  const { lang, setLang, t } = useLanguage();
   const navigate = useNavigate();
   const { toast } = useToast();
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -23,7 +31,6 @@ const Settings = () => {
   const toggleDarkMode = () => {
     const newMode = !isDarkMode;
     setIsDarkMode(newMode);
-    
     if (newMode) {
       document.documentElement.classList.add('dark');
       localStorage.setItem('theme', 'dark');
@@ -35,7 +42,7 @@ const Settings = () => {
 
   const handleLogout = async () => {
     await logout();
-    toast({ title: "Chiqildi", description: "Muvaffaqiyatli chiqdingiz" });
+    toast({ title: t('loggedOut'), description: t('loggedOutDesc') });
     navigate('/auth');
   };
 
@@ -46,21 +53,46 @@ const Settings = () => {
           <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="text-xl font-bold">Sozlamalar</h1>
+          <h1 className="text-xl font-bold">{t('settings')}</h1>
         </div>
 
         <div className="space-y-4">
+          {/* Language */}
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-lg flex items-center gap-2">
+                <Globe className="h-5 w-5" />
+                {t('language')}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="flex gap-2">
+                {(Object.keys(langLabels) as Language[]).map((l) => (
+                  <Button
+                    key={l}
+                    variant={lang === l ? "default" : "outline"}
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => setLang(l)}
+                  >
+                    {langLabels[l]}
+                  </Button>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+
           {/* Account */}
           <Card>
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
                 <Mail className="h-5 w-5" />
-                Akkount
+                {t('account')}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="space-y-2">
-                <Label className="text-muted-foreground">Email</Label>
+                <Label className="text-muted-foreground">{t('email')}</Label>
                 <p className="font-medium">{user?.email}</p>
               </div>
             </CardContent>
@@ -71,12 +103,12 @@ const Settings = () => {
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
                 <Moon className="h-5 w-5" />
-                Ko'rinish
+                {t('appearance')}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <div className="flex items-center justify-between">
-                <Label htmlFor="dark-mode">Qorong'u rejim</Label>
+                <Label htmlFor="dark-mode">{t('darkMode')}</Label>
                 <Switch
                   id="dark-mode"
                   checked={isDarkMode}
@@ -91,12 +123,12 @@ const Settings = () => {
             <CardHeader>
               <CardTitle className="text-lg flex items-center gap-2">
                 <Shield className="h-5 w-5" />
-                Xavfsizlik
+                {t('security')}
               </CardTitle>
             </CardHeader>
             <CardContent>
               <p className="text-sm text-muted-foreground">
-                Akkountingiz elektron pochta orqali himoyalangan
+                {t('securityDesc')}
               </p>
             </CardContent>
           </Card>
@@ -108,7 +140,7 @@ const Settings = () => {
             onClick={handleLogout}
           >
             <LogOut className="mr-2 h-4 w-4" />
-            Chiqish
+            {t('logout')}
           </Button>
         </div>
       </div>
