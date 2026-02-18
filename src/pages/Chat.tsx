@@ -28,6 +28,7 @@ interface UserProfile {
   name: string | null;
   username: string | null;
   avatar_url: string | null;
+  updated_at: string | null;
 }
 
 const Chat = () => {
@@ -77,11 +78,11 @@ const Chat = () => {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('id, name, username, avatar_url')
+        .select('id, name, username, avatar_url, updated_at')
         .eq('id', userId)
         .maybeSingle();
 
-      setOtherUser(profile);
+      setOtherUser(profile as UserProfile | null);
 
       // Load deleted messages from localStorage
       if (convId) {
@@ -160,6 +161,14 @@ const Chat = () => {
 
   const formatMessageTime = (dateStr: string) => {
     return format(new Date(dateStr), 'HH:mm');
+  };
+
+  const formatLastActivity = (dateStr: string | null | undefined) => {
+    if (!dateStr) return t('lastActivity');
+    const date = new Date(dateStr);
+    if (isToday(date)) return `${t('today')} ${format(date, 'HH:mm')} da`;
+    if (isYesterday(date)) return `${t('yesterday')} ${format(date, 'HH:mm')} da`;
+    return format(date, 'd MMMM HH:mm', { locale: uz }) + ' da';
   };
 
   const formatDateSeparator = (dateStr: string) => {
@@ -288,7 +297,7 @@ const Chat = () => {
               {otherUserTyping ? (
                 <p className="text-xs text-primary">{t('typing')}</p>
               ) : (
-                <p className="text-xs text-muted-foreground">{t('lastActivity')}</p>
+                <p className="text-xs text-muted-foreground">{formatLastActivity(otherUser.updated_at)}</p>
               )}
             </div>
             <Button 
