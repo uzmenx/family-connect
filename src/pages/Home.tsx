@@ -83,10 +83,7 @@ const Home = () => {
 
   return (
     <AppLayout showNav={!hideNav}>
-      {/* Animated gradient background (home only) */}
-      <div className="fixed inset-0 z-0 home-gradient-bg" aria-hidden />
-
-      <div className="relative z-10 max-w-lg mx-auto min-h-[calc(100vh-4rem)]">
+      <div className="relative max-w-lg mx-auto min-h-[calc(100vh-4rem)]">
         <motion.header
           initial={{ y: -24, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}

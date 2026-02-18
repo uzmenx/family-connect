@@ -46,7 +46,7 @@ const Profile = () => {
 
   return (
     <AppLayout>
-      <div className="min-h-screen bg-background pb-20">
+      <div className="min-h-screen pb-20">
         {/* Cover Image */}
          <div className="h-32 bg-gradient-to-r from-primary to-accent overflow-hidden">
            {(profile as any)?.cover_url && (
