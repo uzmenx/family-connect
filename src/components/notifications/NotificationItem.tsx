@@ -24,6 +24,7 @@ export const NotificationItem = ({ notification, onRead }: NotificationItemProps
       case 'follow':
         return <UserPlus className="h-4 w-4 text-primary" />;
       case 'like':
+      case 'story_like':
         return <Heart className="h-4 w-4 text-destructive fill-destructive" />;
       case 'comment':
         return <MessageCircle className="h-4 w-4 text-primary" />;
@@ -42,6 +43,8 @@ export const NotificationItem = ({ notification, onRead }: NotificationItemProps
         return 'sizni kuzata boshladi';
       case 'like':
         return 'postingizni yoqtirdi';
+      case 'story_like':
+        return 'hikoyangizni yoqtirdi';
       case 'comment':
         return 'postingizga izoh qoldirdi';
       case 'message':
@@ -64,6 +67,7 @@ export const NotificationItem = ({ notification, onRead }: NotificationItemProps
         break;
       case 'like':
       case 'comment':
+      case 'story_like':
         if (notification.post_id) {
           navigate(`/user/${notification.actor_id}`);
         }

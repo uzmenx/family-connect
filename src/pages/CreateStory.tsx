@@ -7,6 +7,8 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import { uploadMedia } from '@/lib/r2Upload';
+import { STORY_RINGS, type StoryRingId } from '@/components/stories/storyRings';
+import { StoryRingPreview } from '@/components/stories/StoryRingPreview';
 
 const CreateStory = () => {
   const navigate = useNavigate();
@@ -17,6 +19,7 @@ const CreateStory = () => {
   const [preview, setPreview] = useState<string | null>(null);
   const [caption, setCaption] = useState('');
   const [isUploading, setIsUploading] = useState(false);
+  const [selectedRingId, setSelectedRingId] = useState<StoryRingId>('default');
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -60,6 +63,7 @@ const CreateStory = () => {
           media_url: publicUrl,
           media_type: mediaType,
           caption: caption || null,
+          ring_id: selectedRingId,
         });
 
       if (storyError) throw storyError;
@@ -188,6 +192,24 @@ const CreateStory = () => {
               className="resize-none"
               rows={3}
             />
+
+            {/* Ring selector */}
+            <div className="space-y-2">
+              <p className="text-sm font-semibold">Halqa rangi</p>
+              <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+                {STORY_RINGS.map((ring) => (
+                  <StoryRingPreview
+                    key={ring.id}
+                    ringId={ring.id}
+                    avatarSrc={preview || ''}
+                    size="sm"
+                    selected={selectedRingId === ring.id}
+                    onClick={() => setSelectedRingId(ring.id)}
+                    label={ring.label}
+                  />
+                ))}
+              </div>
+            </div>
           </div>
         )}
       </div>

@@ -8,6 +8,7 @@ export interface Story {
   media_url: string;
   media_type: 'image' | 'video';
   caption: string | null;
+  ring_id: string;
   created_at: string;
   expires_at: string;
   author?: {
@@ -106,6 +107,7 @@ export const useStories = () => {
         const storyWithMeta: Story = {
           ...story,
           media_type: story.media_type as 'image' | 'video',
+          ring_id: story.ring_id || 'default',
           author: profile ? {
             id: profile.id,
             name: profile.name,
@@ -175,6 +177,20 @@ export const useStories = () => {
         await supabase
           .from('story_likes')
           .insert({ story_id: storyId, user_id: user.id });
+
+        // Create notification for story owner
+        const story = storyGroups
+          .flatMap(g => g.stories)
+          .find(s => s.id === storyId);
+        
+        if (story && story.user_id !== user.id) {
+          await supabase.from('notifications').insert({
+            user_id: story.user_id,
+            actor_id: user.id,
+            type: 'story_like',
+            post_id: null,
+          });
+        }
       }
     } catch (error) {
       console.error('Error toggling like:', error);

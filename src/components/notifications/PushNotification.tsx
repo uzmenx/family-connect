@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 
 interface PushNotificationData {
   id: string;
-  type: 'follow' | 'like' | 'comment' | 'message';
+  type: 'follow' | 'like' | 'comment' | 'message' | 'story_like';
   actor: {
     id: string;
     name: string | null;
@@ -68,7 +68,7 @@ export const PushNotification = () => {
           if (actor) {
             setNotification({
               id: newNotification.id,
-              type: newNotification.type as 'follow' | 'like' | 'comment' | 'message',
+              type: newNotification.type as PushNotificationData['type'],
               actor,
               post: post || undefined,
               created_at: newNotification.created_at,
@@ -110,6 +110,7 @@ export const PushNotification = () => {
         break;
       case 'like':
       case 'comment':
+      case 'story_like':
         navigate('/notifications');
         break;
       case 'message':
@@ -123,6 +124,7 @@ export const PushNotification = () => {
       case 'follow':
         return <UserPlus className="h-4 w-4 text-primary" />;
       case 'like':
+      case 'story_like':
         return <Heart className="h-4 w-4 text-destructive fill-destructive" />;
       case 'comment':
         return <MessageCircle className="h-4 w-4 text-primary" />;
@@ -139,6 +141,8 @@ export const PushNotification = () => {
         return `${actorName} sizni kuzatmoqda`;
       case 'like':
         return `${actorName} postingizni yoqtirdi`;
+      case 'story_like':
+        return `${actorName} hikoyangizni yoqtirdi`;
       case 'comment':
         return `${actorName} izoh qoldirdi`;
       case 'message':
@@ -173,7 +177,7 @@ export const PushNotification = () => {
           {/* Content */}
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-1.5 mb-0.5">
-              <span className="text-xs font-medium text-muted-foreground">FamilyApp</span>
+              <span className="text-xs font-medium text-muted-foreground">Avlodona</span>
               <span className="text-xs text-muted-foreground">•</span>
               <span className="text-xs text-muted-foreground">
                 {formatDistanceToNow(new Date(notification.created_at), { 

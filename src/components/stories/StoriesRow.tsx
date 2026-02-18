@@ -6,6 +6,7 @@ import { useStories, StoryGroup } from "@/hooks/useStories";
 import { useAuth } from "@/contexts/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { cn } from "@/lib/utils";
+import { getStoryRingGradient } from "./storyRings";
 
 interface StoriesRowProps {
   onStoryClick: (groupIndex: number, storyIndex?: number) => void;
@@ -129,6 +130,19 @@ export const StoriesRow = ({ onStoryClick }: StoriesRowProps) => {
           const groupIndex = storyGroups.findIndex((g) => g.user_id === group.user_id);
           return <StoryAvatar key={group.user_id} group={group} onClick={() => onStoryClick(groupIndex)} />;
         })}
+
+        {/* Quick add story button */}
+        <div className="flex flex-col items-center gap-1 flex-shrink-0">
+          <motion.button
+            onClick={() => navigate("/create")}
+            className="w-[68px] h-[68px] rounded-full bg-muted/50 flex items-center justify-center border-2 border-dashed border-muted-foreground/20 hover:border-primary/40 transition-colors"
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <Plus className="h-6 w-6 text-muted-foreground" />
+          </motion.button>
+          <span className="text-xs text-muted-foreground truncate w-16 text-center">Yangi</span>
+        </div>
       </div>
     </div>
   );
@@ -150,6 +164,10 @@ const StoryAvatar = ({ group, onClick, isOwn }: StoryAvatarProps) => {
     </div>
   );
 
+  // Get the ring gradient from the latest story's ring_id
+  const latestRingId = group.stories[group.stories.length - 1]?.ring_id || 'default';
+  const ringGradient = getStoryRingGradient(latestRingId);
+
   return (
     <div className="flex flex-col items-center gap-1 flex-shrink-0">
       <motion.button
@@ -160,7 +178,11 @@ const StoryAvatar = ({ group, onClick, isOwn }: StoryAvatarProps) => {
       >
         {group.has_unviewed ? (
           <>
-            <span className="absolute inset-0 rounded-full story-gradient-ring p-[3px]" aria-hidden>
+            <span
+              className="absolute inset-0 rounded-full p-[3px]"
+              style={{ background: ringGradient }}
+              aria-hidden
+            >
               <span className="block w-full h-full rounded-full bg-background" />
             </span>
             <span className="relative z-10 w-[58px] h-[58px] rounded-full overflow-hidden bg-background">

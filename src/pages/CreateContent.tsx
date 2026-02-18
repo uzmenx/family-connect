@@ -11,6 +11,8 @@ import { uploadMedia } from '@/lib/r2Upload';
 import { Check, Image } from 'lucide-react';
 import MediaCapture, { CapturedMedia } from '@/components/create/MediaCapture';
 import MediaEditor from '@/components/create/MediaEditor';
+import { STORY_RINGS, type StoryRingId } from '@/components/stories/storyRings';
+import { StoryRingPreview } from '@/components/stories/StoryRingPreview';
 
 type Step = 'capture' | 'edit' | 'publish';
 
@@ -27,6 +29,7 @@ const CreateContent = () => {
   const [isUploading, setIsUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState(0);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [selectedRingId, setSelectedRingId] = useState<StoryRingId>('default');
 
   // Step 1 → 2: Capture done
   const handleCaptureNext = useCallback((media: CapturedMedia[]) => {
@@ -97,6 +100,7 @@ const CreateContent = () => {
           media_url: storyUrl,
           media_type: mediaType,
           caption: caption || null,
+          ring_id: selectedRingId,
         });
         if (error) throw error;
       }
@@ -213,7 +217,25 @@ const CreateContent = () => {
             </label>
           </div>
 
-          {/* Publish button */}
+          {/* Story ring selector - only show when story is checked */}
+          {shareStory && (
+            <div className="rounded-2xl border border-border bg-muted/30 p-4 space-y-3">
+              <p className="text-sm font-semibold">Halqa rangi</p>
+              <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+                {STORY_RINGS.map((ring) => (
+                  <StoryRingPreview
+                    key={ring.id}
+                    ringId={ring.id}
+                    avatarSrc={editedFiles[0] ? URL.createObjectURL(editedFiles[0].file) : ''}
+                    size="sm"
+                    selected={selectedRingId === ring.id}
+                    onClick={() => setSelectedRingId(ring.id)}
+                    label={ring.label}
+                  />
+                ))}
+              </div>
+            </div>
+          )}
           <Button
             className="w-full h-12 text-base font-semibold rounded-2xl"
             onClick={handlePublish}
