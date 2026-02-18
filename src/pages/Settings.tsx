@@ -51,11 +51,20 @@ const bgLabelMap: Record<BackgroundTheme, keyof typeof themeTranslations> = {
 };
 
 const Settings = () => {
-  const { user, logout } = useAuth();
+  const { user, profile, logout } = useAuth();
   const { lang, setLang, t } = useLanguage();
   const { mode, setMode, bgTheme, setBgTheme } = useTheme();
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  const hideHighlights = (profile as any)?.hide_highlights === true;
+  const hideCollections = (profile as any)?.hide_collections === true;
+
+  const toggleVisibility = async (field: 'hide_highlights' | 'hide_collections', current: boolean) => {
+    if (!user) return;
+    await supabase.from('profiles').update({ [field]: !current } as any).eq('id', user.id);
+    window.location.reload();
+  };
 
   const tt = (key: keyof typeof themeTranslations) => themeTranslations[key][lang];
 
