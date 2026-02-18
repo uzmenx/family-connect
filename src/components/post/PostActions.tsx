@@ -83,20 +83,20 @@ export const PostActions = ({
             className="flex items-center gap-1.5 transition-colors"
             onClick={handleLikeClick}
             disabled={isLoading}
-            whileTap={{ scale: 0.9 }}
-          >
+            whileTap={{ scale: 0.9 }}>
+
             <motion.div
               animate={{
-                scale: isAnimating ? [1, 1.35, 1.15] : 1,
+                scale: isAnimating ? [1, 1.35, 1.15] : 1
               }}
-              transition={{ duration: 0.4, times: [0, 0.4, 1] }}
-            >
+              transition={{ duration: 0.4, times: [0, 0.4, 1] }}>
+
               <Heart
                 className={cn(
                   "h-6 w-6 transition-colors duration-200",
                   isLiked && "fill-destructive text-destructive"
-                )}
-              />
+                )} />
+
             </motion.div>
           </motion.button>
           
@@ -118,16 +118,16 @@ export const PostActions = ({
         </div>
         
         <div className="flex items-center gap-2">
-          {videoUrl && onOpenVideoPlayer && (
-            <button
-              className="transition-colors"
-              onClick={(e) => {
-                e.stopPropagation();
-                onOpenVideoPlayer(videoUrl);
-              }}>
+          {videoUrl && onOpenVideoPlayer &&
+          <button
+            className="transition-colors"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenVideoPlayer(videoUrl);
+            }}>
               <Film className="h-6 w-6" />
             </button>
-          )}
+          }
           <button
             className="ml-auto transition-colors"
             onClick={handleSaveClick}
@@ -145,7 +145,7 @@ export const PostActions = ({
         {displayLikesCount > 0 &&
         <button
           onClick={handleLikesCountClick}
-          className="font-semibold text-sm hover:underline text-secondary-foreground bg-card">
+          className="font-semibold text-sm hover:underline text-secondary-foreground bg-slate-700 hover:bg-slate-600 rounded shadow-none opacity-50">
 
             {formatCount(displayLikesCount)} ta yoqtirish
           </button>
