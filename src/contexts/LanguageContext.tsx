@@ -1,7 +1,7 @@
-import React, { createContext, useContext } from 'react';
-import { useLocalStorage } from '@/hooks/useLocalStorage';
+import React, { createContext, useContext } from "react";
+import { useLocalStorage } from "@/hooks/useLocalStorage";
 
-export type Language = 'uz' | 'ru' | 'en';
+export type Language = "uz" | "ru" | "en";
 
 const translations = {
   // Settings
@@ -11,7 +11,11 @@ const translations = {
   appearance: { uz: "Ko'rinish", ru: "Оформление", en: "Appearance" },
   darkMode: { uz: "Qorong'u rejim", ru: "Тёмная тема", en: "Dark mode" },
   security: { uz: "Xavfsizlik", ru: "Безопасность", en: "Security" },
-  securityDesc: { uz: "Akkount email orqali himoyalangan", ru: "Аккаунт защищён по эл. почте", en: "Account protected via email" },
+  securityDesc: {
+    uz: "Akkount email orqali himoyalangan",
+    ru: "Аккаунт защищён по эл. почте",
+    en: "Account protected via email",
+  },
   logout: { uz: "Chiqish", ru: "Выйти", en: "Log out" },
   loggedOut: { uz: "Chiqildi", ru: "Вы вышли", en: "Logged out" },
   loggedOutDesc: { uz: "Muvaffaqiyatli chiqdingiz", ru: "Вы успешно вышли", en: "Successfully logged out" },
@@ -36,11 +40,19 @@ const translations = {
   male: { uz: "Erkak", ru: "Муж.", en: "Male" },
   female: { uz: "Ayol", ru: "Жен.", en: "Female" },
   socialSignup: { uz: "Ijtimoiy tarmoq orqali", ru: "Через соц. сеть", en: "Via social network" },
-  comingSoon: { uz: "google va telifon tez orada ishlaydi", ru: "Google и телефон скоро заработают", en: "Google & phone coming soon" },
+  comingSoon: {
+    uz: "google va telifon tez orada ishlaydi",
+    ru: "Google и телефон скоро заработают",
+    en: "Google & phone coming soon",
+  },
   error: { uz: "Xato", ru: "Ошибка", en: "Error" },
   fillAllFields: { uz: "Barcha maydonlarni to'ldiring", ru: "Заполните все поля", en: "Fill all fields" },
   enterEmailPass: { uz: "Email va parolni kiriting", ru: "Введите email и пароль", en: "Enter email and password" },
-  passMinLength: { uz: "Parol kamida 6 ta belgidan iborat bo'lishi kerak", ru: "Минимум 6 символов", en: "Min 6 characters" },
+  passMinLength: {
+    uz: "Parol kamida 6 ta belgidan iborat bo'lishi kerak",
+    ru: "Минимум 6 символов",
+    en: "Min 6 characters",
+  },
   success: { uz: "Muvaffaqiyatli!", ru: "Успешно!", en: "Success!" },
   loggedInMsg: { uz: "Tizimga kirdingiz", ru: "Вы вошли", en: "Logged in" },
   registeredMsg: { uz: "Ro'yxatdan o'tdingiz", ru: "Вы зарегистрировались", en: "Registered" },
@@ -49,7 +61,7 @@ const translations = {
   googleError: { uz: "Google bilan kirishda xato", ru: "Ошибка входа через Google", en: "Google login error" },
 
   // Bottom nav
-  home: { uz: "Bosh sahifa", ru: "Главная", en: "Home" },
+  home: { uz: "Bugun", ru: "Главная", en: "Home" },
   relativesNav: { uz: "Qarindosh", ru: "Родные", en: "Family" },
   addNav: { uz: "Yaratish", ru: "Создать", en: "Create" },
   messagesNav: { uz: "Xabarlar", ru: "Чаты", en: "Messages" },
@@ -64,7 +76,11 @@ const translations = {
   followersTab: { uz: "Kuzatuvchilar", ru: "Подписчики", en: "Followers" },
   followingTab: { uz: "Kuzatilmoqda", ru: "Подписки", en: "Following" },
   noChats: { uz: "Hozircha chatlar yo'q", ru: "Пока нет чатов", en: "No chats yet" },
-  createGroupOrChannel: { uz: "Guruh yoki kanal yarating", ru: "Создайте группу или канал", en: "Create a group or channel" },
+  createGroupOrChannel: {
+    uz: "Guruh yoki kanal yarating",
+    ru: "Создайте группу или канал",
+    en: "Create a group or channel",
+  },
   noGroups: { uz: "Guruhlar yo'q", ru: "Нет групп", en: "No groups" },
   createNewGroup: { uz: "Yangi guruh yaratish", ru: "Создать группу", en: "Create group" },
   noChannels: { uz: "Kanallar yo'q", ru: "Нет каналов", en: "No channels" },
@@ -97,7 +113,11 @@ const translations = {
   noPosts: { uz: "Hozircha postlar yo'q", ru: "Пока нет постов", en: "No posts yet" },
   createFirst: { uz: "Birinchi postingizni yarating!", ru: "Создайте первый пост!", en: "Create your first post!" },
   noSaved: { uz: "Saqlangan postlar yo'q", ru: "Нет сохранённых", en: "No saved posts" },
-  savedHint: { uz: "Postlarni saqlash uchun bookmark tugmasini bosing", ru: "Нажмите закладку для сохранения", en: "Tap bookmark to save posts" },
+  savedHint: {
+    uz: "Postlarni saqlash uchun bookmark tugmasini bosing",
+    ru: "Нажмите закладку для сохранения",
+    en: "Tap bookmark to save posts",
+  },
   profileInfo: { uz: "Profil ma'lumotlari", ru: "Данные профиля", en: "Profile info" },
   fullName: { uz: "To'liq ism", ru: "Полное имя", en: "Full name" },
   yourName: { uz: "Ismingiz", ru: "Ваше имя", en: "Your name" },
@@ -122,7 +142,11 @@ const translations = {
 
   // Notifications
   notifications: { uz: "Bildirishnomalar", ru: "Уведомления", en: "Notifications" },
-  familyInvites: { uz: "Oila daraxti taklifnomalari", ru: "Приглашения в семейное дерево", en: "Family tree invitations" },
+  familyInvites: {
+    uz: "Oila daraxti taklifnomalari",
+    ru: "Приглашения в семейное дерево",
+    en: "Family tree invitations",
+  },
 
   // AI
   aiName: { uz: "AI Do'stim", ru: "AI Друг", en: "AI Friend" },
@@ -150,21 +174,17 @@ interface LanguageContextType {
 const LanguageContext = createContext<LanguageContextType | undefined>(undefined);
 
 export const LanguageProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [lang, setLang] = useLocalStorage<Language>('app-language', 'uz');
+  const [lang, setLang] = useLocalStorage<Language>("app-language", "uz");
 
   const t = (key: TranslationKey): string => {
-    return translations[key]?.[lang] || translations[key]?.['uz'] || key;
+    return translations[key]?.[lang] || translations[key]?.["uz"] || key;
   };
 
-  return (
-    <LanguageContext.Provider value={{ lang, setLang, t }}>
-      {children}
-    </LanguageContext.Provider>
-  );
+  return <LanguageContext.Provider value={{ lang, setLang, t }}>{children}</LanguageContext.Provider>;
 };
 
 export const useLanguage = () => {
   const context = useContext(LanguageContext);
-  if (!context) throw new Error('useLanguage must be used within LanguageProvider');
+  if (!context) throw new Error("useLanguage must be used within LanguageProvider");
   return context;
 };
