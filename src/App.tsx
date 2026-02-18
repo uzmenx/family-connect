@@ -5,8 +5,9 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { LanguageProvider } from "@/contexts/LanguageContext";
+import { ThemeProvider } from "@/contexts/ThemeContext";
 import { PushNotification } from "@/components/notifications/PushNotification";
-import { useEffect } from "react";
+
 
 import Home from "./pages/Home";
 import AuthLogin from "./pages/AuthLogin";
@@ -66,21 +67,12 @@ const PublicRoute = ({ children }: { children: React.ReactNode }) => {
   return <>{children}</>;
 };
 
-const ThemeInitializer = ({ children }: { children: React.ReactNode }) => {
-  useEffect(() => {
-    const theme = localStorage.getItem('theme');
-    if (theme === 'dark') {
-      document.documentElement.classList.add('dark');
-    }
-  }, []);
-  
-  return <>{children}</>;
-};
+// ThemeInitializer removed — ThemeContext handles dark/light/system
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
-      <ThemeInitializer>
+      <ThemeProvider>
         <LanguageProvider>
         <AuthProvider>
           <Toaster />
@@ -111,7 +103,7 @@ const App = () => (
           </BrowserRouter>
         </AuthProvider>
         </LanguageProvider>
-      </ThemeInitializer>
+      </ThemeProvider>
     </TooltipProvider>
   </QueryClientProvider>
 );
