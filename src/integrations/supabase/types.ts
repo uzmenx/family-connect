@@ -532,6 +532,75 @@ export type Database = {
         }
         Relationships: []
       }
+      post_collection_items: {
+        Row: {
+          collection_id: string
+          created_at: string
+          id: string
+          post_id: string
+          sort_order: number
+        }
+        Insert: {
+          collection_id: string
+          created_at?: string
+          id?: string
+          post_id: string
+          sort_order?: number
+        }
+        Update: {
+          collection_id?: string
+          created_at?: string
+          id?: string
+          post_id?: string
+          sort_order?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_collection_items_collection_id_fkey"
+            columns: ["collection_id"]
+            isOneToOne: false
+            referencedRelation: "post_collections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "post_collection_items_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      post_collections: {
+        Row: {
+          cover_url: string | null
+          created_at: string
+          id: string
+          name: string
+          sort_order: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cover_url?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          sort_order?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cover_url?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          sort_order?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       post_likes: {
         Row: {
           created_at: string
@@ -603,6 +672,8 @@ export type Database = {
           email: string | null
           family_network_id: string | null
           gender: string | null
+          hide_collections: boolean
+          hide_highlights: boolean
           id: string
           name: string | null
           social_links: Json | null
@@ -617,6 +688,8 @@ export type Database = {
           email?: string | null
           family_network_id?: string | null
           gender?: string | null
+          hide_collections?: boolean
+          hide_highlights?: boolean
           id: string
           name?: string | null
           social_links?: Json | null
@@ -631,6 +704,8 @@ export type Database = {
           email?: string | null
           family_network_id?: string | null
           gender?: string | null
+          hide_collections?: boolean
+          hide_highlights?: boolean
           id?: string
           name?: string | null
           social_links?: Json | null
@@ -705,6 +780,84 @@ export type Database = {
           media_type?: string
           media_url?: string
           ring_id?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      story_highlight_items: {
+        Row: {
+          caption: string | null
+          created_at: string
+          highlight_id: string
+          id: string
+          media_type: string
+          media_url: string
+          sort_order: number
+          story_id: string
+        }
+        Insert: {
+          caption?: string | null
+          created_at?: string
+          highlight_id: string
+          id?: string
+          media_type?: string
+          media_url: string
+          sort_order?: number
+          story_id: string
+        }
+        Update: {
+          caption?: string | null
+          created_at?: string
+          highlight_id?: string
+          id?: string
+          media_type?: string
+          media_url?: string
+          sort_order?: number
+          story_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "story_highlight_items_highlight_id_fkey"
+            columns: ["highlight_id"]
+            isOneToOne: false
+            referencedRelation: "story_highlights"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "story_highlight_items_story_id_fkey"
+            columns: ["story_id"]
+            isOneToOne: false
+            referencedRelation: "stories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      story_highlights: {
+        Row: {
+          cover_url: string | null
+          created_at: string
+          id: string
+          name: string
+          sort_order: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          cover_url?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          sort_order?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          cover_url?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          sort_order?: number
+          updated_at?: string
           user_id?: string
         }
         Relationships: []
