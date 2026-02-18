@@ -10,7 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Search, MessageCircle, Users, Megaphone, Bell, Bot, Sparkles, Edit2, Trash2, X, CheckSquare } from "lucide-react";
+import { Search, MessageCircle, Users, Megaphone, Bell, Bot, Sparkles, Edit2, Trash2, X, CheckSquare, Music } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
@@ -25,6 +25,7 @@ import { CreateGroupDialog } from "@/components/groups/CreateGroupDialog";
 import { AddMembersDialog } from "@/components/groups/AddMembersDialog";
 import { ChannelVisibilityDialog } from "@/components/groups/ChannelVisibilityDialog";
 import { GroupChatItem } from "@/components/groups/GroupChatItem";
+import { RingtoneSelector } from "@/components/chat/RingtoneSelector";
 
 interface FollowUser {
   id: string;
@@ -61,6 +62,7 @@ const Messages = () => {
   // Edit mode
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedConvIds, setSelectedConvIds] = useState<Set<string>>(new Set());
+  const [showRingtoneSelector, setShowRingtoneSelector] = useState(false);
 
   // Group/Channel creation flow
   const [createType, setCreateType] = useState<"group" | "channel" | null>(null);
@@ -255,6 +257,14 @@ const Messages = () => {
                   <X className="h-5 w-5" />
                 </Button>
                 <span className="flex-1 font-semibold">{selectedConvIds.size} tanlandi</span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setShowRingtoneSelector(true)}
+                  title="Qo'ng'iroq ovozi"
+                >
+                  <Music className="h-5 w-5" />
+                </Button>
                 <Button
                   variant="ghost"
                   size="icon"
@@ -627,6 +637,11 @@ const Messages = () => {
         }
         </>
       }
+
+      <RingtoneSelector 
+        open={showRingtoneSelector} 
+        onOpenChange={setShowRingtoneSelector} 
+      />
     </AppLayout>);
 
 };
