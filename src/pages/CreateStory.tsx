@@ -15,6 +15,7 @@ const CreateStory = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const { autoSaveStoryToHighlight } = useStoryHighlights();
   
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
