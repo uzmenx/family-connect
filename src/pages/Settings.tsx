@@ -7,8 +7,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, LogOut, Moon, Sun, Monitor, Shield, Mail, Globe, Palette } from 'lucide-react';
+import { ArrowLeft, LogOut, Moon, Sun, Monitor, Shield, Mail, Globe, Palette, Eye, EyeOff } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Switch } from '@/components/ui/switch';
+import { supabase } from '@/integrations/supabase/client';
 
 const langLabels: Record<Language, string> = {
   uz: "O'zbek",
