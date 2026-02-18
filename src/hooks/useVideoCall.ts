@@ -214,6 +214,54 @@ export const useVideoCall = (otherUserId: string | null) => {
             room_name: currentCall.room_name 
           },
         });
+
+        // Save call history as a chat message
+        try {
+          const otherUserId = currentCall.caller_id === user?.id 
+            ? currentCall.receiver_id 
+            : currentCall.caller_id;
+          
+          // Get or create conversation
+          const { data: existing } = await supabase
+            .from('conversations')
+            .select('id')
+            .or(`and(participant1_id.eq.${user?.id},participant2_id.eq.${otherUserId}),and(participant1_id.eq.${otherUserId},participant2_id.eq.${user?.id})`)
+            .maybeSingle();
+
+          let convId = existing?.id;
+          if (!convId) {
+            const { data: newConv } = await supabase
+              .from('conversations')
+              .insert({ participant1_id: user!.id, participant2_id: otherUserId })
+              .select('id')
+              .single();
+            convId = newConv?.id;
+          }
+
+          if (convId && user?.id) {
+            const startTime = new Date(currentCall.created_at);
+            const endTime = new Date();
+            const durationSec = Math.round((endTime.getTime() - startTime.getTime()) / 1000);
+            const mins = Math.floor(durationSec / 60);
+            const secs = durationSec % 60;
+            const durationText = mins > 0 ? `${mins} daqiqa ${secs} soniya` : `${secs} soniya`;
+            
+            const isCaller = currentCall.caller_id === user.id;
+            const callIcon = '📹';
+            const callText = isCaller
+              ? `${callIcon} Video qo'ng'iroq — ${durationText}`
+              : `${callIcon} Video qo'ng'iroq — ${durationText}`;
+
+            await supabase.from('messages').insert({
+              conversation_id: convId,
+              sender_id: user.id,
+              content: callText,
+              status: 'sent',
+            });
+          }
+        } catch (historyErr) {
+          console.error('Error saving call history:', historyErr);
+        }
       }
 
       setIsInCall(false);
@@ -225,7 +273,7 @@ export const useVideoCall = (otherUserId: string | null) => {
     } catch (error) {
       console.error('Error leaving call:', error);
     }
-  }, [callObject, currentCall]);
+  }, [callObject, currentCall, user?.id]);
 
   const toggleCamera = useCallback(async () => {
     if (!callObject) return;
