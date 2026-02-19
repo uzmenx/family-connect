@@ -48,9 +48,14 @@ serve(async (req) => {
       searchParams.set("pageToken", pageToken);
     }
 
-    const response = await fetch(
-      `https://www.googleapis.com/youtube/v3/search?${searchParams.toString()}`
-    );
+    const ytUrl = `https://www.googleapis.com/youtube/v3/search?${searchParams.toString()}`;
+    console.log("Fetching YouTube:", ytUrl.replace(apiKey, "KEY"));
+
+    const response = await fetch(ytUrl, {
+      headers: {
+        "Referer": "https://id-preview--a3e75228-4721-4d5e-89be-d93e66feadcd.lovable.app/",
+      },
+    });
 
     if (!response.ok) {
       const errorText = await response.text();
