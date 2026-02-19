@@ -340,22 +340,48 @@ const Chat = () => {
               </div>
             </div>
           ) : (
-            <div className="space-y-1.5">
+            <div className="space-y-1">
               {visibleMessages.map((msg, index) => {
                 const isMine = msg.sender_id === user?.id;
                 const prevMsg = visibleMessages[index - 1];
+                const nextMsg = visibleMessages[index + 1];
                 const showDateSeparator = shouldShowDateSeparator(msg, prevMsg);
+                
+                // Telegram-style grouping: consecutive messages from same sender
+                const isFirstInGroup = !prevMsg || prevMsg.sender_id !== msg.sender_id || showDateSeparator;
+                const isLastInGroup = !nextMsg || nextMsg.sender_id !== msg.sender_id || shouldShowDateSeparator(nextMsg, msg);
+                
+                // Telegram-style bubble tail logic
+                const getBubbleRadius = () => {
+                  if (isMine) {
+                    if (isFirstInGroup && isLastInGroup) return "rounded-2xl rounded-br-sm";
+                    if (isFirstInGroup) return "rounded-2xl rounded-br-sm";
+                    if (isLastInGroup) return "rounded-2xl rounded-br-sm";
+                    return "rounded-2xl rounded-r-lg";
+                  } else {
+                    if (isFirstInGroup && isLastInGroup) return "rounded-2xl rounded-bl-sm";
+                    if (isFirstInGroup) return "rounded-2xl rounded-bl-sm";
+                    if (isLastInGroup) return "rounded-2xl rounded-bl-sm";
+                    return "rounded-2xl rounded-l-lg";
+                  }
+                };
+
+                const hasMedia = (msg.media_type === 'image' || msg.media_type === 'video') && msg.media_url;
 
                 return (
                   <div key={msg.id}>
                     {showDateSeparator && (
-                      <div className="flex justify-center my-3">
-                        <span className="text-[10px] text-muted-foreground bg-muted/60 backdrop-blur-sm px-3 py-0.5 rounded-full">
+                      <div className="flex justify-center my-4">
+                        <span className="text-[10px] text-muted-foreground/80 bg-muted/40 backdrop-blur-lg px-3.5 py-1 rounded-full font-medium">
                           {formatDateSeparator(msg.created_at)}
                         </span>
                       </div>
                     )}
-                    <div className={cn("flex", isMine ? "justify-end" : "justify-start")}>
+                    <div className={cn(
+                      "flex",
+                      isMine ? "justify-end" : "justify-start",
+                      !isLastInGroup ? "mb-[2px]" : "mb-1.5"
+                    )}>
                       <MessageContextMenu
                         messageContent={msg.content}
                         messageId={msg.id}
@@ -367,19 +393,22 @@ const Chat = () => {
                         onDeleteForAll={isMine ? handleDeleteForAll : undefined}
                       >
                         <div className={cn(
-                          "max-w-[78%] rounded-2xl px-3.5 py-2",
+                          "max-w-[80%] px-3 py-1.5 shadow-sm",
+                          getBubbleRadius(),
+                          hasMedia && "px-1.5 py-1.5",
                           isMine 
-                            ? "bg-primary text-primary-foreground rounded-br-md" 
-                            : "bg-muted/70 backdrop-blur-sm rounded-bl-md"
+                            ? "bg-primary text-primary-foreground" 
+                            : "bg-card/80 backdrop-blur-md border border-border/10"
                         )}>
                           {renderMessageContent(msg, isMine)}
                           <div className={cn(
                             "flex items-center gap-1 mt-0.5",
+                            hasMedia && "px-1.5",
                             isMine ? "justify-end" : "justify-start"
                           )}>
                             <span className={cn(
-                              "text-[10px]",
-                              isMine ? "text-primary-foreground/60" : "text-muted-foreground"
+                              "text-[10px] tabular-nums",
+                              isMine ? "text-primary-foreground/50" : "text-muted-foreground/60"
                             )}>
                               {formatMessageTime(msg.created_at)}
                             </span>
@@ -395,11 +424,11 @@ const Chat = () => {
               {/* Typing indicator */}
               {otherUserTyping && (
                 <div className="flex justify-start">
-                  <div className="bg-muted/70 backdrop-blur-sm rounded-2xl rounded-bl-md px-4 py-2.5">
-                    <div className="flex gap-1">
-                      <span className="w-1.5 h-1.5 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                      <span className="w-1.5 h-1.5 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                      <span className="w-1.5 h-1.5 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                  <div className="bg-card/80 backdrop-blur-md border border-border/10 rounded-2xl rounded-bl-sm px-4 py-2.5 shadow-sm">
+                    <div className="flex gap-1.5">
+                      <span className="w-2 h-2 bg-primary/60 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <span className="w-2 h-2 bg-primary/40 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <span className="w-2 h-2 bg-primary/20 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                     </div>
                   </div>
                 </div>
