@@ -202,6 +202,8 @@ export const useMentionsCollabs = (userId?: string) => {
 
   const respondToCollab = async (collabId: string, accept: boolean) => {
     try {
+      const collab = pendingCollabs.find(c => c.id === collabId);
+      
       await supabase
         .from('post_collabs')
         .update({ status: accept ? 'accepted' : 'rejected', updated_at: new Date().toISOString() })
@@ -209,7 +211,44 @@ export const useMentionsCollabs = (userId?: string) => {
 
       setPendingCollabs(prev => prev.filter(c => c.id !== collabId));
 
-      if (accept) {
+      if (accept && collab?.post?.user_id && user?.id) {
+        // Send collab_accepted notification
+        await supabase.from('notifications').insert({
+          user_id: collab.post.user_id,
+          actor_id: user.id,
+          type: 'collab_accepted',
+          post_id: collab.post_id,
+        });
+
+        // Send a message to the post author
+        const authorId = collab.post.user_id;
+        // Find or create conversation
+        const { data: existing } = await supabase
+          .from('conversations')
+          .select('id')
+          .or(`and(participant1_id.eq.${user.id},participant2_id.eq.${authorId}),and(participant1_id.eq.${authorId},participant2_id.eq.${user.id})`)
+          .maybeSingle();
+
+        let convId = existing?.id;
+        if (!convId) {
+          const { data: newConv } = await supabase
+            .from('conversations')
+            .insert({ participant1_id: user.id, participant2_id: authorId })
+            .select('id')
+            .single();
+          convId = newConv?.id;
+        }
+
+        if (convId) {
+          await supabase.from('messages').insert({
+            conversation_id: convId,
+            sender_id: user.id,
+            content: `✅ Hamkorlik so'rovini qabul qildim! Postingizda hamkor sifatida ko'rinaman.`,
+          });
+          // Update conversation timestamp
+          await supabase.from('conversations').update({ last_message_at: new Date().toISOString() }).eq('id', convId);
+        }
+
         fetchCollabPosts();
       }
     } catch (e) {
