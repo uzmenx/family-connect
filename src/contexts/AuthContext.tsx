@@ -59,6 +59,20 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Update last_seen periodically
+  useEffect(() => {
+    if (!user) return;
+    
+    const updateLastSeen = () => {
+      supabase.from('profiles').update({ last_seen: new Date().toISOString() }).eq('id', user.id).then();
+    };
+    
+    updateLastSeen(); // on mount
+    const interval = setInterval(updateLastSeen, 60000); // every 60s
+    
+    return () => clearInterval(interval);
+  }, [user]);
+
   useEffect(() => {
     let isMounted = true;
 
@@ -73,7 +87,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setUser(session?.user ?? null);
 
         if (session?.user) {
-          // Use setTimeout to avoid potential deadlock with Supabase client
           setTimeout(async () => {
             if (isMounted) {
               const profileData = await fetchProfile(session.user.id);
@@ -93,12 +106,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Then check for existing session
     const initializeAuth = async () => {
       try {
-        // Check if we have OAuth tokens in the URL hash (from redirect)
         const hashParams = new URLSearchParams(window.location.hash.substring(1));
         const accessToken = hashParams.get('access_token');
         
         if (accessToken) {
-          // Let onAuthStateChange handle the OAuth callback
           console.log('OAuth callback detected, waiting for auth state change...');
           return;
         }

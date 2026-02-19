@@ -28,7 +28,7 @@ interface UserProfile {
   name: string | null;
   username: string | null;
   avatar_url: string | null;
-  updated_at: string | null;
+  last_seen: string | null;
 }
 
 const Chat = () => {
@@ -78,9 +78,12 @@ const Chat = () => {
 
       const { data: profile } = await supabase
         .from('profiles')
-        .select('id, name, username, avatar_url, updated_at')
+        .select('id, name, username, avatar_url, last_seen')
         .eq('id', userId)
         .maybeSingle();
+
+      // Update own last_seen
+      supabase.from('profiles').update({ last_seen: new Date().toISOString() }).eq('id', user.id).then();
 
       setOtherUser(profile as UserProfile | null);
 
@@ -297,7 +300,7 @@ const Chat = () => {
               {otherUserTyping ? (
                 <p className="text-[11px] text-primary font-medium">{t('typing')}</p>
               ) : (
-                <p className="text-[11px] text-muted-foreground">{formatLastActivity(otherUser.updated_at)}</p>
+                <p className="text-[11px] text-muted-foreground">{formatLastActivity(otherUser.last_seen)}</p>
               )}
             </div>
             <button 
