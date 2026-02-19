@@ -1,18 +1,20 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, Volume2, VolumeX, ChevronLeft, ChevronRight, Flame } from 'lucide-react';
+import { Play, ChevronLeft, ChevronRight, Flame } from 'lucide-react';
 
-interface Short {
+export interface Short {
   id: string;
   title: string;
   thumbnail: string;
   channelTitle: string;
 }
 
-export function YouTubeShortsSection() {
+interface YouTubeShortsProps {
+  onShortClick?: (shorts: Short[], index: number) => void;
+}
+
+export function YouTubeShortsSection({ onShortClick }: YouTubeShortsProps) {
   const [shorts, setShorts] = useState<Short[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [activeIndex, setActiveIndex] = useState<number | null>(null);
-  const [isMuted, setIsMuted] = useState(true);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -39,27 +41,22 @@ export function YouTubeShortsSection() {
 
   const scroll = useCallback((direction: 'left' | 'right') => {
     if (!scrollRef.current) return;
-    const scrollAmount = 200;
     scrollRef.current.scrollBy({
-      left: direction === 'left' ? -scrollAmount : scrollAmount,
+      left: direction === 'left' ? -160 : 160,
       behavior: 'smooth',
     });
   }, []);
 
-  const handlePlay = (index: number) => {
-    setActiveIndex(activeIndex === index ? null : index);
-  };
-
   if (isLoading) {
     return (
-      <div className="px-3 py-4">
-        <div className="flex items-center gap-2 mb-3">
-          <div className="w-5 h-5 rounded bg-muted animate-pulse" />
-          <div className="w-32 h-4 rounded bg-muted animate-pulse" />
+      <div className="px-3 pt-1 pb-2">
+        <div className="flex items-center gap-1.5 mb-2">
+          <div className="w-4 h-4 rounded bg-muted/50 animate-pulse" />
+          <div className="w-16 h-3 rounded bg-muted/50 animate-pulse" />
         </div>
-        <div className="flex gap-3 overflow-hidden">
+        <div className="flex gap-2 overflow-hidden">
           {[...Array(4)].map((_, i) => (
-            <div key={i} className="w-[140px] h-[248px] rounded-xl bg-muted animate-pulse shrink-0" />
+            <div key={i} className="w-[110px] h-[196px] rounded-2xl bg-muted/30 animate-pulse shrink-0" />
           ))}
         </div>
       </div>
@@ -69,91 +66,65 @@ export function YouTubeShortsSection() {
   if (shorts.length === 0) return null;
 
   return (
-    <div className="py-4">
-      {/* Header */}
-      <div className="flex items-center justify-between px-3 mb-3">
-        <div className="flex items-center gap-2">
-          <div className="w-7 h-7 rounded-lg bg-destructive/10 flex items-center justify-center">
-            <Flame className="w-4 h-4 text-destructive" />
-          </div>
-          <span className="font-semibold text-sm text-foreground">Shorts</span>
+    <div className="pt-1 pb-2">
+      {/* Header - compact */}
+      <div className="flex items-center justify-between px-3 mb-1.5">
+        <div className="flex items-center gap-1.5">
+          <Flame className="w-3.5 h-3.5 text-destructive" />
+          <span className="font-semibold text-xs text-foreground">Shorts</span>
         </div>
-        <div className="flex gap-1">
+        <div className="flex gap-0.5">
           <button
             onClick={() => scroll('left')}
-            className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center hover:bg-muted transition-colors"
+            className="w-6 h-6 rounded-full bg-background/60 backdrop-blur-sm flex items-center justify-center border border-border/20"
           >
-            <ChevronLeft className="w-4 h-4 text-muted-foreground" />
+            <ChevronLeft className="w-3 h-3 text-muted-foreground" />
           </button>
           <button
             onClick={() => scroll('right')}
-            className="w-7 h-7 rounded-full bg-secondary flex items-center justify-center hover:bg-muted transition-colors"
+            className="w-6 h-6 rounded-full bg-background/60 backdrop-blur-sm flex items-center justify-center border border-border/20"
           >
-            <ChevronRight className="w-4 h-4 text-muted-foreground" />
+            <ChevronRight className="w-3 h-3 text-muted-foreground" />
           </button>
         </div>
       </div>
 
-      {/* Shorts Carousel */}
+      {/* Carousel - compact cards */}
       <div
         ref={scrollRef}
-        className="flex gap-3 overflow-x-auto no-scrollbar px-3 snap-x snap-mandatory"
+        className="flex gap-2 overflow-x-auto no-scrollbar px-3 snap-x snap-mandatory"
       >
         {shorts.map((short, index) => (
           <div
             key={short.id}
-            className="relative w-[140px] h-[248px] rounded-xl overflow-hidden shrink-0 snap-start bg-card border border-border group cursor-pointer"
-            onClick={() => handlePlay(index)}
+            className="relative w-[110px] h-[196px] rounded-2xl overflow-hidden shrink-0 snap-start cursor-pointer group"
+            onClick={() => onShortClick?.(shorts, index)}
           >
-            {activeIndex === index ? (
-              <iframe
-                src={`https://www.youtube.com/embed/${short.id}?rel=0&mute=${isMuted ? 1 : 0}&loop=1&playlist=${short.id}&autoplay=1&controls=0&modestbranding=1&playsinline=1`}
-                className="absolute inset-0 w-full h-full"
-                allow="autoplay; encrypted-media"
-                allowFullScreen
-                title={short.title}
-              />
-            ) : (
-              <>
-                <img
-                  src={short.thumbnail}
-                  alt={short.title}
-                  className="absolute inset-0 w-full h-full object-cover"
-                  loading="lazy"
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/20" />
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-sm flex items-center justify-center border border-white/30">
-                    <Play className="w-5 h-5 text-white fill-white ml-0.5" />
-                  </div>
-                </div>
-              </>
-            )}
+            <img
+              src={short.thumbnail}
+              alt={short.title}
+              className="absolute inset-0 w-full h-full object-cover"
+              loading="lazy"
+            />
+            {/* Glass overlay */}
+            <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/10" />
+            
+            {/* Play button */}
+            <div className="absolute inset-0 flex items-center justify-center opacity-80 group-hover:opacity-100 transition-opacity">
+              <div className="w-8 h-8 rounded-full bg-background/20 backdrop-blur-md flex items-center justify-center border border-border/20">
+                <Play className="w-3.5 h-3.5 text-primary-foreground fill-primary-foreground ml-0.5" />
+              </div>
+            </div>
 
-            <div className="absolute bottom-0 left-0 right-0 p-2 z-10">
-              <p className="text-[11px] text-white font-medium leading-tight line-clamp-2 drop-shadow-lg">
+            {/* Info */}
+            <div className="absolute bottom-0 left-0 right-0 p-1.5 z-10">
+              <p className="text-[10px] text-primary-foreground font-medium leading-tight line-clamp-2 drop-shadow-lg">
                 {short.title}
               </p>
-              <p className="text-[10px] text-white/70 mt-0.5 drop-shadow-lg">
+              <p className="text-[9px] text-primary-foreground/60 mt-0.5 drop-shadow-lg">
                 {short.channelTitle}
               </p>
             </div>
-
-            {activeIndex === index && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsMuted(!isMuted);
-                }}
-                className="absolute top-2 right-2 w-7 h-7 rounded-full bg-black/50 backdrop-blur-sm flex items-center justify-center z-20"
-              >
-                {isMuted ? (
-                  <VolumeX className="w-3.5 h-3.5 text-white" />
-                ) : (
-                  <Volume2 className="w-3.5 h-3.5 text-white" />
-                )}
-              </button>
-            )}
           </div>
         ))}
       </div>
