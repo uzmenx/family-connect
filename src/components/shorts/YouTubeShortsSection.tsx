@@ -12,9 +12,9 @@ interface YouTubeShortsProps {
   onShortClick?: (shorts: Short[], index: number) => void;
 }
 
-const CACHE_KEY = 'yt_shorts_cache';
-const TOKEN_KEY = 'shorts_next_token';
-const CACHE_TTL = 3600000; // 1 hour
+const CACHE_KEY = 'yt_shorts_cache_v2';
+const TOKEN_KEY = 'shorts_next_token_v2';
+const CACHE_TTL = 1800000; // 30 min
 
 interface CacheData {
   shorts: Short[];
@@ -69,8 +69,8 @@ export function YouTubeShortsSection({ onShortClick }: YouTubeShortsProps) {
       const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
       const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       const params = new URLSearchParams({
-        q: 'oilaviy hayot OR family moments OR qiziqarli oila OR ota-ona farzand',
-        maxResults: '15',
+        q: 'shorts trending viral funny',
+        maxResults: '20',
       });
       if (pageToken) params.set('pageToken', pageToken);
 
