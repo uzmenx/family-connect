@@ -6,13 +6,14 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Settings, Edit, Grid3X3, Bookmark, Bell } from 'lucide-react';
+import { Settings, Edit, Grid3X3, Bookmark, Bell, AtSign, Users } from 'lucide-react';
 import { SocialLinksList } from '@/components/profile';
 import { useUserPosts } from '@/hooks/useUserPosts';
 import { useSavedPosts } from '@/hooks/useSavedPosts';
 import { useFollow } from '@/hooks/useFollow';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useStoryHighlights } from '@/hooks/useStoryHighlights';
+import { useMentionsCollabs } from '@/hooks/useMentionsCollabs';
 import { usePostCollections } from '@/hooks/usePostCollections';
 import { PostCard } from '@/components/feed/PostCard';
 import { FullScreenViewer } from '@/components/feed/FullScreenViewer';
@@ -21,6 +22,7 @@ import { EndOfFeed } from '@/components/feed/EndOfFeed';
 import { HighlightsRow } from '@/components/profile/HighlightsRow';
 import { HighlightEditor } from '@/components/profile/HighlightEditor';
 import { CollectionsFilter } from '@/components/profile/CollectionsFilter';
+import { CollabRequestsSheet } from '@/components/post/CollabRequestsSheet';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { formatCount } from '@/lib/formatCount';
@@ -35,11 +37,13 @@ const Profile = () => {
   const { unreadCount } = useNotifications();
   const { highlights, fetchHighlights } = useStoryHighlights();
   const { collections, selectedCollectionId, setSelectedCollectionId, collectionPosts, createCollection } = usePostCollections();
-  const [activeTab, setActiveTab] = useState<'posts' | 'saved'>('posts');
+  const { mentionedPosts, collabPosts, pendingCollabs, respondToCollab } = useMentionsCollabs();
+  const [activeTab, setActiveTab] = useState<'posts' | 'saved' | 'mentions'>('posts');
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
   const [viewerPosts, setViewerPosts] = useState<typeof posts>([]);
   const [showNewHighlight, setShowNewHighlight] = useState(false);
+  const [showCollabRequests, setShowCollabRequests] = useState(false);
 
   const hideHighlights = (profile as any)?.hide_highlights === true;
   const hideCollections = (profile as any)?.hide_collections === true;
@@ -172,6 +176,26 @@ const Profile = () => {
             >
               <Bookmark className="h-5 w-5" />
             </button>
+            <button
+              onClick={() => setActiveTab('mentions')}
+              className={cn(
+                "flex-1 py-3 flex items-center justify-center gap-2 border-b-2 transition-colors",
+                activeTab === 'mentions' ? "border-primary text-primary" : "border-transparent text-muted-foreground"
+              )}
+            >
+              <AtSign className="h-5 w-5" />
+            </button>
+            {pendingCollabs.length > 0 && (
+              <button
+                onClick={() => setShowCollabRequests(true)}
+                className="py-3 px-3 flex items-center justify-center gap-1 border-b-2 border-transparent text-muted-foreground relative"
+              >
+                <Users className="h-5 w-5" />
+                <Badge variant="destructive" className="absolute -top-0.5 -right-0.5 h-4 w-4 p-0 flex items-center justify-center text-[10px]">
+                  {pendingCollabs.length}
+                </Badge>
+              </button>
+            )}
           </div>
         </div>
 
@@ -226,6 +250,30 @@ const Profile = () => {
           </PullToRefresh>
         )}
 
+        {/* Mentions tab */}
+        {activeTab === 'mentions' && (
+          <div>
+            {mentionedPosts.length === 0 && collabPosts.length === 0 ? (
+              <div className="text-center py-12 px-4">
+                <AtSign className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
+                <p className="text-muted-foreground">Hozircha belgilanmagan</p>
+              </div>
+            ) : (
+              <div className="space-y-4 px-0 md:px-4">
+                {[...mentionedPosts, ...collabPosts]
+                  .filter((v, i, a) => a.findIndex(p => p.id === v.id) === i)
+                  .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                  .map((post, index) => (
+                    <div key={post.id} onClick={() => openViewer(index, [...mentionedPosts, ...collabPosts])} className="cursor-pointer">
+                      <PostCard post={post} />
+                    </div>
+                  ))}
+                <EndOfFeed />
+              </div>
+            )}
+          </div>
+        )}
+
         {viewerOpen && viewerPosts.length > 0 && (
           <FullScreenViewer posts={viewerPosts} initialIndex={viewerInitialIndex} onClose={() => setViewerOpen(false)} />
         )}
@@ -233,6 +281,13 @@ const Profile = () => {
         {showNewHighlight && (
           <HighlightEditor open={showNewHighlight} onClose={() => { setShowNewHighlight(false); fetchHighlights(); }} isNew />
         )}
+
+        <CollabRequestsSheet
+          open={showCollabRequests}
+          onOpenChange={setShowCollabRequests}
+          requests={pendingCollabs}
+          onRespond={respondToCollab}
+        />
       </div>
     </AppLayout>
   );

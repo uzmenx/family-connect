@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Heart, MessageCircle, UserPlus, Send, TreeDeciduous, Check } from 'lucide-react';
+import { Heart, MessageCircle, UserPlus, Send, TreeDeciduous, Check, AtSign, Users } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 import { uz } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -34,6 +34,12 @@ export const NotificationItem = ({ notification, onRead }: NotificationItemProps
         return <TreeDeciduous className="h-4 w-4 text-emerald-600" />;
       case 'family_invitation_accepted':
         return <Check className="h-4 w-4 text-emerald-600" />;
+      case 'mention':
+        return <AtSign className="h-4 w-4 text-primary" />;
+      case 'collab_request':
+        return <Users className="h-4 w-4 text-primary" />;
+      case 'collab_accepted':
+        return <Check className="h-4 w-4 text-primary" />;
     }
   };
 
@@ -53,6 +59,12 @@ export const NotificationItem = ({ notification, onRead }: NotificationItemProps
         return 'sizni oila daraxtiga taklif qildi';
       case 'family_invitation_accepted':
         return 'oila daraxtiga qo\'shildi';
+      case 'mention':
+        return 'sizni postda belgiladi';
+      case 'collab_request':
+        return 'sizni hamkor sifatida qo\'shmoqchi';
+      case 'collab_accepted':
+        return 'hamkorlikni qabul qildi';
     }
   };
 
@@ -74,6 +86,11 @@ export const NotificationItem = ({ notification, onRead }: NotificationItemProps
         break;
       case 'message':
         navigate(`/chat/${notification.actor_id}`);
+        break;
+      case 'mention':
+      case 'collab_request':
+      case 'collab_accepted':
+        navigate('/notifications');
         break;
       case 'family_invitation':
       case 'family_invitation_accepted':

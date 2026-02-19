@@ -5,11 +5,14 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, X, Plus, Check } from 'lucide-react';
+import { ArrowLeft, X, Plus, Check, AtSign, Users } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { MediaPicker } from '@/components/post/MediaPicker';
 import { uploadMedia } from '@/lib/r2Upload';
 import { usePostCollections } from '@/hooks/usePostCollections';
+import { useMentionsCollabs } from '@/hooks/useMentionsCollabs';
+import { UserSearchPicker } from '@/components/post/UserSearchPicker';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { cn } from '@/lib/utils';
 
 interface MediaFile {
@@ -31,6 +34,28 @@ const CreatePost = () => {
   const [selectedCollectionIds, setSelectedCollectionIds] = useState<Set<string>>(new Set());
   const [showNewCollection, setShowNewCollection] = useState(false);
   const [newCollectionName, setNewCollectionName] = useState('');
+  const [mentionIds, setMentionIds] = useState<string[]>([]);
+  const [collabIds, setCollabIds] = useState<string[]>([]);
+  const [showMentionPicker, setShowMentionPicker] = useState(false);
+  const [showCollabPicker, setShowCollabPicker] = useState(false);
+  const [mentionProfiles, setMentionProfiles] = useState<any[]>([]);
+  const [collabProfiles, setCollabProfiles] = useState<any[]>([]);
+  const { addMentions, addCollabs } = useMentionsCollabs();
+
+  // Fetch profiles for selected mention/collab users
+  useEffect(() => {
+    if (mentionIds.length > 0) {
+      supabase.from('profiles').select('id, name, username, avatar_url').in('id', mentionIds)
+        .then(({ data }) => setMentionProfiles(data || []));
+    } else setMentionProfiles([]);
+  }, [mentionIds]);
+
+  useEffect(() => {
+    if (collabIds.length > 0) {
+      supabase.from('profiles').select('id, name, username, avatar_url').in('id', collabIds)
+        .then(({ data }) => setCollabProfiles(data || []));
+    } else setCollabProfiles([]);
+  }, [collabIds]);
 
   const handleNext = () => {
     if (selectedMedia.length === 0) {
@@ -97,6 +122,9 @@ const CreatePost = () => {
         for (const colId of selectedCollectionIds) {
           await addPostToCollection(colId, post.id);
         }
+        // Add mentions and collabs
+        await addMentions(post.id, mentionIds);
+        await addCollabs(post.id, collabIds);
       }
 
       selectedMedia.forEach(media => URL.revokeObjectURL(media.preview));
@@ -207,9 +235,90 @@ const CreatePost = () => {
                   )}
                 </div>
               </div>
+
+              {/* Mention - Belgilash */}
+              <div className="space-y-2">
+                <button
+                  onClick={() => setShowMentionPicker(true)}
+                  className="w-full flex items-center gap-3 px-3 py-3 rounded-lg border border-border hover:bg-muted transition-colors"
+                >
+                  <AtSign className="h-5 w-5 text-primary" />
+                  <div className="flex-1 text-left">
+                    <p className="text-sm font-medium">Odamlarni belgilash</p>
+                    <p className="text-xs text-muted-foreground">
+                      {mentionIds.length > 0 ? `${mentionIds.length} kishi belgilangan` : 'Postda kimnidir belgilang'}
+                    </p>
+                  </div>
+                </button>
+                {mentionProfiles.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {mentionProfiles.map(u => (
+                      <div key={u.id} className="flex items-center gap-1.5 px-2 py-1 bg-primary/10 rounded-full">
+                        <Avatar className="h-5 w-5">
+                          <AvatarImage src={u.avatar_url || undefined} />
+                          <AvatarFallback className="text-[10px]">U</AvatarFallback>
+                        </Avatar>
+                        <span className="text-xs font-medium">{u.name || u.username}</span>
+                        <button onClick={() => setMentionIds(prev => prev.filter(id => id !== u.id))}>
+                          <X className="h-3 w-3 text-muted-foreground" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* Collab - Hamkorlik */}
+              <div className="space-y-2">
+                <button
+                  onClick={() => setShowCollabPicker(true)}
+                  className="w-full flex items-center gap-3 px-3 py-3 rounded-lg border border-border hover:bg-muted transition-colors"
+                >
+                  <Users className="h-5 w-5 text-primary" />
+                  <div className="flex-1 text-left">
+                    <p className="text-sm font-medium">Hamkor qo'shish</p>
+                    <p className="text-xs text-muted-foreground">
+                      {collabIds.length > 0 ? `${collabIds.length} hamkor tanlangan` : 'Post birgalikda chiqsin'}
+                    </p>
+                  </div>
+                </button>
+                {collabProfiles.length > 0 && (
+                  <div className="flex flex-wrap gap-2">
+                    {collabProfiles.map(u => (
+                      <div key={u.id} className="flex items-center gap-1.5 px-2 py-1 bg-accent/20 rounded-full">
+                        <Avatar className="h-5 w-5">
+                          <AvatarImage src={u.avatar_url || undefined} />
+                          <AvatarFallback className="text-[10px]">U</AvatarFallback>
+                        </Avatar>
+                        <span className="text-xs font-medium">{u.name || u.username}</span>
+                        <button onClick={() => setCollabIds(prev => prev.filter(id => id !== u.id))}>
+                          <X className="h-3 w-3 text-muted-foreground" />
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </div>
+
+        {/* Pickers */}
+        <UserSearchPicker
+          open={showMentionPicker}
+          onClose={() => setShowMentionPicker(false)}
+          selectedIds={mentionIds}
+          onSelectionChange={setMentionIds}
+          title="Odamlarni belgilash"
+        />
+        <UserSearchPicker
+          open={showCollabPicker}
+          onClose={() => setShowCollabPicker(false)}
+          selectedIds={collabIds}
+          onSelectionChange={setCollabIds}
+          title="Hamkor qo'shish"
+          maxSelection={5}
+        />
       </div>
     </AppLayout>
   );
