@@ -350,22 +350,26 @@ const CreateContent = () => {
         </div>
       </div>
 
-      {/* Pickers */}
-      <UserSearchPicker
-        open={showMentionPicker}
-        onClose={() => setShowMentionPicker(false)}
-        selectedIds={mentionIds}
-        onSelectionChange={setMentionIds}
-        title="Odamlarni belgilash"
-      />
-      <UserSearchPicker
-        open={showCollabPicker}
-        onClose={() => setShowCollabPicker(false)}
-        selectedIds={collabIds}
-        onSelectionChange={setCollabIds}
-        title="Hamkor qo'shish"
-        maxSelection={5}
-      />
+      {/* Pickers - rendered outside fixed container via Portal */}
+      {showMentionPicker && (
+        <UserSearchPicker
+          open={showMentionPicker}
+          onClose={() => setShowMentionPicker(false)}
+          selectedIds={mentionIds}
+          onSelectionChange={setMentionIds}
+          title="Odamlarni belgilash"
+        />
+      )}
+      {showCollabPicker && (
+        <UserSearchPicker
+          open={showCollabPicker}
+          onClose={() => setShowCollabPicker(false)}
+          selectedIds={collabIds}
+          onSelectionChange={setCollabIds}
+          title="Hamkor qo'shish"
+          maxSelection={5}
+        />
+      )}
     </div>
   );
 };

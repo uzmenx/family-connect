@@ -1,10 +1,10 @@
 import { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { Search, X, User, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
@@ -38,7 +38,6 @@ export const UserSearchPicker = ({
   const [selectedUsers, setSelectedUsers] = useState<UserResult[]>([]);
   const [isSearching, setIsSearching] = useState(false);
 
-  // Load selected users info on open
   useEffect(() => {
     if (open && selectedIds.length > 0) {
       supabase
@@ -117,14 +116,29 @@ export const UserSearchPicker = ({
     );
   };
 
-  return (
-    <Sheet open={open} onOpenChange={(v) => !v && onClose()}>
-      <SheetContent side="bottom" className="h-[80vh] rounded-t-2xl">
-        <SheetHeader>
-          <SheetTitle>{title}</SheetTitle>
-        </SheetHeader>
+  if (!open) return null;
 
-        <div className="mt-3 space-y-3">
+  const content = (
+    <div className="fixed inset-0 z-[200] flex flex-col">
+      {/* Backdrop */}
+      <div className="absolute inset-0 bg-black/60" onClick={onClose} />
+
+      {/* Bottom sheet */}
+      <div className="mt-auto relative bg-background rounded-t-2xl max-h-[80vh] flex flex-col animate-in slide-in-from-bottom duration-300">
+        {/* Handle */}
+        <div className="flex justify-center pt-3 pb-1">
+          <div className="w-10 h-1 rounded-full bg-muted-foreground/30" />
+        </div>
+
+        {/* Header */}
+        <div className="flex items-center justify-between px-4 pb-3">
+          <h3 className="text-lg font-semibold">{title}</h3>
+          <button onClick={onClose} className="p-1 rounded-full hover:bg-muted">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        <div className="px-4 pb-4 space-y-3 flex-1 overflow-hidden flex flex-col">
           {/* Selected chips */}
           {selectedUsers.length > 0 && (
             <div className="flex flex-wrap gap-2">
@@ -159,7 +173,7 @@ export const UserSearchPicker = ({
           </div>
 
           {/* Results */}
-          <div className="overflow-y-auto max-h-[50vh] space-y-1">
+          <div className="overflow-y-auto flex-1 space-y-1 min-h-0">
             {isSearching && <p className="text-center text-sm text-muted-foreground py-4">Qidirilmoqda...</p>}
             {!isSearching && query && results.length === 0 && (
               <p className="text-center text-sm text-muted-foreground py-4">Topilmadi</p>
@@ -171,7 +185,9 @@ export const UserSearchPicker = ({
             Tayyor ({selectedIds.length})
           </Button>
         </div>
-      </SheetContent>
-    </Sheet>
+      </div>
+    </div>
   );
+
+  return createPortal(content, document.body);
 };
