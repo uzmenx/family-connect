@@ -221,17 +221,22 @@ export const useMentionsCollabs = (userId?: string) => {
     if (userIds.length === 0) return;
     try {
       const rows = userIds.map(uid => ({ post_id: postId, mentioned_user_id: uid }));
-      await supabase.from('post_mentions').insert(rows);
+      const { error: mentionError } = await supabase.from('post_mentions').insert(rows);
+      if (mentionError) {
+        console.error('Mention insert error:', mentionError);
+        return;
+      }
 
       // Send notifications
       for (const uid of userIds) {
         if (uid !== user?.id) {
-          await supabase.from('notifications').insert({
+          const { error: notifError } = await supabase.from('notifications').insert({
             user_id: uid,
             actor_id: user!.id,
             type: 'mention',
             post_id: postId,
           });
+          if (notifError) console.error('Mention notification error:', notifError);
         }
       }
     } catch (e) {
@@ -243,17 +248,22 @@ export const useMentionsCollabs = (userId?: string) => {
     if (userIds.length === 0) return;
     try {
       const rows = userIds.map(uid => ({ post_id: postId, user_id: uid }));
-      await supabase.from('post_collabs').insert(rows);
+      const { error: collabError } = await supabase.from('post_collabs').insert(rows);
+      if (collabError) {
+        console.error('Collab insert error:', collabError);
+        return;
+      }
 
       // Send notifications
       for (const uid of userIds) {
         if (uid !== user?.id) {
-          await supabase.from('notifications').insert({
+          const { error: notifError } = await supabase.from('notifications').insert({
             user_id: uid,
             actor_id: user!.id,
             type: 'collab_request',
             post_id: postId,
           });
+          if (notifError) console.error('Collab notification error:', notifError);
         }
       }
     } catch (e) {

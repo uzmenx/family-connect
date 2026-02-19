@@ -122,9 +122,33 @@ const CreatePost = () => {
         for (const colId of selectedCollectionIds) {
           await addPostToCollection(colId, post.id);
         }
+
+        // Parse @mentions from caption text
+        const captionMentionUsernames = (content.match(/@(\w+)/g) || []).map(m => m.slice(1));
+        let allMentionIds = [...mentionIds];
+        
+        if (captionMentionUsernames.length > 0) {
+          const { data: mentionedProfiles } = await supabase
+            .from('profiles')
+            .select('id, username')
+            .in('username', captionMentionUsernames);
+          
+          if (mentionedProfiles) {
+            for (const p of mentionedProfiles) {
+              if (p.id !== user.id && !allMentionIds.includes(p.id)) {
+                allMentionIds.push(p.id);
+              }
+            }
+          }
+        }
+
         // Add mentions and collabs
-        await addMentions(post.id, mentionIds);
-        await addCollabs(post.id, collabIds);
+        if (allMentionIds.length > 0) {
+          await addMentions(post.id, allMentionIds);
+        }
+        if (collabIds.length > 0) {
+          await addCollabs(post.id, collabIds);
+        }
       }
 
       selectedMedia.forEach(media => URL.revokeObjectURL(media.preview));
