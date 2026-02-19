@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Camera, Video, X, Image as ImageIcon, ChevronRight, SwitchCamera } from 'lucide-react';
+import { X, SwitchCamera, ChevronRight, Image as ImageIcon, Video } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export interface CapturedMedia {
@@ -34,7 +34,6 @@ export default function MediaCapture({ onNext, onClose }: MediaCaptureProps) {
   const recordTimerRef = useRef<number>();
   const captureTimerRef = useRef<number>();
 
-  // Start camera on mount
   useEffect(() => {
     startCamera();
     return () => stopCamera();
@@ -44,11 +43,7 @@ export default function MediaCapture({ onNext, onClose }: MediaCaptureProps) {
     stopCamera();
     try {
       const stream = await navigator.mediaDevices.getUserMedia({
-        video: {
-          facingMode,
-          width: { ideal: 1920 },
-          height: { ideal: 1080 },
-        },
+        video: { facingMode, width: { ideal: 1920 }, height: { ideal: 1080 } },
         audio: true,
       });
       if (videoRef.current) {
@@ -75,8 +70,6 @@ export default function MediaCapture({ onNext, onClose }: MediaCaptureProps) {
     canvas.width = video.videoWidth;
     canvas.height = video.videoHeight;
     const ctx = canvas.getContext('2d')!;
-
-    // Apply zoom crop
     if (zoom > 1) {
       const sw = video.videoWidth / zoom;
       const sh = video.videoHeight / zoom;
@@ -86,38 +79,24 @@ export default function MediaCapture({ onNext, onClose }: MediaCaptureProps) {
     } else {
       ctx.drawImage(video, 0, 0);
     }
-
     canvas.toBlob((blob) => {
       if (!blob) return;
       const file = new File([blob], `photo-${Date.now()}.jpg`, { type: 'image/jpeg' });
       const url = URL.createObjectURL(blob);
-      setSelectedMedia(prev => [...prev, {
-        id: Date.now().toString(),
-        type: 'photo',
-        file,
-        url,
-      }]);
+      setSelectedMedia(prev => [...prev, { id: Date.now().toString(), type: 'photo', file, url }]);
     }, 'image/jpeg', 0.92);
   }, [zoom, selectedMedia.length]);
 
   const startRecording = useCallback(() => {
     if (!streamRef.current || selectedMedia.length >= 5) return;
     recordedChunksRef.current = [];
-    
-    const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
-      ? 'video/webm;codecs=vp9'
-      : 'video/webm';
-    
+    const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9') ? 'video/webm;codecs=vp9' : 'video/webm';
     const recorder = new MediaRecorder(streamRef.current, { mimeType });
-    recorder.ondataavailable = (e) => {
-      if (e.data.size > 0) recordedChunksRef.current.push(e.data);
-    };
+    recorder.ondataavailable = (e) => { if (e.data.size > 0) recordedChunksRef.current.push(e.data); };
     recorder.onstop = () => {
       const blob = new Blob(recordedChunksRef.current, { type: 'video/webm' });
       const file = new File([blob], `video-${Date.now()}.webm`, { type: 'video/webm' });
       const url = URL.createObjectURL(blob);
-
-      // Generate thumbnail
       const tempVideo = document.createElement('video');
       tempVideo.src = url;
       tempVideo.currentTime = 0.5;
@@ -145,25 +124,18 @@ export default function MediaCapture({ onNext, onClose }: MediaCaptureProps) {
     }
   }, [isRecording]);
 
-  // Hold-to-record: tap = photo, hold 500ms+ = video
   const handleCaptureStart = useCallback(() => {
     setIsCapturing(true);
-    captureTimerRef.current = window.setTimeout(() => {
-      startRecording();
-    }, 500);
+    captureTimerRef.current = window.setTimeout(() => startRecording(), 500);
   }, [startRecording]);
 
   const handleCaptureEnd = useCallback(() => {
     clearTimeout(captureTimerRef.current);
-    if (isRecording) {
-      stopRecording();
-    } else {
-      takePhoto();
-    }
+    if (isRecording) stopRecording();
+    else takePhoto();
     setIsCapturing(false);
   }, [isRecording, stopRecording, takePhoto]);
 
-  // Video zoom: drag up = zoom in, drag down = zoom out
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (isRecording) setDragStartY(e.touches[0].clientY);
   }, [isRecording]);
@@ -178,7 +150,6 @@ export default function MediaCapture({ onNext, onClose }: MediaCaptureProps) {
 
   const handleTouchEnd = useCallback(() => setDragStartY(null), []);
 
-  // Gallery file select
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const files = e.target.files;
     if (!files) return;
@@ -186,12 +157,7 @@ export default function MediaCapture({ onNext, onClose }: MediaCaptureProps) {
     Array.from(files).slice(0, remaining).forEach((file, i) => {
       const isVideo = file.type.startsWith('video/');
       const url = URL.createObjectURL(file);
-      setSelectedMedia(prev => [...prev, {
-        id: `${Date.now()}-${i}`,
-        type: isVideo ? 'video' : 'photo',
-        file,
-        url,
-      }]);
+      setSelectedMedia(prev => [...prev, { id: `${Date.now()}-${i}`, type: isVideo ? 'video' : 'photo', file, url }]);
     });
     e.target.value = '';
   }, [selectedMedia.length]);
@@ -221,50 +187,52 @@ export default function MediaCapture({ onNext, onClose }: MediaCaptureProps) {
   const fmtTime = (s: number) => `${Math.floor(s / 60)}:${(s % 60).toString().padStart(2, '0')}`;
 
   return (
-    <div className="fixed inset-0 z-[60] bg-black overflow-hidden flex flex-col">
-      {/* Camera view */}
-      <div className="relative flex-1">
+    <div className="fixed inset-0 z-[60] bg-black flex flex-col">
+      {/* Camera view - takes remaining space */}
+      <div className="relative flex-1 min-h-0">
         <video
           ref={videoRef}
           autoPlay
           playsInline
           muted
-          className="w-full h-full object-cover"
+          className="absolute inset-0 w-full h-full object-cover"
           style={{ transform: `scale(${zoom})`, transformOrigin: 'center' }}
         />
         <canvas ref={canvasRef} className="hidden" />
 
-        {/* Close button */}
-        <button
-          onClick={onClose}
-          className="absolute top-4 left-4 z-20 w-10 h-10 rounded-full bg-black/40 backdrop-blur-xl border border-white/10 flex items-center justify-center"
-        >
-          <X className="w-5 h-5 text-white" />
-        </button>
+        {/* Top bar - safe area */}
+        <div className="absolute top-0 left-0 right-0 z-20 flex items-center justify-between p-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
+          <div className="flex items-center gap-2">
+            <button
+              onClick={onClose}
+              className="w-9 h-9 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center active:scale-90 transition-transform"
+            >
+              <X className="w-4.5 h-4.5 text-white" />
+            </button>
+            <button
+              onClick={() => setFacingMode(f => f === 'environment' ? 'user' : 'environment')}
+              className="w-9 h-9 rounded-full bg-black/50 backdrop-blur-md flex items-center justify-center active:scale-90 transition-transform"
+            >
+              <SwitchCamera className="w-4.5 h-4.5 text-white" />
+            </button>
+          </div>
 
-        {/* Flip camera */}
-        <button
-          onClick={() => setFacingMode(f => f === 'environment' ? 'user' : 'environment')}
-          className="absolute top-4 left-16 z-20 w-10 h-10 rounded-full bg-black/40 backdrop-blur-xl border border-white/10 flex items-center justify-center"
-        >
-          <SwitchCamera className="w-5 h-5 text-white" />
-        </button>
+          {selectedMedia.length > 0 && (
+            <button
+              onClick={handleNext}
+              className="px-5 py-2 rounded-full bg-primary text-primary-foreground text-sm font-semibold flex items-center gap-1 active:scale-95 transition-transform shadow-lg"
+            >
+              Keyingisi
+              <ChevronRight className="w-4 h-4" />
+            </button>
+          )}
+        </div>
 
-        {/* Next button */}
+        {/* Selected media strip - only here, no bottom duplicate */}
         {selectedMedia.length > 0 && (
-          <button
-            onClick={handleNext}
-            className="absolute top-4 right-4 z-20 px-6 py-2.5 rounded-2xl bg-primary/90 backdrop-blur-sm text-primary-foreground font-bold text-sm flex items-center gap-1.5 shadow-2xl active:scale-95 transition-transform border border-white/20"
-          >
-            Keyingisi
-            <ChevronRight className="w-4 h-4" />
-          </button>
-        )}
-
-        {/* Selected media preview - top bar */}
-        {selectedMedia.length > 0 && (
-          <div className="absolute top-16 left-3 right-3 z-20">
-            <div className="flex gap-2 p-2 rounded-2xl bg-black/40 backdrop-blur-2xl border border-white/10 overflow-x-auto"
+          <div className="absolute top-14 left-2 right-2 z-20 mt-[env(safe-area-inset-top)]">
+            <div
+              className="flex gap-1.5 p-1.5 rounded-2xl bg-black/50 backdrop-blur-xl overflow-x-auto"
               style={{ scrollbarWidth: 'none' }}
             >
               {selectedMedia.map((item, idx) => (
@@ -273,40 +241,28 @@ export default function MediaCapture({ onNext, onClose }: MediaCaptureProps) {
                   draggable
                   onDragStart={(e) => e.dataTransfer.setData('idx', idx.toString())}
                   onDragOver={(e) => e.preventDefault()}
-                  onDrop={(e) => {
-                    e.preventDefault();
-                    moveMedia(parseInt(e.dataTransfer.getData('idx')), idx);
-                  }}
-                  className="relative flex-shrink-0 group"
+                  onDrop={(e) => { e.preventDefault(); moveMedia(parseInt(e.dataTransfer.getData('idx')), idx); }}
+                  className="relative flex-shrink-0"
                 >
-                  <div className="w-16 h-16 rounded-xl overflow-hidden bg-white/5 border border-white/10">
+                  <div className="w-14 h-14 rounded-lg overflow-hidden border border-white/15">
                     {item.type === 'photo' ? (
                       <img src={item.url} alt="" className="w-full h-full object-cover" />
                     ) : (
                       <div className="relative w-full h-full">
                         <img src={item.thumbnail || item.url} alt="" className="w-full h-full object-cover" />
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          <Video className="w-5 h-5 text-white drop-shadow-lg" />
-                        </div>
+                        <Video className="absolute inset-0 m-auto w-4 h-4 text-white drop-shadow" />
                       </div>
                     )}
                   </div>
                   <button
                     onClick={() => removeMedia(item.id)}
-                    className="absolute -top-1.5 -right-1.5 w-5 h-5 rounded-full bg-destructive flex items-center justify-center shadow-lg border border-white/20"
+                    className="absolute -top-1 -right-1 w-4.5 h-4.5 rounded-full bg-destructive flex items-center justify-center shadow"
                   >
-                    <X className="w-3 h-3 text-destructive-foreground" />
+                    <X className="w-2.5 h-2.5 text-destructive-foreground" />
                   </button>
-                  <div className="absolute bottom-0.5 right-0.5 w-4 h-4 rounded-full bg-black/60 border border-white/20 flex items-center justify-center">
-                    <span className="text-white text-[9px] font-bold">{idx + 1}</span>
-                  </div>
+                  <span className="absolute bottom-0.5 right-0.5 text-[8px] font-bold text-white bg-black/60 rounded-full w-3.5 h-3.5 flex items-center justify-center">{idx + 1}</span>
                 </div>
               ))}
-              {selectedMedia.length < 5 && (
-                <div className="w-16 h-16 rounded-xl border border-dashed border-white/20 flex items-center justify-center text-white/30 flex-shrink-0">
-                  <span className="text-xl">+</span>
-                </div>
-              )}
             </div>
           </div>
         )}
@@ -314,7 +270,7 @@ export default function MediaCapture({ onNext, onClose }: MediaCaptureProps) {
         {/* Zoom indicator */}
         {zoom > 1 && (
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 z-10 pointer-events-none">
-            <div className="px-4 py-1.5 rounded-full bg-black/40 backdrop-blur-md border border-white/20 text-white text-sm font-medium">
+            <div className="px-3 py-1 rounded-full bg-black/50 backdrop-blur-md text-white text-xs font-medium">
               {zoom.toFixed(1)}x
             </div>
           </div>
@@ -322,62 +278,26 @@ export default function MediaCapture({ onNext, onClose }: MediaCaptureProps) {
 
         {/* Recording indicator */}
         {isRecording && (
-          <div className="absolute top-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 px-4 py-1.5 rounded-full bg-red-500/90 backdrop-blur-sm">
-            <div className="w-2.5 h-2.5 rounded-full bg-white animate-pulse" />
-            <span className="text-white text-xs font-medium">{fmtTime(recordingTime)}</span>
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/90 backdrop-blur-sm">
+            <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
+            <span className="text-white text-[11px] font-medium">{fmtTime(recordingTime)}</span>
           </div>
         )}
       </div>
 
-      {/* Bottom controls */}
-      <div className="flex-shrink-0 bg-gradient-to-t from-black/80 via-black/40 to-transparent pt-4 pb-6 px-4">
-        {/* Gallery + recent previews row */}
-        <div className="flex items-end gap-3 mb-5">
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*,video/*"
-            multiple
-            onChange={handleFileSelect}
-            className="hidden"
-          />
+      {/* Bottom controls - compact, no gallery duplicates */}
+      <div className="flex-shrink-0 bg-black/90 backdrop-blur-md px-4 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+        <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple onChange={handleFileSelect} className="hidden" />
+
+        <div className="flex items-center justify-between">
+          {/* Gallery button */}
           <button
             onClick={() => fileInputRef.current?.click()}
             disabled={selectedMedia.length >= 5}
-            className="flex-shrink-0 w-16 h-16 rounded-2xl overflow-hidden bg-white/10 backdrop-blur-xl border border-white/20 flex items-center justify-center disabled:opacity-40"
+            className="w-12 h-12 rounded-xl bg-white/10 backdrop-blur-sm flex items-center justify-center disabled:opacity-30 active:scale-90 transition-transform"
           >
-            <ImageIcon className="w-7 h-7 text-white" />
+            <ImageIcon className="w-5 h-5 text-white" />
           </button>
-
-          {/* Recent 3 media partial preview */}
-          <div className="flex gap-2 overflow-hidden">
-            {selectedMedia.slice(-3).map((item) => (
-              <div key={item.id} className="flex-shrink-0 w-16 h-20 rounded-xl overflow-hidden bg-white/5 border border-white/10 opacity-80">
-                <img src={item.thumbnail || item.url} alt="" className="w-full h-full object-cover" />
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Camera controls row */}
-        <div className="flex items-center justify-between">
-          {/* Zoom buttons */}
-          <div className="flex gap-1 p-1 rounded-full bg-black/40 backdrop-blur-xl border border-white/10">
-            {[1, 2, 5].map((zl) => (
-              <button
-                key={zl}
-                onClick={() => setZoom(zl)}
-                className={cn(
-                  'px-3.5 py-1.5 rounded-full text-xs font-bold transition-all',
-                  Math.abs(zoom - zl) < 0.5
-                    ? 'bg-white/20 text-white'
-                    : 'text-white/50'
-                )}
-              >
-                {zl}x
-              </button>
-            ))}
-          </div>
 
           {/* Capture button */}
           <button
@@ -388,22 +308,36 @@ export default function MediaCapture({ onNext, onClose }: MediaCaptureProps) {
             onTouchMove={handleTouchMove}
             onTouchEnd={() => { handleCaptureEnd(); handleTouchEnd(); }}
             disabled={selectedMedia.length >= 5}
-            className="relative w-20 h-20 rounded-full flex items-center justify-center disabled:opacity-40"
+            className="relative w-[72px] h-[72px] rounded-full flex items-center justify-center disabled:opacity-30"
           >
-            <div className="absolute inset-0 rounded-full bg-white/20 backdrop-blur-md" />
+            <div className="absolute inset-0 rounded-full border-[3px] border-white/40" />
             <div className={cn(
-              'relative w-16 h-16 transition-all duration-200',
-              isCapturing ? 'scale-90' : 'scale-100',
-              isRecording ? 'rounded-2xl bg-red-500' : 'rounded-full bg-white'
+              'relative transition-all duration-200',
+              isCapturing ? 'scale-[0.85]' : 'scale-100',
+              isRecording ? 'w-8 h-8 rounded-lg bg-red-500' : 'w-[58px] h-[58px] rounded-full bg-white'
             )}>
-              {isRecording && <div className="absolute inset-0 rounded-2xl animate-pulse bg-red-400" />}
+              {isRecording && <div className="absolute inset-0 rounded-lg animate-pulse bg-red-400" />}
             </div>
-            {isRecording && <div className="absolute inset-0 rounded-full border-4 border-red-400 animate-ping" />}
+            {isRecording && <div className="absolute inset-0 rounded-full border-[3px] border-red-400 animate-ping" />}
           </button>
 
-          {/* Counter */}
-          <div className="px-3 py-1.5 rounded-full bg-black/40 backdrop-blur-xl border border-white/10">
-            <span className="text-white text-xs font-bold">{selectedMedia.length}/5</span>
+          {/* Zoom + counter */}
+          <div className="flex flex-col items-center gap-1">
+            <div className="flex gap-0.5 p-0.5 rounded-full bg-white/10 backdrop-blur-sm">
+              {[1, 2, 5].map((zl) => (
+                <button
+                  key={zl}
+                  onClick={() => setZoom(zl)}
+                  className={cn(
+                    'px-2.5 py-1 rounded-full text-[10px] font-bold transition-all',
+                    Math.abs(zoom - zl) < 0.5 ? 'bg-white/25 text-white' : 'text-white/40'
+                  )}
+                >
+                  {zl}x
+                </button>
+              ))}
+            </div>
+            <span className="text-white/50 text-[10px] font-medium">{selectedMedia.length}/5</span>
           </div>
         </div>
       </div>
