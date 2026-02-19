@@ -8,7 +8,7 @@ import { useVideoCall } from '@/hooks/useVideoCall';
 import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Check, CheckCheck, Video, Loader2, Clock } from 'lucide-react';
+import { ArrowLeft, Check, CheckCheck, Video, Loader2, Clock, Paintbrush } from 'lucide-react';
 import { format, isToday, isYesterday, isSameDay } from 'date-fns';
 import { uz } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -21,6 +21,8 @@ import { MediaFullscreen } from '@/components/chat/MediaFullscreen';
 import { MessageContextMenu } from '@/components/chat/MessageContextMenu';
 import { ForwardMessageDialog } from '@/components/chat/ForwardMessageDialog';
 import { ReplyPreview } from '@/components/chat/ReplyPreview';
+import ChatWallpaperPicker from '@/components/chat/ChatWallpaperPicker';
+import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { toast } from 'sonner';
 
 interface UserProfile {
@@ -42,6 +44,8 @@ const Chat = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [fullscreenMedia, setFullscreenMedia] = useState<{ url: string; type: 'image' | 'video' } | null>(null);
+  const [chatWallpaper, setChatWallpaper] = useLocalStorage('chat_wallpaper', 'none');
+  const [showWallpaperPicker, setShowWallpaperPicker] = useState(false);
 
   const { messages, isLoading, otherUserTyping, sendMessage, setTyping, refetch } = useMessages(conversationId);
   
@@ -281,9 +285,16 @@ const Chat = () => {
         />
       )}
 
-      <div className="min-h-screen bg-background flex flex-col">
+      <div className="min-h-screen bg-background flex flex-col relative">
+        {/* Wallpaper background */}
+        {chatWallpaper !== 'none' && (
+          <div 
+            className="absolute inset-0 z-0 bg-cover bg-center bg-no-repeat"
+            style={{ backgroundImage: `url(/wallpapers/chat-${chatWallpaper}.jpg)` }}
+          />
+        )}
         {/* Header - glassmorphism */}
-        <div className="sticky top-0 z-40 bg-background/70 backdrop-blur-xl border-b border-border/20 px-4 py-2.5">
+        <div className="sticky top-0 z-40 bg-background/70 backdrop-blur-xl border-b border-border/20 px-4 py-2.5 relative">
           <div className="flex items-center gap-3">
             <button onClick={() => navigate('/messages')} className="p-1.5 rounded-full hover:bg-muted/50 transition-colors">
               <ArrowLeft className="h-5 w-5" />
@@ -304,6 +315,12 @@ const Chat = () => {
               )}
             </div>
             <button 
+              onClick={() => setShowWallpaperPicker(true)}
+              className="p-2 rounded-full hover:bg-muted/50 transition-colors"
+            >
+              <Paintbrush className="h-4.5 w-4.5 text-muted-foreground" />
+            </button>
+            <button 
               onClick={startCall}
               disabled={isCreatingRoom || isInCall}
               className="p-2 rounded-full hover:bg-muted/50 transition-colors disabled:opacity-50"
@@ -320,7 +337,7 @@ const Chat = () => {
         {/* Messages */}
         <div 
           ref={containerRef}
-          className="flex-1 overflow-y-auto px-3 py-3"
+          className="flex-1 overflow-y-auto px-3 py-3 relative z-10"
           style={{ 
             overscrollBehavior: 'contain',
             WebkitOverflowScrolling: 'touch'
@@ -396,12 +413,16 @@ const Chat = () => {
                         onDeleteForAll={isMine ? handleDeleteForAll : undefined}
                       >
                         <div className={cn(
-                          "max-w-[80%] px-3 py-1.5 shadow-sm",
+                          "max-w-[80%] px-3 py-1.5 shadow-sm backdrop-blur-xl",
                           getBubbleRadius(),
                           hasMedia && "px-1.5 py-1.5",
                           isMine 
-                            ? "bg-primary text-primary-foreground" 
-                            : "bg-card/80 backdrop-blur-md border border-border/10"
+                            ? chatWallpaper !== 'none' 
+                              ? "bg-primary/80 text-primary-foreground" 
+                              : "bg-primary text-primary-foreground"
+                            : chatWallpaper !== 'none'
+                              ? "bg-card/20 border border-white/10 text-foreground"
+                              : "bg-card/80 border border-border/10"
                         )}>
                           {renderMessageContent(msg, isMine)}
                           <div className={cn(
@@ -468,6 +489,14 @@ const Chat = () => {
           mediaType={forwardMessage.mediaType}
         />
       )}
+
+      {/* Wallpaper Picker */}
+      <ChatWallpaperPicker
+        open={showWallpaperPicker}
+        onClose={() => setShowWallpaperPicker(false)}
+        currentWallpaper={chatWallpaper}
+        onSelect={setChatWallpaper}
+      />
     </>
   );
 };
