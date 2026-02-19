@@ -6,6 +6,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Grid3X3, Bookmark, Users, AtSign } from 'lucide-react';
+import { SocialLinksList } from '@/components/profile';
+import { SocialLink } from '@/components/profile/SocialLinksEditor';
 import { useStoryHighlights } from '@/hooks/useStoryHighlights';
 import { usePostCollections } from '@/hooks/usePostCollections';
 import { HighlightsRow } from '@/components/profile/HighlightsRow';
@@ -33,6 +35,8 @@ interface UserProfile {
   username: string | null;
   avatar_url: string | null;
   bio: string | null;
+  cover_url: string | null;
+  social_links: SocialLink[] | null;
 }
 
 const UserProfilePage = () => {
@@ -76,7 +80,12 @@ const UserProfilePage = () => {
         .maybeSingle();
 
       if (error) throw error;
-      setProfile(data);
+      if (data) {
+        setProfile({
+          ...data,
+          social_links: (data.social_links as unknown as SocialLink[] | null) || null,
+        });
+      }
     } catch (error) {
       console.error('Error fetching profile:', error);
     } finally {
@@ -137,7 +146,11 @@ const UserProfilePage = () => {
         </div>
 
         {/* Cover Image */}
-        <div className="h-32 bg-gradient-to-r from-primary to-accent" />
+        <div className="h-32 bg-gradient-to-r from-primary to-accent overflow-hidden">
+          {profile.cover_url && (
+            <img src={profile.cover_url} alt="Cover" className="w-full h-full object-cover" />
+          )}
+        </div>
         
         {/* Profile Info */}
         <div className="px-4">
@@ -174,7 +187,12 @@ const UserProfilePage = () => {
           </div>
 
           {profile.bio && (
-            <p className="text-sm mb-4">{profile.bio}</p>
+            <p className="text-sm mb-3">{profile.bio}</p>
+          )}
+
+          {/* Social Links */}
+          {profile.social_links && profile.social_links.length > 0 && (
+            <SocialLinksList links={profile.social_links} className="mb-4" />
           )}
 
           {/* Stats */}
