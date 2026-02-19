@@ -7,10 +7,9 @@ const FALLBACK_SHORTS = [
   { id: 'dQw4w9WgXcQ', title: 'Amazing Family Moments', thumbnail: 'https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg', channelTitle: 'Family Vlog' },
   { id: '9bZkp7q19f0', title: 'Oilaviy Kun', thumbnail: 'https://img.youtube.com/vi/9bZkp7q19f0/hqdefault.jpg', channelTitle: "O'zbek Oila" },
   { id: 'JGwWNGJdvx8', title: 'Fun Family Day', thumbnail: 'https://img.youtube.com/vi/JGwWNGJdvx8/hqdefault.jpg', channelTitle: 'Happy Family' },
+  { id: 'kJQP7kiw5Fk', title: 'Oila bilan dam olish', thumbnail: 'https://img.youtube.com/vi/kJQP7kiw5Fk/hqdefault.jpg', channelTitle: 'Oila TV' },
+  { id: 'RgKAFK5djSk', title: 'Bolalar va ota-onalar', thumbnail: 'https://img.youtube.com/vi/RgKAFK5djSk/hqdefault.jpg', channelTitle: 'Kids Fun' },
 ];
-
-let cache: { data: any; timestamp: number } | null = null;
-const CACHE_DURATION = 60 * 60 * 1000; // 1 hour
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -19,18 +18,14 @@ Deno.serve(async (req) => {
 
   try {
     const url = new URL(req.url);
-    const query = url.searchParams.get('q') || 'shorts';
-
-    if (cache && Date.now() - cache.timestamp < CACHE_DURATION) {
-      return new Response(JSON.stringify(cache.data), {
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-      });
-    }
+    const query = url.searchParams.get('q') || 'oilaviy hayot OR family moments OR qiziqarli oila OR ota-ona farzand';
+    const pageToken = url.searchParams.get('pageToken') || '';
+    const maxResults = url.searchParams.get('maxResults') || '15';
 
     const apiKey = Deno.env.get('YOUTUBE_API_KEY');
     if (!apiKey) {
       console.error('YOUTUBE_API_KEY not set');
-      return new Response(JSON.stringify({ shorts: FALLBACK_SHORTS, fallback: true }), {
+      return new Response(JSON.stringify({ shorts: FALLBACK_SHORTS, nextPageToken: null, fallback: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -40,10 +35,16 @@ Deno.serve(async (req) => {
       type: 'video',
       videoDuration: 'short',
       q: query,
-      maxResults: '10',
+      maxResults,
       order: 'date',
+      regionCode: 'UZ',
+      relevanceLanguage: 'uz',
       key: apiKey,
     });
+
+    if (pageToken) {
+      searchParams.set('pageToken', pageToken);
+    }
 
     const response = await fetch(
       `https://www.googleapis.com/youtube/v3/search?${searchParams.toString()}`
@@ -51,8 +52,9 @@ Deno.serve(async (req) => {
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('YouTube API error:', errorText);
-      return new Response(JSON.stringify({ shorts: FALLBACK_SHORTS, fallback: true }), {
+      console.error('YouTube API error:', response.status, errorText);
+      // On quota/forbidden errors return fallback
+      return new Response(JSON.stringify({ shorts: FALLBACK_SHORTS, nextPageToken: null, fallback: true }), {
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
@@ -66,15 +68,16 @@ Deno.serve(async (req) => {
       channelTitle: item.snippet?.channelTitle,
     })).filter((s: any) => s.id);
 
-    const result = { shorts, fallback: false };
-    cache = { data: result, timestamp: Date.now() };
-
-    return new Response(JSON.stringify(result), {
+    return new Response(JSON.stringify({
+      shorts,
+      nextPageToken: data.nextPageToken || null,
+      fallback: false,
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   } catch (error) {
     console.error('Error:', error);
-    return new Response(JSON.stringify({ shorts: FALLBACK_SHORTS, fallback: true }), {
+    return new Response(JSON.stringify({ shorts: FALLBACK_SHORTS, nextPageToken: null, fallback: true }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
     });
   }
