@@ -169,7 +169,7 @@ const EditProfile = () => {
        <div className="min-h-screen">
          {/* Cover Image Section */}
          <div 
-           className="relative h-36 bg-gradient-to-r from-primary to-accent cursor-pointer group"
+           className="relative h-36 bg-gradient-to-r from-primary to-accent cursor-pointer"
            onClick={() => coverInputRef.current?.click()}
          >
            {formData.cover_url && (
@@ -179,10 +179,10 @@ const EditProfile = () => {
                className="w-full h-full object-cover"
              />
            )}
-           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+           <div className="absolute inset-0 bg-black/30 flex items-center justify-center">
              <div className="flex items-center gap-2 text-white">
                <ImagePlus className="h-6 w-6" />
-               <span>{t('changeCover')}</span>
+               <span className="text-sm font-medium">{t('changeCover')}</span>
              </div>
            </div>
            <input
@@ -198,7 +198,7 @@ const EditProfile = () => {
            {/* Avatar positioned over cover */}
            <div className="relative -mt-12 mb-4 flex justify-center">
              <div 
-               className={`relative rounded-full p-1 ring-4 ${getGenderRingColor()} bg-background cursor-pointer group`}
+               className={`relative rounded-full p-1 ring-4 ${getGenderRingColor()} bg-background cursor-pointer`}
                onClick={() => avatarInputRef.current?.click()}
              >
                <Avatar className="h-24 w-24">
@@ -207,7 +207,7 @@ const EditProfile = () => {
                    {getInitials(formData.name) || <User className="h-8 w-8" />}
                  </AvatarFallback>
                </Avatar>
-               <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+               <div className="absolute inset-0 rounded-full bg-black/30 flex items-center justify-center">
                  <Camera className="h-6 w-6 text-white" />
                </div>
                <input
@@ -220,13 +220,20 @@ const EditProfile = () => {
              </div>
            </div>
  
-           {/* Back button */}
+           {/* Back button + title + save */}
            <div className="flex items-center gap-4 mb-6">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <h1 className="text-xl font-bold">{t('editProfile')}</h1>
-        </div>
+             <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+               <ArrowLeft className="h-5 w-5" />
+             </Button>
+             <h1 className="text-xl font-bold flex-1">{t('editProfile')}</h1>
+             <Button size="sm" onClick={handleSubmit} disabled={isLoading}>
+               {isLoading ? (
+                 <Loader2 className="h-4 w-4 animate-spin" />
+               ) : (
+                 t('save')
+               )}
+             </Button>
+           </div>
 
         <Card>
            <CardHeader>
