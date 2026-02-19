@@ -33,8 +33,5 @@ verify_jwt = false
 [functions.ai-image-gen]
 verify_jwt = false
 
-[functions.youtube-shorts]
-verify_jwt = false
-
-[functions.yt-shorts]
+[functions.fetch-shorts]
 verify_jwt = false

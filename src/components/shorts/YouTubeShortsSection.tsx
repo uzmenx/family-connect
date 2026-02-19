@@ -75,7 +75,7 @@ export function YouTubeShortsSection({ onShortClick }: YouTubeShortsProps) {
       if (pageToken) params.set('pageToken', pageToken);
 
       const res = await fetch(
-        `https://${projectId}.supabase.co/functions/v1/youtube-shorts?${params}`,
+        `https://${projectId}.supabase.co/functions/v1/fetch-shorts?${params}`,
         { headers: { apikey: anonKey } }
       );
       if (!res.ok) throw new Error('Failed to fetch');
