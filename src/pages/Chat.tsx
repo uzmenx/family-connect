@@ -103,6 +103,34 @@ const Chat = () => {
     init();
   }, [userId, user?.id, getOrCreateConversation]);
 
+  // Real-time online status subscription
+  useEffect(() => {
+    if (!userId) return;
+
+    const channel = supabase
+      .channel(`presence-${userId}`)
+      .on(
+        'postgres_changes',
+        {
+          event: 'UPDATE',
+          schema: 'public',
+          table: 'profiles',
+          filter: `id=eq.${userId}`,
+        },
+        (payload) => {
+          const newLastSeen = payload.new?.last_seen;
+          if (newLastSeen) {
+            setOtherUser(prev => prev ? { ...prev, last_seen: newLastSeen } : prev);
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [userId]);
+
   // Auto-scroll to bottom
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -173,10 +201,16 @@ const Chat = () => {
   const formatLastActivity = (dateStr: string | null | undefined) => {
     if (!dateStr) return t('lastActivity');
     const date = new Date(dateStr);
+    const diffMs = Date.now() - date.getTime();
+    if (diffMs < 2 * 60 * 1000) return null; // online — handled separately
     if (isToday(date)) return `${t('today')} ${format(date, 'HH:mm')} da`;
     if (isYesterday(date)) return `${t('yesterday')} ${format(date, 'HH:mm')} da`;
     return format(date, 'd MMMM HH:mm', { locale: uz }) + ' da';
   };
+
+  const isOnline = otherUser?.last_seen 
+    ? (Date.now() - new Date(otherUser.last_seen).getTime()) < 2 * 60 * 1000 
+    : false;
 
   const formatDateSeparator = (dateStr: string) => {
     const date = new Date(dateStr);
@@ -299,17 +333,24 @@ const Chat = () => {
             <button onClick={() => navigate('/messages')} className="p-1.5 rounded-full hover:bg-muted/50 transition-colors">
               <ArrowLeft className="h-5 w-5" />
             </button>
-            <Avatar 
-              className="h-9 w-9 cursor-pointer ring-2 ring-primary/20" 
-              onClick={() => navigate(`/user/${userId}`)}
-            >
-              <AvatarImage src={otherUser.avatar_url || undefined} />
-              <AvatarFallback className="text-xs">{getInitials(otherUser.name)}</AvatarFallback>
-            </Avatar>
+            <div className="relative">
+              <Avatar 
+                className="h-9 w-9 cursor-pointer ring-2 ring-primary/20" 
+                onClick={() => navigate(`/user/${userId}`)}
+              >
+                <AvatarImage src={otherUser.avatar_url || undefined} />
+                <AvatarFallback className="text-xs">{getInitials(otherUser.name)}</AvatarFallback>
+              </Avatar>
+              {isOnline && (
+                <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-green-500 border-2 border-background" />
+              )}
+            </div>
             <div className="flex-1 min-w-0" onClick={() => navigate(`/user/${userId}`)}>
               <h1 className="font-semibold text-sm truncate">{otherUser.name || t('user')}</h1>
               {otherUserTyping ? (
                 <p className="text-[11px] text-primary font-medium">{t('typing')}</p>
+              ) : isOnline ? (
+                <p className="text-[11px] text-green-500 font-medium">Online</p>
               ) : (
                 <p className="text-[11px] text-muted-foreground">{formatLastActivity(otherUser.last_seen)}</p>
               )}
@@ -417,12 +458,8 @@ const Chat = () => {
                           getBubbleRadius(),
                           hasMedia && "px-1.5 py-1.5",
                           isMine 
-                            ? chatWallpaper !== 'none' 
-                              ? "bg-primary/80 text-primary-foreground" 
-                              : "bg-primary text-primary-foreground"
-                            : chatWallpaper !== 'none'
-                              ? "bg-card/20 border border-white/10 text-foreground"
-                              : "bg-card/80 border border-border/10"
+                            ? "bg-primary/70 text-primary-foreground border border-primary/20" 
+                            : "bg-card/20 border border-white/10 text-foreground"
                         )}>
                           {renderMessageContent(msg, isMine)}
                           <div className={cn(
@@ -464,19 +501,21 @@ const Chat = () => {
         </div>
 
         {/* Reply Preview */}
-        {replyTo && (
-          <ReplyPreview
-            replyToContent={replyTo.content}
-            onCancel={() => setReplyTo(null)}
-          />
-        )}
+        <div className="relative z-20">
+          {replyTo && (
+            <ReplyPreview
+              replyToContent={replyTo.content}
+              onCancel={() => setReplyTo(null)}
+            />
+          )}
 
-        {/* Chat Input */}
-        <ChatInput
-          conversationId={conversationId}
-          onSendMessage={handleSendMessage}
-          onTyping={setTyping}
-        />
+          {/* Chat Input */}
+          <ChatInput
+            conversationId={conversationId}
+            onSendMessage={handleSendMessage}
+            onTyping={setTyping}
+          />
+        </div>
       </div>
 
       {/* Forward Dialog */}
