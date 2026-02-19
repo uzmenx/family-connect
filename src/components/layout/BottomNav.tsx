@@ -28,47 +28,33 @@ export const BottomNav = () => {
   };
 
   return (
-    <nav className="fixed bottom-4 left-4 right-4 z-50">
-      <div className="h-16 max-w-lg mx-auto rounded-2xl bg-background/30 backdrop-blur-xl border border-white/10 shadow-xl flex items-center justify-center py-0 my-0 gap-1 px-2">
+    <nav className="fixed bottom-1 left-3 right-3 z-50">
+      <div className="h-[52px] max-w-lg mx-auto rounded-2xl bg-background/20 backdrop-blur-2xl border border-white/8 shadow-lg flex items-center justify-around px-1">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;
           const badgeCount = getBadgeCount(item.badgeType);
           const Icon = item.icon;
           return (
-            <Link key={item.path} to={item.path} className="flex flex-col items-center gap-1 p-2 rounded-xl min-w-[56px]">
+            <Link key={item.path} to={item.path} className="flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-xl min-w-[48px]">
               <motion.div
                 className={cn(
-                  "relative flex flex-col items-center justify-center rounded-full transition-colors duration-200",
+                  "relative flex items-center justify-center transition-colors duration-200",
                   isActive ? "text-primary" : "text-muted-foreground hover:text-foreground"
                 )}
                 whileTap={{ scale: 0.92 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 17 }}
               >
-                {isActive && (
-                  <motion.span
-                    layoutId="nav-glow"
-                    className="absolute inset-0 rounded-full bg-primary/30 shadow-[0_0_20px_hsl(var(--primary)/0.5)]"
-                    style={{ padding: 4 }}
-                    transition={{ type: 'spring', stiffness: 380, damping: 30 }}
-                  />
-                )}
-                <motion.span
-                  className="relative z-10 flex items-center justify-center"
-                  animate={{ scale: isActive ? 1.1 : 1 }}
-                  transition={{ type: 'spring', stiffness: 400, damping: 25 }}
-                >
-                  <Icon className={cn("h-6 w-6", item.path === '/create' && "h-7 w-7")} />
-                </motion.span>
+                <Icon className={cn("h-5 w-5", item.path === '/create' && "h-[22px] w-[22px]")} />
                 {badgeCount > 0 && (
                   <Badge
                     variant="destructive"
-                    className="absolute -top-1 -right-1 z-20 h-4 w-4 p-0 flex items-center justify-center text-[10px] min-w-4 border-2 border-background/40"
+                    className="absolute -top-1.5 -right-2 z-20 h-3.5 w-3.5 p-0 flex items-center justify-center text-[8px] min-w-3.5 border border-background/40"
                   >
                     {badgeCount > 9 ? '9+' : badgeCount}
                   </Badge>
                 )}
               </motion.div>
-              <span className={cn("text-xs transition-all duration-200 text-center", isActive && "font-semibold text-primary")}>
+              <span className={cn("text-[10px] leading-tight transition-all duration-200 text-center", isActive ? "font-semibold text-primary" : "text-muted-foreground")}>
                 {item.label}
               </span>
             </Link>
