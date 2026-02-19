@@ -6,6 +6,7 @@ import { FullScreenViewer } from "@/components/feed/FullScreenViewer";
 import { PullToRefresh } from "@/components/feed/PullToRefresh";
 import { EndOfFeed } from "@/components/feed/EndOfFeed";
 import { StoriesRow } from "@/components/stories/StoriesRow";
+import { YouTubeShortsSection } from "@/components/shorts/YouTubeShortsSection";
 import { StoryViewer } from "@/components/stories/StoryViewer";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -98,6 +99,9 @@ const Home = () => {
 
         {/* Stories row */}
         <StoriesRow onStoryClick={openStoryViewer} />
+
+        {/* YouTube Shorts */}
+        <YouTubeShortsSection />
 
         <PullToRefresh onRefresh={handleRefresh}>
           {isLoading ?
