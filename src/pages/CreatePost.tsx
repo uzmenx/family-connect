@@ -205,9 +205,73 @@ const CreatePost = () => {
               
               {/* Caption */}
               <div className="space-y-2">
-                <Textarea placeholder="Izoh yozing... (ixtiyoriy)" value={content} onChange={(e) => setContent(e.target.value)} rows={4} className="resize-none text-base" />
+                <Textarea placeholder="Izoh yozing... @username bilan belgilang (ixtiyoriy)" value={content} onChange={(e) => setContent(e.target.value)} rows={4} className="resize-none text-base" />
                 <p className="text-xs text-muted-foreground text-right">{content.length}/2200</p>
               </div>
+
+              {/* Mention & Collab buttons */}
+              <div className="flex gap-2">
+                <button
+                  onClick={() => setShowMentionPicker(true)}
+                  className={cn(
+                    "flex-1 flex items-center gap-2 px-3 py-3 rounded-xl border transition-colors",
+                    mentionIds.length > 0 ? "border-primary bg-primary/5" : "border-border hover:bg-muted"
+                  )}
+                >
+                  <AtSign className="h-5 w-5 text-primary" />
+                  <div className="text-left">
+                    <p className="text-sm font-semibold">Belgilash</p>
+                    <p className="text-xs text-muted-foreground">
+                      {mentionIds.length > 0 ? `${mentionIds.length} kishi` : 'Tag'}
+                    </p>
+                  </div>
+                </button>
+                <button
+                  onClick={() => setShowCollabPicker(true)}
+                  className={cn(
+                    "flex-1 flex items-center gap-2 px-3 py-3 rounded-xl border transition-colors",
+                    collabIds.length > 0 ? "border-primary bg-primary/5" : "border-border hover:bg-muted"
+                  )}
+                >
+                  <Users className="h-5 w-5 text-primary" />
+                  <div className="text-left">
+                    <p className="text-sm font-semibold">Hamkorlik</p>
+                    <p className="text-xs text-muted-foreground">
+                      {collabIds.length > 0 ? `${collabIds.length} hamkor` : 'Collab'}
+                    </p>
+                  </div>
+                </button>
+              </div>
+
+              {/* Selected mention/collab chips */}
+              {(mentionProfiles.length > 0 || collabProfiles.length > 0) && (
+                <div className="flex flex-wrap gap-2">
+                  {mentionProfiles.map(u => (
+                    <div key={u.id} className="flex items-center gap-1.5 px-2 py-1 bg-primary/10 rounded-full">
+                      <Avatar className="h-5 w-5">
+                        <AvatarImage src={u.avatar_url || undefined} />
+                        <AvatarFallback className="text-[10px]">U</AvatarFallback>
+                      </Avatar>
+                      <span className="text-xs font-medium">@{u.username || u.name}</span>
+                      <button onClick={() => setMentionIds(prev => prev.filter(id => id !== u.id))}>
+                        <X className="h-3 w-3 text-muted-foreground" />
+                      </button>
+                    </div>
+                  ))}
+                  {collabProfiles.map(u => (
+                    <div key={u.id} className="flex items-center gap-1.5 px-2 py-1 bg-accent/20 rounded-full">
+                      <Avatar className="h-5 w-5">
+                        <AvatarImage src={u.avatar_url || undefined} />
+                        <AvatarFallback className="text-[10px]">U</AvatarFallback>
+                      </Avatar>
+                      <span className="text-xs font-medium">{u.name || u.username}</span>
+                      <button onClick={() => setCollabIds(prev => prev.filter(id => id !== u.id))}>
+                        <X className="h-3 w-3 text-muted-foreground" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* Collection selection */}
               <div className="space-y-2">
@@ -258,70 +322,6 @@ const CreatePost = () => {
                     </button>
                   )}
                 </div>
-              </div>
-
-              {/* Mention - Belgilash */}
-              <div className="space-y-2">
-                <button
-                  onClick={() => setShowMentionPicker(true)}
-                  className="w-full flex items-center gap-3 px-3 py-3 rounded-lg border border-border hover:bg-muted transition-colors"
-                >
-                  <AtSign className="h-5 w-5 text-primary" />
-                  <div className="flex-1 text-left">
-                    <p className="text-sm font-medium">Odamlarni belgilash</p>
-                    <p className="text-xs text-muted-foreground">
-                      {mentionIds.length > 0 ? `${mentionIds.length} kishi belgilangan` : 'Postda kimnidir belgilang'}
-                    </p>
-                  </div>
-                </button>
-                {mentionProfiles.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {mentionProfiles.map(u => (
-                      <div key={u.id} className="flex items-center gap-1.5 px-2 py-1 bg-primary/10 rounded-full">
-                        <Avatar className="h-5 w-5">
-                          <AvatarImage src={u.avatar_url || undefined} />
-                          <AvatarFallback className="text-[10px]">U</AvatarFallback>
-                        </Avatar>
-                        <span className="text-xs font-medium">{u.name || u.username}</span>
-                        <button onClick={() => setMentionIds(prev => prev.filter(id => id !== u.id))}>
-                          <X className="h-3 w-3 text-muted-foreground" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Collab - Hamkorlik */}
-              <div className="space-y-2">
-                <button
-                  onClick={() => setShowCollabPicker(true)}
-                  className="w-full flex items-center gap-3 px-3 py-3 rounded-lg border border-border hover:bg-muted transition-colors"
-                >
-                  <Users className="h-5 w-5 text-primary" />
-                  <div className="flex-1 text-left">
-                    <p className="text-sm font-medium">Hamkor qo'shish</p>
-                    <p className="text-xs text-muted-foreground">
-                      {collabIds.length > 0 ? `${collabIds.length} hamkor tanlangan` : 'Post birgalikda chiqsin'}
-                    </p>
-                  </div>
-                </button>
-                {collabProfiles.length > 0 && (
-                  <div className="flex flex-wrap gap-2">
-                    {collabProfiles.map(u => (
-                      <div key={u.id} className="flex items-center gap-1.5 px-2 py-1 bg-accent/20 rounded-full">
-                        <Avatar className="h-5 w-5">
-                          <AvatarImage src={u.avatar_url || undefined} />
-                          <AvatarFallback className="text-[10px]">U</AvatarFallback>
-                        </Avatar>
-                        <span className="text-xs font-medium">{u.name || u.username}</span>
-                        <button onClick={() => setCollabIds(prev => prev.filter(id => id !== u.id))}>
-                          <X className="h-3 w-3 text-muted-foreground" />
-                        </button>
-                      </div>
-                    ))}
-                  </div>
-                )}
               </div>
             </div>
           )}
