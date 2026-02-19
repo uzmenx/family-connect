@@ -198,12 +198,17 @@ export const UnifiedFullScreenViewer = ({
         slideDirection === 'up' && "animate-slide-out-down",
         !slideDirection && "animate-slide-in"
       )}>
-        <iframe
-          src={`https://www.youtube.com/embed/${currentShort.id}?rel=0&autoplay=1&controls=0&modestbranding=1&playsinline=1&loop=1&playlist=${currentShort.id}`}
-          className="w-full h-full"
-          allow="autoplay; encrypted-media"
-          allowFullScreen
-          title={currentShort.title} />
+        {/* YouTube iframe with top overlay to hide YT controls */}
+        <div className="relative w-full h-full">
+          <iframe
+            src={`https://www.youtube.com/embed/${currentShort.id}?rel=0&autoplay=1&controls=0&modestbranding=1&playsinline=1&loop=1&playlist=${currentShort.id}&showinfo=0&iv_load_policy=3&disablekb=1&fs=0`}
+            className="w-full h-full"
+            allow="autoplay; encrypted-media"
+            allowFullScreen
+            title={currentShort.title} />
+          {/* Cover YouTube's top overlay (profile, title, playlist, 3-dot) */}
+          <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-black via-black/80 to-transparent z-[3] pointer-events-none" />
+        </div>
 
         {/* Bottom info - minimalist */}
         <div className="absolute bottom-14 left-0 right-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent px-4 pb-4 pt-16 z-[2]">

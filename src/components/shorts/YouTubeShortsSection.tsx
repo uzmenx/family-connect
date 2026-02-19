@@ -160,7 +160,7 @@ export function YouTubeShortsSection({ onShortClick }: YouTubeShortsProps) {
   if (shorts.length === 0) return null;
 
   return (
-    <div className="pt-1 pb-2">
+    <div className="pt-1 pb-0">
       {/* Header */}
       <div className="flex items-center justify-between px-3 mb-1.5">
         <div className="flex items-center gap-1.5">
