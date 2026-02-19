@@ -194,7 +194,7 @@ const Chat = () => {
       case 'delivered':
         return <CheckCheck className="h-3 w-3 text-muted-foreground" />;
       case 'seen':
-        return <CheckCheck className="h-3 w-3 text-green-500" />;
+        return <CheckCheck className="h-3 w-3 text-primary" />;
       default:
         return null;
     }
@@ -279,46 +279,45 @@ const Chat = () => {
       )}
 
       <div className="min-h-screen bg-background flex flex-col">
-        {/* Header */}
-        <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3">
+        {/* Header - glassmorphism */}
+        <div className="sticky top-0 z-40 bg-background/70 backdrop-blur-xl border-b border-border/20 px-4 py-2.5">
           <div className="flex items-center gap-3">
-            <Button variant="ghost" size="icon" onClick={() => navigate('/messages')}>
+            <button onClick={() => navigate('/messages')} className="p-1.5 rounded-full hover:bg-muted/50 transition-colors">
               <ArrowLeft className="h-5 w-5" />
-            </Button>
+            </button>
             <Avatar 
-              className="h-10 w-10 cursor-pointer" 
+              className="h-9 w-9 cursor-pointer ring-2 ring-primary/20" 
               onClick={() => navigate(`/user/${userId}`)}
             >
               <AvatarImage src={otherUser.avatar_url || undefined} />
-              <AvatarFallback>{getInitials(otherUser.name)}</AvatarFallback>
+              <AvatarFallback className="text-xs">{getInitials(otherUser.name)}</AvatarFallback>
             </Avatar>
-            <div className="flex-1" onClick={() => navigate(`/user/${userId}`)}>
-              <h1 className="font-semibold">{otherUser.name || t('user')}</h1>
+            <div className="flex-1 min-w-0" onClick={() => navigate(`/user/${userId}`)}>
+              <h1 className="font-semibold text-sm truncate">{otherUser.name || t('user')}</h1>
               {otherUserTyping ? (
-                <p className="text-xs text-primary">{t('typing')}</p>
+                <p className="text-[11px] text-primary font-medium">{t('typing')}</p>
               ) : (
-                <p className="text-xs text-muted-foreground">{formatLastActivity(otherUser.updated_at)}</p>
+                <p className="text-[11px] text-muted-foreground">{formatLastActivity(otherUser.updated_at)}</p>
               )}
             </div>
-            <Button 
-              variant="ghost" 
-              size="icon" 
+            <button 
               onClick={startCall}
               disabled={isCreatingRoom || isInCall}
+              className="p-2 rounded-full hover:bg-muted/50 transition-colors disabled:opacity-50"
             >
               {isCreatingRoom ? (
                 <Loader2 className="h-5 w-5 animate-spin" />
               ) : (
                 <Video className="h-5 w-5" />
               )}
-            </Button>
+            </button>
           </div>
         </div>
 
         {/* Messages */}
         <div 
           ref={containerRef}
-          className="flex-1 overflow-y-auto px-4 py-4"
+          className="flex-1 overflow-y-auto px-3 py-3"
           style={{ 
             overscrollBehavior: 'contain',
             WebkitOverflowScrolling: 'touch'
@@ -326,22 +325,22 @@ const Chat = () => {
         >
           {isLoading ? (
             <div className="flex items-center justify-center h-full">
-              <p className="text-muted-foreground">{t('loading')}</p>
+              <p className="text-muted-foreground text-sm">{t('loading')}</p>
             </div>
           ) : visibleMessages.length === 0 ? (
             <div className="flex items-center justify-center h-full">
               <div className="text-center">
-                <Avatar className="h-20 w-20 mx-auto mb-4">
+                <Avatar className="h-16 w-16 mx-auto mb-3 ring-2 ring-primary/20">
                   <AvatarImage src={otherUser.avatar_url || undefined} />
-                  <AvatarFallback className="text-2xl">{getInitials(otherUser.name)}</AvatarFallback>
+                  <AvatarFallback className="text-xl">{getInitials(otherUser.name)}</AvatarFallback>
                 </Avatar>
-                 <h3 className="font-semibold">{otherUser.name || t('user')}</h3>
-                 <p className="text-sm text-muted-foreground">@{otherUser.username || 'username'}</p>
-                 <p className="text-sm text-muted-foreground mt-4">{t('startChat')}</p>
+                <h3 className="font-semibold text-sm">{otherUser.name || t('user')}</h3>
+                <p className="text-xs text-muted-foreground">@{otherUser.username || 'username'}</p>
+                <p className="text-xs text-muted-foreground mt-3">{t('startChat')}</p>
               </div>
             </div>
           ) : (
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               {visibleMessages.map((msg, index) => {
                 const isMine = msg.sender_id === user?.id;
                 const prevMsg = visibleMessages[index - 1];
@@ -350,16 +349,13 @@ const Chat = () => {
                 return (
                   <div key={msg.id}>
                     {showDateSeparator && (
-                      <div className="flex justify-center my-4">
-                        <span className="text-xs text-muted-foreground bg-muted px-3 py-1 rounded-full">
+                      <div className="flex justify-center my-3">
+                        <span className="text-[10px] text-muted-foreground bg-muted/60 backdrop-blur-sm px-3 py-0.5 rounded-full">
                           {formatDateSeparator(msg.created_at)}
                         </span>
                       </div>
                     )}
-                    <div className={cn(
-                      "flex",
-                      isMine ? "justify-end" : "justify-start"
-                    )}>
+                    <div className={cn("flex", isMine ? "justify-end" : "justify-start")}>
                       <MessageContextMenu
                         messageContent={msg.content}
                         messageId={msg.id}
@@ -371,19 +367,19 @@ const Chat = () => {
                         onDeleteForAll={isMine ? handleDeleteForAll : undefined}
                       >
                         <div className={cn(
-                          "max-w-[80%] rounded-2xl px-4 py-2",
+                          "max-w-[78%] rounded-2xl px-3.5 py-2",
                           isMine 
                             ? "bg-primary text-primary-foreground rounded-br-md" 
-                            : "bg-muted rounded-bl-md"
+                            : "bg-muted/70 backdrop-blur-sm rounded-bl-md"
                         )}>
                           {renderMessageContent(msg, isMine)}
                           <div className={cn(
-                            "flex items-center gap-1 mt-1",
+                            "flex items-center gap-1 mt-0.5",
                             isMine ? "justify-end" : "justify-start"
                           )}>
                             <span className={cn(
-                              "text-xs",
-                              isMine ? "text-primary-foreground/70" : "text-muted-foreground"
+                              "text-[10px]",
+                              isMine ? "text-primary-foreground/60" : "text-muted-foreground"
                             )}>
                               {formatMessageTime(msg.created_at)}
                             </span>
@@ -399,11 +395,11 @@ const Chat = () => {
               {/* Typing indicator */}
               {otherUserTyping && (
                 <div className="flex justify-start">
-                  <div className="bg-muted rounded-2xl rounded-bl-md px-4 py-3">
+                  <div className="bg-muted/70 backdrop-blur-sm rounded-2xl rounded-bl-md px-4 py-2.5">
                     <div className="flex gap-1">
-                      <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
-                      <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
-                      <span className="w-2 h-2 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+                      <span className="w-1.5 h-1.5 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                      <span className="w-1.5 h-1.5 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                      <span className="w-1.5 h-1.5 bg-muted-foreground/50 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                     </div>
                   </div>
                 </div>
