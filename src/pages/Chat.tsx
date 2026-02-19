@@ -8,7 +8,7 @@ import { useVideoCall } from '@/hooks/useVideoCall';
 import { supabase } from '@/integrations/supabase/client';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Check, CheckCheck, Video, Loader2, Clock, Paintbrush } from 'lucide-react';
+import { ArrowLeft, Check, CheckCheck, Video, Loader2, Clock, MoreVertical, ChevronDown } from 'lucide-react';
 import { format, isToday, isYesterday, isSameDay } from 'date-fns';
 import { uz } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -46,6 +46,7 @@ const Chat = () => {
   const [fullscreenMedia, setFullscreenMedia] = useState<{ url: string; type: 'image' | 'video' } | null>(null);
   const [chatWallpaper, setChatWallpaper] = useLocalStorage('chat_wallpaper', 'none');
   const [showWallpaperPicker, setShowWallpaperPicker] = useState(false);
+  const [showScrollDown, setShowScrollDown] = useState(false);
 
   const { messages, isLoading, otherUserTyping, sendMessage, setTyping, refetch } = useMessages(conversationId);
   
@@ -135,6 +136,22 @@ const Chat = () => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // Scroll detection for scroll-to-bottom button
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    const handleScroll = () => {
+      const distanceFromBottom = container.scrollHeight - container.scrollTop - container.clientHeight;
+      setShowScrollDown(distanceFromBottom > 200);
+    };
+    container.addEventListener('scroll', handleScroll);
+    return () => container.removeEventListener('scroll', handleScroll);
+  }, []);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  };
 
   const getInitials = (name: string | null | undefined) => {
     if (!name) return 'U';
@@ -327,8 +344,8 @@ const Chat = () => {
             style={{ backgroundImage: `url(/wallpapers/chat-${chatWallpaper}.jpg)` }}
           />
         )}
-        {/* Header - glassmorphism */}
-        <div className="sticky top-0 z-40 bg-background/70 backdrop-blur-xl border-b border-border/20 px-4 py-2.5 relative">
+        {/* Header - 50% transparent */}
+        <div className="sticky top-0 z-40 bg-background/50 backdrop-blur-xl border-b border-border/20 px-4 py-2.5 relative">
           <div className="flex items-center gap-3">
             <button onClick={() => navigate('/messages')} className="p-1.5 rounded-full hover:bg-muted/50 transition-colors">
               <ArrowLeft className="h-5 w-5" />
@@ -356,12 +373,6 @@ const Chat = () => {
               )}
             </div>
             <button 
-              onClick={() => setShowWallpaperPicker(true)}
-              className="p-2 rounded-full hover:bg-muted/50 transition-colors"
-            >
-              <Paintbrush className="h-4.5 w-4.5 text-muted-foreground" />
-            </button>
-            <button 
               onClick={startCall}
               disabled={isCreatingRoom || isInCall}
               className="p-2 rounded-full hover:bg-muted/50 transition-colors disabled:opacity-50"
@@ -371,6 +382,12 @@ const Chat = () => {
               ) : (
                 <Video className="h-5 w-5" />
               )}
+            </button>
+            <button 
+              onClick={() => setShowWallpaperPicker(true)}
+              className="p-1.5 rounded-full hover:bg-muted/50 transition-colors"
+            >
+              <MoreVertical className="h-5 w-5 text-muted-foreground" />
             </button>
           </div>
         </div>
@@ -498,10 +515,20 @@ const Chat = () => {
               <div ref={messagesEndRef} />
             </div>
           )}
+
+          {/* Scroll to bottom button */}
+          {showScrollDown && (
+            <button
+              onClick={scrollToBottom}
+              className="absolute bottom-4 right-4 w-10 h-10 rounded-full bg-background/40 backdrop-blur-xl border border-border/20 flex items-center justify-center shadow-lg hover:bg-background/60 transition-all z-20"
+            >
+              <ChevronDown className="h-5 w-5 text-foreground/70" />
+            </button>
+          )}
         </div>
 
         {/* Reply Preview */}
-        <div className="relative z-20">
+        <div className="relative z-20 bg-background/50 backdrop-blur-xl">
           {replyTo && (
             <ReplyPreview
               replyToContent={replyTo.content}
