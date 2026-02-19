@@ -471,12 +471,12 @@ const Chat = () => {
                         onDeleteForAll={isMine ? handleDeleteForAll : undefined}
                       >
                         <div className={cn(
-                          "max-w-[80%] px-3 py-1.5 shadow-sm backdrop-blur-xl",
+                          "max-w-[80%] px-3 py-1.5 shadow-md",
                           getBubbleRadius(),
                           hasMedia && "px-1.5 py-1.5",
                           isMine 
-                            ? "bg-primary/70 text-primary-foreground border border-primary/20" 
-                            : "bg-card/20 border border-white/10 text-foreground"
+                            ? "bg-primary text-primary-foreground" 
+                            : "bg-muted/80 backdrop-blur-md text-foreground"
                         )}>
                           {renderMessageContent(msg, isMine)}
                           <div className={cn(
