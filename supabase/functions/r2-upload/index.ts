@@ -1,5 +1,4 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { S3Client, PutObjectCommand } from "npm:@aws-sdk/client-s3@3.525.0";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -13,7 +12,6 @@ serve(async (req) => {
   }
 
   try {
-    // Strip any accidental "KEY=" prefixes that may have been pasted into secrets
     const strip = (val: string, key: string) => {
       let v = val.trim();
       if (v.startsWith(`${key}=`)) v = v.slice(key.length + 1).trim();
@@ -26,30 +24,12 @@ serve(async (req) => {
     const R2_PUBLIC_URL = strip(Deno.env.get("R2_PUBLIC_URL") ?? "", "R2_PUBLIC_URL");
 
     if (!R2_ACCESS_KEY_ID || !R2_SECRET_ACCESS_KEY || !R2_ENDPOINT || !R2_BUCKET_NAME) {
-      console.error("Missing R2 env vars:", {
-        hasKey: !!R2_ACCESS_KEY_ID,
-        hasSecret: !!R2_SECRET_ACCESS_KEY,
-        hasEndpoint: !!R2_ENDPOINT,
-        hasBucket: !!R2_BUCKET_NAME,
-      });
+      console.error("Missing R2 env vars");
       return new Response(
         JSON.stringify({ error: "Server misconfiguration: missing R2 credentials" }),
         { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
       );
     }
-
-    // @aws-sdk/client-s3 handles AWS4-HMAC-SHA256 signing correctly for R2.
-    // forcePathStyle: true is REQUIRED for Cloudflare R2 (it doesn't support virtual-hosted style).
-    // region: "auto" is what Cloudflare expects.
-    const s3 = new S3Client({
-      endpoint: R2_ENDPOINT,
-      region: "auto",
-      credentials: {
-        accessKeyId: R2_ACCESS_KEY_ID,
-        secretAccessKey: R2_SECRET_ACCESS_KEY,
-      },
-      forcePathStyle: true,
-    });
 
     const url = new URL(req.url);
     const action = url.searchParams.get("action");
@@ -69,20 +49,35 @@ serve(async (req) => {
       const arrayBuffer = await file.arrayBuffer();
       const body = new Uint8Array(arrayBuffer);
 
-      console.log(`Uploading: bucket=${R2_BUCKET_NAME}, key=${path}, size=${body.length}, type=${file.type}`);
+      console.log(`Uploading: key=${path}, size=${body.length}, type=${file.type}`);
 
-      // PutObjectCommand with the official SDK signs the request properly,
-      // avoiding the SignatureDoesNotMatch error that aws4fetch caused.
-      const command = new PutObjectCommand({
-        Bucket: R2_BUCKET_NAME,
-        Key: path,
-        Body: body,
-        ContentType: file.type || "application/octet-stream",
+      // Use aws4fetch for lightweight AWS v4 signing
+      const { AwsClient } = await import("https://esm.sh/aws4fetch@1.0.20");
+      
+      const client = new AwsClient({
+        accessKeyId: R2_ACCESS_KEY_ID,
+        secretAccessKey: R2_SECRET_ACCESS_KEY,
+        region: "auto",
+        service: "s3",
       });
 
-      await s3.send(command);
+      const putUrl = `${R2_ENDPOINT}/${R2_BUCKET_NAME}/${path}`;
+      
+      const response = await client.fetch(putUrl, {
+        method: "PUT",
+        headers: {
+          "Content-Type": file.type || "application/octet-stream",
+          "Content-Length": String(body.length),
+        },
+        body: body,
+      });
 
-      // Return public URL for client access
+      if (!response.ok) {
+        const errText = await response.text();
+        console.error("R2 PUT failed:", response.status, errText);
+        throw new Error(`R2 upload failed: ${response.status} - ${errText}`);
+      }
+
       const publicUrl = R2_PUBLIC_URL
         ? `${R2_PUBLIC_URL}/${path}`
         : `${R2_ENDPOINT}/${R2_BUCKET_NAME}/${path}`;
@@ -100,7 +95,7 @@ serve(async (req) => {
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("R2 upload error:", error.message, error.stack);
+    console.error("R2 upload error:", error.message);
     return new Response(
       JSON.stringify({ error: error.message || "Upload failed" }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
