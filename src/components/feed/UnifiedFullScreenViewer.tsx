@@ -28,7 +28,7 @@ export const UnifiedFullScreenViewer = ({
   shorts,
   initialTab,
   initialIndex,
-  onClose,
+  onClose
 }: UnifiedFullScreenViewerProps) => {
   const [activeTab, setActiveTab] = useState<TabType>(initialTab);
   const [postIndex, setPostIndex] = useState(initialTab === 'posts' ? initialIndex : 0);
@@ -62,9 +62,9 @@ export const UnifiedFullScreenViewer = ({
     isVideo(currentMediaUrl)
   );
 
-  const bgStyle = activeTab === 'posts' && dominantColor
-    ? { background: `linear-gradient(135deg, ${dominantColor} 0%, ${secondaryColor} 50%, ${dominantColor} 100%)` }
-    : { background: '#000' };
+  const bgStyle = activeTab === 'posts' && dominantColor ?
+  { background: `linear-gradient(135deg, ${dominantColor} 0%, ${secondaryColor} 50%, ${dominantColor} 100%)` } :
+  { background: '#000' };
 
   useEffect(() => {
     setCurrentMediaIndex(0);
@@ -79,7 +79,7 @@ export const UnifiedFullScreenViewer = ({
 
   useEffect(() => {
     document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = ''; };
+    return () => {document.body.style.overflow = '';};
   }, []);
 
   const itemCount = activeTab === 'posts' ? posts.length : shorts.length;
@@ -98,9 +98,9 @@ export const UnifiedFullScreenViewer = ({
 
     setTimeout(() => {
       if (activeTab === 'posts') {
-        setPostIndex(prev => direction === 'down' ? prev + 1 : prev - 1);
+        setPostIndex((prev) => direction === 'down' ? prev + 1 : prev - 1);
       } else {
-        setShortIndex(prev => direction === 'down' ? prev + 1 : prev - 1);
+        setShortIndex((prev) => direction === 'down' ? prev + 1 : prev - 1);
       }
       setTimeout(() => {
         setSlideDirection(null);
@@ -121,11 +121,11 @@ export const UnifiedFullScreenViewer = ({
       if (Math.abs(e.deltaY) > 20) {
         isScrolling = true;
         smoothNavigate(e.deltaY > 0 ? 'down' : 'up');
-        timeout = setTimeout(() => { isScrolling = false; }, 500);
+        timeout = setTimeout(() => {isScrolling = false;}, 500);
       }
     };
     container.addEventListener('wheel', handleWheel, { passive: false });
-    return () => { container.removeEventListener('wheel', handleWheel); clearTimeout(timeout); };
+    return () => {container.removeEventListener('wheel', handleWheel);clearTimeout(timeout);};
   }, [smoothNavigate, isTransitioning]);
 
   // Keyboard
@@ -134,9 +134,9 @@ export const UnifiedFullScreenViewer = ({
       if (e.key === 'Escape') onClose();
       if (e.key === 'ArrowDown') smoothNavigate('down');
       if (e.key === 'ArrowUp') smoothNavigate('up');
-      if (e.key === 'ArrowLeft') currentMediaIndex > 0 && setCurrentMediaIndex(p => p - 1);
-      if (e.key === 'ArrowRight') currentMediaIndex < mediaUrls.length - 1 && setCurrentMediaIndex(p => p + 1);
-      if (e.key === ' ') { e.preventDefault(); setIsPlaying(p => !p); }
+      if (e.key === 'ArrowLeft') currentMediaIndex > 0 && setCurrentMediaIndex((p) => p - 1);
+      if (e.key === 'ArrowRight') currentMediaIndex < mediaUrls.length - 1 && setCurrentMediaIndex((p) => p + 1);
+      if (e.key === ' ') {e.preventDefault();setIsPlaying((p) => !p);}
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
@@ -160,7 +160,7 @@ export const UnifiedFullScreenViewer = ({
     if (Math.abs(diffY) > Math.abs(diffX) && Math.abs(diffY) > threshold) {
       smoothNavigate(diffY > 0 ? 'down' : 'up');
     } else if (Math.abs(diffX) > 40 && mediaUrls.length > 1) {
-      diffX > 0 ? setCurrentMediaIndex(p => Math.min(p + 1, mediaUrls.length - 1)) : setCurrentMediaIndex(p => Math.max(p - 1, 0));
+      diffX > 0 ? setCurrentMediaIndex((p) => Math.min(p + 1, mediaUrls.length - 1)) : setCurrentMediaIndex((p) => Math.max(p - 1, 0));
     }
   };
 
@@ -177,7 +177,7 @@ export const UnifiedFullScreenViewer = ({
     lastTapRef.current = now;
     setTimeout(() => {
       if (lastTapRef.current !== 0 && isVideo(currentMediaUrl)) {
-        setIsPlaying(p => !p);
+        setIsPlaying((p) => !p);
       }
     }, 350);
   };
@@ -203,8 +203,8 @@ export const UnifiedFullScreenViewer = ({
           className="w-full h-full"
           allow="autoplay; encrypted-media"
           allowFullScreen
-          title={currentShort.title}
-        />
+          title={currentShort.title} />
+
         {/* Bottom info - minimalist */}
         <div className="absolute bottom-14 left-0 right-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent px-4 pb-4 pt-16 z-[2]">
           <div className="flex items-end gap-3">
@@ -217,8 +217,8 @@ export const UnifiedFullScreenViewer = ({
             {/* YouTube logo indicator */}
             <div className="shrink-0 flex items-center gap-1 bg-white/10 backdrop-blur-md rounded-full px-2.5 py-1 border border-white/10">
               <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 text-red-500 fill-current">
-                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814z"/>
-                <path d="M9.545 15.568V8.432L15.818 12l-6.273 3.568z" className="fill-white"/>
+                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814z" />
+                <path d="M9.545 15.568V8.432L15.818 12l-6.273 3.568z" className="fill-white" />
               </svg>
               <span className="text-[10px] text-white/70 font-medium">Shorts</span>
             </div>
@@ -227,15 +227,15 @@ export const UnifiedFullScreenViewer = ({
 
         {/* Position indicator */}
         <div className="absolute right-3 top-1/2 -translate-y-1/2 flex flex-col gap-1 z-[3]">
-          {shorts.map((_, i) => (
-            <div key={i} className={cn(
-              "w-1 rounded-full transition-all duration-300",
-              i === shortIndex ? "h-4 bg-white/80" : "h-1.5 bg-white/20"
-            )} />
-          ))}
+          {shorts.map((_, i) =>
+          <div key={i} className={cn("w-1 rounded-full transition-all duration-300 opacity-0",
+
+          i === shortIndex ? "h-4 bg-white/80" : "h-1.5 bg-white/20"
+          )} />
+          )}
         </div>
-      </div>
-    );
+      </div>);
+
   };
 
   // ─── RENDER: Posts tab ───
@@ -250,50 +250,50 @@ export const UnifiedFullScreenViewer = ({
             slideDirection === 'up' && "animate-slide-out-down",
             !slideDirection && "animate-slide-in"
           )}
-          onClick={handleMediaClick}
-        >
-          {isVideo(currentMediaUrl) ? (
-            <>
+          onClick={handleMediaClick}>
+
+          {isVideo(currentMediaUrl) ?
+          <>
               <video ref={videoRef} src={currentMediaUrl} className="max-w-full max-h-full object-contain" loop playsInline autoPlay />
-              <button onClick={(e) => { e.stopPropagation(); setIsPlaying(p => !p); }} className="absolute inset-0 flex items-center justify-center">
+              <button onClick={(e) => {e.stopPropagation();setIsPlaying((p) => !p);}} className="absolute inset-0 flex items-center justify-center">
                 <div className={cn("p-4 rounded-full bg-black/30 backdrop-blur-sm transition-opacity", isPlaying ? "opacity-0" : "opacity-100")}>
                   {isPlaying ? <Pause className="h-8 w-8 text-white" /> : <Play className="h-8 w-8 text-white" />}
                 </div>
               </button>
-            </>
-          ) : (
-            <img src={currentMediaUrl} alt="Post media" className="max-w-full max-h-full object-contain" />
-          )}
+            </> :
 
-          {showDoubleTapHeart && (
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+          <img src={currentMediaUrl} alt="Post media" className="max-w-full max-h-full object-contain" />
+          }
+
+          {showDoubleTapHeart &&
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
               <Heart className="h-24 w-24 text-white fill-white drop-shadow-lg animate-heartBurst" />
             </div>
-          )}
+          }
 
           {/* Multi-media dots */}
-          {mediaUrls.length > 1 && (
-            <>
+          {mediaUrls.length > 1 &&
+          <>
               <div className="absolute bottom-20 left-1/2 -translate-x-1/2 flex gap-1.5">
-                {mediaUrls.map((_, i) => (
-                  <button key={i} onClick={(e) => { e.stopPropagation(); setCurrentMediaIndex(i); }}
-                    className={cn("w-1.5 h-1.5 rounded-full transition-colors", currentMediaIndex === i ? "bg-white" : "bg-white/30")} />
-                ))}
+                {mediaUrls.map((_, i) =>
+              <button key={i} onClick={(e) => {e.stopPropagation();setCurrentMediaIndex(i);}}
+              className={cn("w-1.5 h-1.5 rounded-full transition-colors", currentMediaIndex === i ? "bg-white" : "bg-white/30")} />
+              )}
               </div>
-              {currentMediaIndex > 0 && (
-                <button onClick={(e) => { e.stopPropagation(); setCurrentMediaIndex(p => p - 1); }}
-                  className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 bg-black/20 backdrop-blur-sm rounded-full">
+              {currentMediaIndex > 0 &&
+            <button onClick={(e) => {e.stopPropagation();setCurrentMediaIndex((p) => p - 1);}}
+            className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 bg-black/20 backdrop-blur-sm rounded-full">
                   <ChevronLeft className="h-4 w-4 text-white" />
                 </button>
-              )}
-              {currentMediaIndex < mediaUrls.length - 1 && (
-                <button onClick={(e) => { e.stopPropagation(); setCurrentMediaIndex(p => p + 1); }}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-black/20 backdrop-blur-sm rounded-full">
+            }
+              {currentMediaIndex < mediaUrls.length - 1 &&
+            <button onClick={(e) => {e.stopPropagation();setCurrentMediaIndex((p) => p + 1);}}
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-black/20 backdrop-blur-sm rounded-full">
                   <ChevronRight className="h-4 w-4 text-white" />
                 </button>
-              )}
+            }
             </>
-          )}
+          }
         </div>
 
         {/* Actions */}
@@ -308,8 +308,8 @@ export const UnifiedFullScreenViewer = ({
               setShowVideoPlayer(true);
               if (videoRef.current) videoRef.current.pause();
               setIsPlaying(false);
-            }}
-          />
+            }} />
+
         </div>
 
         {/* Author info */}
@@ -321,8 +321,8 @@ export const UnifiedFullScreenViewer = ({
           </div>
           {currentPost.content && <PostCaption content={currentPost.content} variant="fullscreen" />}
         </div>
-      </>
-    );
+      </>);
+
   };
 
   return (
@@ -332,14 +332,14 @@ export const UnifiedFullScreenViewer = ({
         className="fixed inset-0 z-50 flex flex-col overflow-hidden touch-none"
         style={bgStyle}
         onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-      >
-        {activeTab === 'posts' && dominantColor && (
-          <div className="absolute inset-0 z-0" style={{
-            background: `radial-gradient(ellipse at center, transparent 0%, ${dominantColor} 70%)`,
-            backdropFilter: 'blur(20px)'
-          }} />
-        )}
+        onTouchEnd={handleTouchEnd}>
+
+        {activeTab === 'posts' && dominantColor &&
+        <div className="absolute inset-0 z-0" style={{
+          background: `radial-gradient(ellipse at center, transparent 0%, ${dominantColor} 70%)`,
+          backdropFilter: 'blur(20px)'
+        }} />
+        }
 
         {/* Top bar with tabs */}
         <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-3 pt-[env(safe-area-inset-top,10px)] pb-2 bg-gradient-to-b from-black/50 to-transparent">
@@ -353,22 +353,22 @@ export const UnifiedFullScreenViewer = ({
               onClick={() => handleTabSwitch('shorts')}
               className={cn(
                 "px-3.5 py-1 rounded-full text-[11px] font-medium transition-all",
-                activeTab === 'shorts'
-                  ? "bg-white/20 text-white shadow-sm"
-                  : "text-white/50 hover:text-white/70"
-              )}
-            >
+                activeTab === 'shorts' ?
+                "bg-white/20 text-white shadow-sm" :
+                "text-white/50 hover:text-white/70"
+              )}>
+
               yt shorts
             </button>
             <button
               onClick={() => handleTabSwitch('posts')}
               className={cn(
                 "px-3.5 py-1 rounded-full text-[11px] font-medium transition-all",
-                activeTab === 'posts'
-                  ? "bg-white/20 text-white shadow-sm"
-                  : "text-white/50 hover:text-white/70"
-              )}
-            >
+                activeTab === 'posts' ?
+                "bg-white/20 text-white shadow-sm" :
+                "text-white/50 hover:text-white/70"
+              )}>
+
               postlar
             </button>
           </div>
@@ -385,11 +385,11 @@ export const UnifiedFullScreenViewer = ({
           <SamsungUltraVideoPlayer
             src={videoPlayerSrc}
             title={currentPost?.content?.slice(0, 50) || 'Video'}
-            onClose={() => setShowVideoPlayer(false)}
-          />
+            onClose={() => setShowVideoPlayer(false)} />
+
         </div>,
         document.body
       )}
-    </>
-  );
+    </>);
+
 };
