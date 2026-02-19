@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.youtube-shorts]
 verify_jwt = false
+
+[functions.yt-shorts]
+verify_jwt = false
