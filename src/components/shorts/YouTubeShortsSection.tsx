@@ -185,9 +185,12 @@ export function YouTubeShortsSection({ onShortClick }: YouTubeShortsProps) {
       </div>
 
       {/* Carousel */}
+      {/* Hide scrollbar CSS */}
+      <style>{`.shorts-carousel::-webkit-scrollbar{display:none}`}</style>
       <div
         ref={scrollRef}
-        className="flex gap-2 overflow-x-auto no-scrollbar px-3 snap-x snap-mandatory"
+        className="shorts-carousel flex gap-2 overflow-x-auto px-3 snap-x snap-mandatory"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
       >
         {shorts.map((short, index) => (
           <div
