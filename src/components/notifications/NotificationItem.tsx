@@ -88,9 +88,11 @@ export const NotificationItem = ({ notification, onRead }: NotificationItemProps
         navigate(`/chat/${notification.actor_id}`);
         break;
       case 'mention':
+        navigate('/profile');
+        break;
       case 'collab_request':
       case 'collab_accepted':
-        navigate('/notifications');
+        navigate('/profile');
         break;
       case 'family_invitation':
       case 'family_invitation_accepted':
