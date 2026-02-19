@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { setCurrentPlayingVideo } from '@/utils/videoManager';
 
 interface MediaCarouselProps {
   mediaUrls: string[];
@@ -71,6 +72,9 @@ export const MediaCarousel = ({ mediaUrls, className }: MediaCarouselProps) => {
   const handleVideoClick = () => {
     const video = videoRef.current;
     if (video) {
+      // Pause all other videos when this one starts playing
+      setCurrentPlayingVideo(mediaUrls[currentIndex]);
+      
       if (video.paused) {
         video.play().catch(() => {});
       } else {
@@ -81,7 +85,7 @@ export const MediaCarousel = ({ mediaUrls, className }: MediaCarouselProps) => {
 
   return (
     <div ref={containerRef} className={cn("relative", className)}>
-      <div className="relative w-full overflow-hidden bg-muted flex items-center justify-center" style={{ maxHeight: '80vh', minHeight: '200px' }}>
+      <div className="relative w-full overflow-hidden bg-white/10 backdrop-blur-[10px] border border-white/20 flex items-center justify-center" style={{ maxHeight: '80vh', minHeight: '200px' }}>
         {isVideo(mediaUrls[currentIndex]) ?
         <video
           ref={videoRef}
@@ -106,15 +110,15 @@ export const MediaCarousel = ({ mediaUrls, className }: MediaCarouselProps) => {
       <>
           <button
           onClick={goPrev}
-          className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 bg-background/80 rounded-full shadow-md hover:bg-background transition-colors mr-0 px-px opacity-75">
+          className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 bg-white/20 backdrop-blur-[10px] border border-white/30 rounded-full shadow-md hover:bg-white/30 transition-colors mr-0 px-px opacity-75">
 
-            <ChevronLeft className="h-[15px] w-[15px]" />
+            <ChevronLeft className="h-[15px] w-[15px] text-white" />
           </button>
           <button
           onClick={goNext}
-          className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-background/80 rounded-full shadow-md hover:bg-background transition-colors px-px opacity-75">
+          className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-white/20 backdrop-blur-[10px] border border-white/30 rounded-full shadow-md hover:bg-white/30 transition-colors px-px opacity-75">
 
-            <ChevronRight className="h-[15px] w-[15px]" />
+            <ChevronRight className="h-[15px] w-[15px] text-white" />
           </button>
 
           <div className="absolute bottom-3 left-1/2 -translate-x-1/2 flex gap-1.5">
@@ -124,7 +128,7 @@ export const MediaCarousel = ({ mediaUrls, className }: MediaCarouselProps) => {
             onClick={() => goTo(index)}
             className={cn(
               "w-2 h-2 rounded-full transition-colors",
-              currentIndex === index ? "bg-primary" : "bg-background/60"
+              currentIndex === index ? "bg-white" : "bg-white/40"
             )} />
 
           )}

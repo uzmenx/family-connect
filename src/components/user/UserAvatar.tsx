@@ -44,7 +44,7 @@ export const UserAvatar = ({
       onClick={handleClick}
     >
       <AvatarImage src={avatarUrl} />
-      <AvatarFallback className="bg-primary/10 text-primary text-sm">
+      <AvatarFallback className="bg-white/20 backdrop-blur-[10px] border border-white/30 text-white text-sm">
         {name?.charAt(0)?.toUpperCase() || 'U'}
       </AvatarFallback>
     </Avatar>

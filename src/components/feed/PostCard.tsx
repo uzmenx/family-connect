@@ -13,6 +13,7 @@ import { UserInfo } from '@/components/user/UserInfo';
 import { FollowButton } from '@/components/user/FollowButton';
 import { SamsungUltraVideoPlayer } from '@/components/video/SamsungUltraVideoPlayer';
 import { supabase } from '@/integrations/supabase/client';
+import { getVideoTimestamp, setVideoTimestamp, setCurrentPlayingVideo } from '@/utils/videoManager';
 
 interface PostCardProps {
   post: Post;
@@ -57,7 +58,7 @@ export const PostCard = ({ post, onDelete, onMediaClick, index = 0 }: PostCardPr
   const firstVideoUrl = mediaUrls.find((url) => isVideo(url));
 
   const card =
-  <Card className="overflow-hidden border-0 rounded-[20px] border border-white/10 bg-card/80 backdrop-blur-sm shadow-xl shadow-black/20">
+  <Card className="overflow-hidden border-0 rounded-[20px] border border-white/20 bg-white/10 backdrop-blur-[10px] shadow-xl shadow-black/20">
       <CardContent className="p-0">
         {/* Header */}
         <div className="flex items-center justify-between p-3">
@@ -110,8 +111,14 @@ export const PostCard = ({ post, onDelete, onMediaClick, index = 0 }: PostCardPr
           initialCommentsCount={post.comments_count}
           videoUrl={firstVideoUrl}
           onOpenVideoPlayer={(url) => {
+            // Save current timestamp before opening fullscreen
+            const currentVideo = document.querySelector(`video[src="${url}"]`) as HTMLVideoElement;
+            if (currentVideo && !currentVideo.paused) {
+              setVideoTimestamp(url, currentVideo.currentTime);
+            }
             setVideoPlayerSrc(url);
             setShowVideoPlayer(true);
+            setCurrentPlayingVideo(url);
           }} />
 
           
@@ -133,11 +140,12 @@ export const PostCard = ({ post, onDelete, onMediaClick, index = 0 }: PostCardPr
   // Video pleer overlay: body ga portal orqali (scroll/post card transform ta'sir qilmasin)
   const videoPlayerOverlay = showVideoPlayer &&
   <div
-    className="fixed inset-0 z-[60] w-full h-full min-h-[100dvh] overflow-hidden bg-black"
+    className="fixed inset-0 z-[60] w-full h-full min-h-[100dvh] overflow-hidden bg-black/80 backdrop-blur-[10px]"
     style={{ height: '100dvh', maxHeight: '100dvh' }}>
 
       <SamsungUltraVideoPlayer
       src={videoPlayerSrc}
+      initialTime={getVideoTimestamp(videoPlayerSrc)}
       title={post.content?.slice(0, 50) || 'Video'}
       onClose={() => setShowVideoPlayer(false)} />
 

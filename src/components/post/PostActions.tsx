@@ -76,11 +76,16 @@ export const PostActions = ({
 
   return (
     <>
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          {/* Like button with heart pop */}
+      {/* Glass morphism action bar */}
+      <div className="flex items-center justify-between px-4 py-3 rounded-2xl 
+        bg-white/10 backdrop-blur-[10px] border border-white/20 shadow-lg
+        hover:bg-white/15 transition-all duration-300">
+        
+        {/* Left side: Like, Comment, Share */}
+        <div className="flex items-center gap-6">
+          {/* Like with count */}
           <motion.button
-            className="flex items-center gap-1.5 transition-colors"
+            className="flex items-center gap-2 text-white/90 hover:text-white transition-colors"
             onClick={handleLikeClick}
             disabled={isLoading}
             whileTap={{ scale: 0.9 }}>
@@ -93,72 +98,55 @@ export const PostActions = ({
 
               <Heart
                 className={cn(
-                  "h-6 w-6 transition-colors duration-200",
-                  isLiked && "fill-destructive text-destructive"
+                  "h-5 w-5 transition-colors duration-200",
+                  isLiked && "fill-red-500 text-red-500"
                 )} />
 
             </motion.div>
+            <span className="text-sm font-bold">{formatCount(displayLikesCount)}</span>
           </motion.button>
           
-          {/* Comment button */}
+          {/* Comment with count */}
           <button
-            className="flex items-center gap-1.5 transition-colors"
+            className="flex items-center gap-2 text-white/90 hover:text-white transition-colors"
             onClick={handleCommentsClick}>
 
-            <MessageCircle className="h-6 w-6" />
+            <MessageCircle className="h-5 w-5" />
+            <span className="text-sm font-bold">{formatCount(initialCommentsCount)}</span>
           </button>
           
-          {/* Share button */}
+          {/* Share */}
           <button
-            className="transition-colors"
+            className="text-white/90 hover:text-white transition-colors"
             onClick={handleShareClick}>
 
-            <Share2 className="h-6 w-6" />
+            <Share2 className="h-5 w-5" />
           </button>
         </div>
         
-        <div className="flex items-center gap-2">
+        {/* Right side: Bookmark */}
+        <div className="flex items-center gap-3">
           {videoUrl && onOpenVideoPlayer &&
           <button
-            className="transition-colors"
+            className="text-white/80 hover:text-white transition-colors"
             onClick={(e) => {
               e.stopPropagation();
               onOpenVideoPlayer(videoUrl);
             }}>
-              <Film className="h-6 w-6" />
+              <Film className="h-5 w-5" />
             </button>
           }
+          
           <button
-            className="ml-auto transition-colors"
+            className="text-white/80 hover:text-white transition-colors"
             onClick={handleSaveClick}
             disabled={isSaving}>
             <Bookmark className={cn(
-              "h-6 w-6 transition-all",
+              "h-5 w-5 transition-all",
               isSaved && "fill-primary text-primary"
             )} />
           </button>
         </div>
-      </div>
-
-      {/* Counts */}
-      <div className="space-y-1">
-        {displayLikesCount > 0 &&
-        <button
-          onClick={handleLikesCountClick}
-          className="font-semibold text-sm hover:underline text-secondary-foreground bg-slate-700 hover:bg-slate-600 rounded shadow-none opacity-50">
-
-            {formatCount(displayLikesCount)} ta yoqtirish
-          </button>
-        }
-        
-        {initialCommentsCount > 0 &&
-        <button
-          onClick={handleCommentsClick}
-          className="block text-sm text-muted-foreground hover:underline">
-
-            {formatCount(initialCommentsCount)} ta izohni ko'rish
-          </button>
-        }
       </div>
 
       {/* Dialogs */}
@@ -181,5 +169,4 @@ export const PostActions = ({
         postId={postId} />
 
     </>);
-
 };

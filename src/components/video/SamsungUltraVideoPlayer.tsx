@@ -43,6 +43,7 @@ interface VideoPlayerProps {
   description?: string;
   chapters?: Chapter[];
   subtitles?: Subtitle[];
+  initialTime?: number;
   onClose?: () => void;
 }
 
@@ -105,6 +106,7 @@ export const SamsungUltraVideoPlayer = ({
   description,
   chapters = [],
   subtitles = [],
+  initialTime = 0,
   onClose
 }: VideoPlayerProps) => {
   // ─────────────────────────────────────────────────────────────
@@ -256,6 +258,11 @@ export const SamsungUltraVideoPlayer = ({
     const handleLoadedMetadata = () => {
       const d = video.duration;
       setDuration(Number.isFinite(d) && d >= 0 ? d : 0);
+      // Set initial time if provided
+      if (initialTime > 0 && Number.isFinite(initialTime)) {
+        video.currentTime = Math.min(initialTime, d);
+        setCurrentTime(Math.min(initialTime, d));
+      }
     };
     const handleEnded = () => {
       setIsPlaying(false);
