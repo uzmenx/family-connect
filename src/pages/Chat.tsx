@@ -336,7 +336,7 @@ const Chat = () => {
         />
       )}
 
-      <div className="h-screen bg-background flex flex-col relative overflow-hidden">
+      <div className="flex flex-col relative overflow-hidden" style={{ height: '100dvh' }}>
         {/* Wallpaper background */}
         {chatWallpaper !== 'none' && (
           <div 
