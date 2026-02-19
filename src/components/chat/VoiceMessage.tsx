@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
-import { Play, Pause } from 'lucide-react';
+import { Play, Pause, Mic } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface VoiceMessageProps {
@@ -11,6 +11,7 @@ export const VoiceMessage = ({ audioUrl, isMine }: VoiceMessageProps) => {
   const [isPlaying, setIsPlaying] = useState(false);
   const [progress, setProgress] = useState(0);
   const [duration, setDuration] = useState(0);
+  const [currentTime, setCurrentTime] = useState(0);
   const audioRef = useRef<HTMLAudioElement>(null);
   const progressBarRef = useRef<HTMLDivElement>(null);
 
@@ -18,17 +19,31 @@ export const VoiceMessage = ({ audioUrl, isMine }: VoiceMessageProps) => {
     const audio = audioRef.current;
     if (!audio) return;
 
-    const handleLoadedMetadata = () => setDuration(audio.duration);
-    const handleTimeUpdate = () => {
-      if (audio.duration) setProgress((audio.currentTime / audio.duration) * 100);
+    const handleLoadedMetadata = () => {
+      if (audio.duration && isFinite(audio.duration)) {
+        setDuration(audio.duration);
+      }
     };
-    const handleEnded = () => { setIsPlaying(false); setProgress(0); };
+    const handleDurationChange = () => {
+      if (audio.duration && isFinite(audio.duration)) {
+        setDuration(audio.duration);
+      }
+    };
+    const handleTimeUpdate = () => {
+      if (audio.duration && isFinite(audio.duration)) {
+        setProgress((audio.currentTime / audio.duration) * 100);
+        setCurrentTime(audio.currentTime);
+      }
+    };
+    const handleEnded = () => { setIsPlaying(false); setProgress(0); setCurrentTime(0); };
 
     audio.addEventListener('loadedmetadata', handleLoadedMetadata);
+    audio.addEventListener('durationchange', handleDurationChange);
     audio.addEventListener('timeupdate', handleTimeUpdate);
     audio.addEventListener('ended', handleEnded);
     return () => {
       audio.removeEventListener('loadedmetadata', handleLoadedMetadata);
+      audio.removeEventListener('durationchange', handleDurationChange);
       audio.removeEventListener('timeupdate', handleTimeUpdate);
       audio.removeEventListener('ended', handleEnded);
     };
@@ -44,20 +59,20 @@ export const VoiceMessage = ({ audioUrl, isMine }: VoiceMessageProps) => {
   const handleProgressClick = (e: React.MouseEvent<HTMLDivElement>) => {
     const audio = audioRef.current;
     const bar = progressBarRef.current;
-    if (!audio || !bar) return;
+    if (!audio || !bar || !isFinite(audio.duration)) return;
     const rect = bar.getBoundingClientRect();
-    const pct = (e.clientX - rect.left) / rect.width;
+    const pct = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
     audio.currentTime = pct * audio.duration;
     setProgress(pct * 100);
   };
 
   const formatTime = (s: number) => {
-    if (isNaN(s)) return '0:00';
+    if (!s || !isFinite(s) || isNaN(s)) return '0:00';
     return `${Math.floor(s / 60)}:${Math.floor(s % 60).toString().padStart(2, '0')}`;
   };
 
   const waveformBars = useMemo(() => 
-    Array.from({ length: 30 }, (_, i) => 20 + Math.sin(i * 0.6) * 18 + Math.random() * 12),
+    Array.from({ length: 28 }, (_, i) => 22 + Math.sin(i * 0.7) * 20 + Math.random() * 14),
   []);
 
   return (
@@ -68,7 +83,7 @@ export const VoiceMessage = ({ audioUrl, isMine }: VoiceMessageProps) => {
       <button
         onClick={togglePlay}
         className={cn(
-          "flex-shrink-0 w-9 h-9 rounded-full flex items-center justify-center transition-all",
+          "flex-shrink-0 w-10 h-10 rounded-full flex items-center justify-center transition-all",
           isMine 
             ? "bg-primary-foreground/20 hover:bg-primary-foreground/30" 
             : "bg-primary/15 hover:bg-primary/25"
@@ -81,11 +96,11 @@ export const VoiceMessage = ({ audioUrl, isMine }: VoiceMessageProps) => {
         )}
       </button>
 
-      <div className="flex-1 flex flex-col gap-0.5">
+      <div className="flex-1 flex flex-col gap-1">
         {/* Waveform */}
         <div 
           ref={progressBarRef}
-          className="flex items-end gap-[2px] h-7 cursor-pointer"
+          className="flex items-center gap-[2px] h-6 cursor-pointer"
           onClick={handleProgressClick}
         >
           {waveformBars.map((height, i) => {
@@ -95,10 +110,10 @@ export const VoiceMessage = ({ audioUrl, isMine }: VoiceMessageProps) => {
               <div
                 key={i}
                 className={cn(
-                  "w-[3px] rounded-full transition-all duration-100",
+                  "w-[3px] rounded-full transition-colors duration-150",
                   isActive
                     ? isMine ? "bg-primary-foreground" : "bg-primary"
-                    : isMine ? "bg-primary-foreground/30" : "bg-muted-foreground/30"
+                    : isMine ? "bg-primary-foreground/25" : "bg-muted-foreground/25"
                 )}
                 style={{ height: `${height}%` }}
               />
@@ -107,10 +122,10 @@ export const VoiceMessage = ({ audioUrl, isMine }: VoiceMessageProps) => {
         </div>
 
         <span className={cn(
-          "text-[10px]",
+          "text-[10px] tabular-nums",
           isMine ? "text-primary-foreground/60" : "text-muted-foreground"
         )}>
-          {formatTime(isPlaying ? (audioRef.current?.currentTime || 0) : duration)}
+          {isPlaying ? formatTime(currentTime) : formatTime(duration)}
         </span>
       </div>
     </div>
