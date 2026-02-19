@@ -6,7 +6,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Settings, Edit, Grid3X3, Bookmark, Bell, AtSign, Users } from 'lucide-react';
+import { Settings, Edit, Grid3X3, Bookmark, Bell, AtSign, Users, ChevronDown } from 'lucide-react';
 import { SocialLinksList } from '@/components/profile';
 import { useUserPosts } from '@/hooks/useUserPosts';
 import { useSavedPosts } from '@/hooks/useSavedPosts';
@@ -15,6 +15,7 @@ import { useNotifications } from '@/hooks/useNotifications';
 import { useStoryHighlights } from '@/hooks/useStoryHighlights';
 import { useMentionsCollabs } from '@/hooks/useMentionsCollabs';
 import { usePostCollections } from '@/hooks/usePostCollections';
+import { useSmoothScroll } from '@/hooks/useSmoothScroll';
 import { PostCard } from '@/components/feed/PostCard';
 import { FullScreenViewer } from '@/components/feed/FullScreenViewer';
 import { PullToRefresh } from '@/components/feed/PullToRefresh';
@@ -44,6 +45,8 @@ const Profile = () => {
   const [viewerPosts, setViewerPosts] = useState<typeof posts>([]);
   const [showNewHighlight, setShowNewHighlight] = useState(false);
   const [showCollabRequests, setShowCollabRequests] = useState(false);
+  const [showPostsStats, setShowPostsStats] = useState(false); // Dropdown state
+  const scrollContainerRef = useSmoothScroll(true, true); // Enable snap and swipe gestures
 
   const hideHighlights = (profile as any)?.hide_highlights === true;
   const hideCollections = (profile as any)?.hide_collections === true;
@@ -65,73 +68,109 @@ const Profile = () => {
     <AppLayout>
       <div className="min-h-screen pb-20">
         {/* Cover Image */}
-        <div className="h-32 bg-gradient-to-r from-primary to-accent overflow-hidden">
+        <div className="relative h-32 bg-gradient-to-r from-primary to-accent overflow-hidden">
           {(profile as any)?.cover_url && (
             <img src={(profile as any).cover_url} alt="Cover" className="w-full h-full object-cover" />
           )}
+          
+          {/* Action buttons - top right */}
+          <div className="absolute top-4 right-4 flex gap-2">
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => navigate('/messages?tab=notifications')} 
+              className="relative bg-white/20 backdrop-blur-md border border-white/30 hover:bg-white/30 text-white"
+            >
+              <Bell className="h-4 w-4" />
+              {unreadCount > 0 && (
+                <Badge variant="destructive" className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </Badge>
+              )}
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => navigate('/settings')}
+              className="bg-white/20 backdrop-blur-md border border-white/30 hover:bg-white/30 text-white"
+            >
+              <Settings className="h-4 w-4" />
+            </Button>
+            <Button 
+              variant="ghost" 
+              size="icon" 
+              onClick={() => navigate('/edit-profile')}
+              className="bg-white/20 backdrop-blur-md border border-white/30 hover:bg-white/30 text-white"
+            >
+              <Edit className="h-4 w-4" />
+            </Button>
+          </div>
         </div>
         
-        {/* Profile Info */}
+        {/* Profile Info - Next.js Style Layout */}
         <div className="px-4">
-          <div className="relative -mt-16 mb-4">
-            <Avatar className="h-24 w-24 border-4 border-background">
-              <AvatarImage src={profile?.avatar_url || undefined} />
-              <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
-                {getInitials(profile?.name)}
-              </AvatarFallback>
-            </Avatar>
+          <div className="flex items-start justify-between gap-4 -mt-12 relative z-10 mb-4">
+            {/* Left: Followers */}
+            <div className="flex flex-col items-center gap-1 bg-white/20 backdrop-blur-md rounded-xl px-3 py-2 shadow-lg border border-white/30 mt-16">
+              <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide drop-shadow">
+                {t('followers')}
+              </span>
+              <span className="text-2xl font-bold text-gray-900 drop-shadow">{formatCount(followersCount)}</span>
+            </div>
+
+            {/* Center: Profile photo */}
+            <div className="relative group flex-shrink-0">
+              <Avatar className="h-32 w-32 border-4 border-background shadow-xl">
+                <AvatarImage src={profile?.avatar_url || undefined} />
+                <AvatarFallback className="text-3xl bg-gradient-to-br from-primary to-accent text-white font-bold">
+                  {getInitials(profile?.name)}
+                </AvatarFallback>
+              </Avatar>
+            </div>
+
+            {/* Right: Posts with dropdown */}
+            <div className="flex flex-col items-center gap-1 bg-white/20 backdrop-blur-md rounded-xl px-3 py-2 shadow-lg border border-white/30 mt-16 relative">
+              <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide drop-shadow">
+                {t('posts')}
+              </span>
+              <span className="text-2xl font-bold text-gray-900 drop-shadow">{formatCount(postsCount)}</span>
+              <button
+                onClick={() => setShowPostsStats(!showPostsStats)}
+                className="absolute -bottom-2 right-2 w-5 h-5 bg-gray-700 rounded-full flex items-center justify-center hover:bg-gray-800 transition-all duration-300 transform"
+                style={{
+                  transform: showPostsStats ? "rotate(180deg)" : "rotate(0deg)",
+                }}
+              >
+                <ChevronDown className="w-3 h-3 text-white" />
+              </button>
+            </div>
           </div>
 
-          <div className="flex items-start justify-between mb-4">
-            <div>
-              <h1 className="text-2xl font-bold">{profile?.name || t('user')}</h1>
-              <p className="text-muted-foreground">
-                @{profile?.username || user?.email?.split('@')[0] || 'username'}
-              </p>
-            </div>
-            <div className="flex gap-2">
-              <Button variant="outline" size="icon" onClick={() => navigate('/messages?tab=notifications')} className="relative">
-                <Bell className="h-4 w-4" />
-                {unreadCount > 0 && (
-                  <Badge variant="destructive" className="absolute -top-1 -right-1 h-5 w-5 p-0 flex items-center justify-center text-xs">
-                    {unreadCount > 9 ? '9+' : unreadCount}
-                  </Badge>
-                )}
-              </Button>
-              <Button variant="outline" size="icon" onClick={() => navigate('/settings')}>
-                <Settings className="h-4 w-4" />
-              </Button>
-              <Button variant="outline" size="icon" onClick={() => navigate('/edit-profile')}>
-                <Edit className="h-4 w-4" />
-              </Button>
+          {/* Username and handle - centered */}
+          <div className="text-center mb-6">
+            <h1 className="text-2xl font-bold text-gray-900 mb-1">{profile?.name || t('user')}</h1>
+            <p className="text-gray-600">
+              @{profile?.username || user?.email?.split('@')[0] || 'username'}
+            </p>
+          </div>
+
+          {/* Following block below username */}
+          <div className="flex justify-center mb-6">
+            <div className="bg-white/20 backdrop-blur-md border border-white/30 rounded-xl px-4 py-2 shadow-lg">
+              <span className="text-xs font-semibold text-gray-700 uppercase tracking-wide block mb-1 drop-shadow text-center">
+                {t('following')}
+              </span>
+              <span className="text-2xl font-bold text-gray-900 drop-shadow text-center block">{formatCount(followingCount)}</span>
             </div>
           </div>
 
-          {profile?.bio && <p className="text-sm mb-4">{profile.bio}</p>}
-
-          {(profile as any)?.social_links && (
-            <SocialLinksList links={(profile as any).social_links} className="mb-4" />
+          {profile?.bio && (
+            <p className="text-center text-gray-700 mb-6 max-w-md mx-auto">{profile.bio}</p>
           )}
 
-          {/* Stats */}
-          <Card className="mb-4">
-            <CardContent className="py-4">
-              <div className="grid grid-cols-3 gap-4 text-center">
-                <div>
-                  <p className="text-2xl font-bold">{formatCount(postsCount)}</p>
-                  <p className="text-sm text-muted-foreground">{t('posts')}</p>
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{formatCount(followersCount)}</p>
-                  <p className="text-sm text-muted-foreground">{t('followers')}</p>
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{formatCount(followingCount)}</p>
-                  <p className="text-sm text-muted-foreground">{t('following')}</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          {(profile as any)?.social_links && (
+            <SocialLinksList links={(profile as any).social_links} className="mb-6 justify-center" />
+          )}
         </div>
 
         {/* Story Highlights Row */}
@@ -213,9 +252,9 @@ const Profile = () => {
                 <p className="text-sm text-muted-foreground mt-1">{!selectedCollectionId && t('createFirst')}</p>
               </div>
             ) : (
-              <div className="space-y-4 px-0 md:px-4">
+              <div ref={scrollContainerRef} className="smooth-scroll-container space-y-4 px-0 md:px-4">
                 {displayPosts.map((post, index) => (
-                  <div key={post.id} onClick={() => openViewer(index, displayPosts)} className="cursor-pointer">
+                  <div key={post.id} onClick={() => openViewer(index, displayPosts)} className="cursor-pointer smooth-scroll-item scroll-transition">
                     <PostCard post={post} onDelete={() => removePost(post.id)} />
                   </div>
                 ))}
@@ -238,9 +277,9 @@ const Profile = () => {
                 <p className="text-sm text-muted-foreground mt-1">{t('savedHint')}</p>
               </div>
             ) : (
-              <div className="space-y-4 px-0 md:px-4">
+              <div className="smooth-scroll-container space-y-4 px-0 md:px-4">
                 {savedPosts.map((post, index) => (
-                  <div key={post.id} onClick={() => openViewer(index, savedPosts)} className="cursor-pointer">
+                  <div key={post.id} onClick={() => openViewer(index, savedPosts)} className="cursor-pointer smooth-scroll-item scroll-transition">
                     <PostCard post={post} />
                   </div>
                 ))}
@@ -259,12 +298,12 @@ const Profile = () => {
                 <p className="text-muted-foreground">Hozircha belgilanmagan</p>
               </div>
             ) : (
-              <div className="space-y-4 px-0 md:px-4">
+              <div className="smooth-scroll-container space-y-4 px-0 md:px-4">
                 {[...mentionedPosts, ...collabPosts]
                   .filter((v, i, a) => a.findIndex(p => p.id === v.id) === i)
                   .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
                   .map((post, index) => (
-                    <div key={post.id} onClick={() => openViewer(index, [...mentionedPosts, ...collabPosts])} className="cursor-pointer">
+                    <div key={post.id} onClick={() => openViewer(index, [...mentionedPosts, ...collabPosts])} className="cursor-pointer smooth-scroll-item scroll-transition">
                       <PostCard post={post} />
                     </div>
                   ))}

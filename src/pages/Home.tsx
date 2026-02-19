@@ -12,6 +12,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useStories } from "@/hooks/useStories";
 import { usePostsCache } from "@/hooks/usePostsCache";
+import { useSmoothScroll } from "@/hooks/useSmoothScroll";
 import { Grid2X2, LayoutList } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Post } from "@/types";
@@ -25,6 +26,7 @@ const Home = () => {
   const { posts, isLoading, isRefreshing, isLoadingMore, hasMore, fetchPosts, loadMore } = usePostsCache();
   const [gridLayout, setGridLayout] = useState<GridLayout>(1);
   const loadMoreSentinelRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useSmoothScroll(true, true); // Enable snap and swipe gestures
 
   // Unified fullscreen state
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -114,23 +116,25 @@ const Home = () => {
               <p className="text-sm text-muted-foreground mt-2">{t('createFirstPost')}</p>
             </div> :
           gridLayout === 1 ?
-          <div className="space-y-3 pb-20 px-[5px]">
+          <div ref={scrollContainerRef} className="smooth-scroll-container space-y-3 pb-20 px-[5px]">
               {posts.map((post, index) =>
-            <PostCard key={post.id} post={post} onMediaClick={() => openPostViewer(index)} index={index} />
+            <div key={post.id} className="smooth-scroll-item scroll-transition">
+              <PostCard post={post} onMediaClick={() => openPostViewer(index)} index={index} />
+            </div>
             )}
               <div ref={loadMoreSentinelRef} className="h-4 min-h-4" aria-hidden />
               {isLoadingMore && <div className="text-center py-4 text-muted-foreground text-sm">{t('loading')}</div>}
               {!hasMore && posts.length > 0 && <EndOfFeed />}
             </div> :
 
-          <div className="pb-20 px-3">
+          <div ref={scrollContainerRef} className="smooth-scroll-container pb-20 px-3">
               <div className="flex gap-1 p-1">
                 <div className="flex-1 flex flex-col gap-1">
                   {posts.filter((_, i) => i % 2 === 0).map((post) => {
                   const idx = posts.findIndex((p) => p.id === post.id);
                   return (
                     <motion.div key={post.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.35, delay: idx % 2 * 0.05 }} onClick={() => openPostViewer(idx)} className="cursor-pointer">
+                    transition={{ duration: 0.35, delay: idx % 2 * 0.05 }} onClick={() => openPostViewer(idx)} className="cursor-pointer smooth-scroll-item scroll-transition">
                         <MasonryItem post={post} />
                       </motion.div>);
 
@@ -141,7 +145,7 @@ const Home = () => {
                   const idx = posts.findIndex((p) => p.id === post.id);
                   return (
                     <motion.div key={post.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.35, delay: idx % 2 * 0.05 }} onClick={() => openPostViewer(idx)} className="cursor-pointer">
+                    transition={{ duration: 0.35, delay: idx % 2 * 0.05 }} onClick={() => openPostViewer(idx)} className="cursor-pointer smooth-scroll-item scroll-transition">
                         <MasonryItem post={post} />
                       </motion.div>);
 
