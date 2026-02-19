@@ -318,7 +318,7 @@ export const ChatInput = ({ conversationId, onSendMessage, onTyping }: ChatInput
       )}
 
       {/* Input bar */}
-      <div className="mx-2 mb-2 rounded-2xl bg-background/80 backdrop-blur-xl border border-border/30 p-1.5 flex items-center gap-1.5">
+      <div className="mx-2 mb-2 rounded-2xl bg-background/50 backdrop-blur-xl border border-border/30 p-1.5 flex items-center gap-1.5">
         {/* Attach button */}
         <div className="relative">
           <input ref={imageInputRef} type="file" accept="image/*" className="hidden" onChange={(e) => handleFileSelect(e, 'image')} />
