@@ -739,6 +739,7 @@ export type Database = {
           hide_collections: boolean
           hide_highlights: boolean
           id: string
+          last_seen: string | null
           name: string | null
           social_links: Json | null
           updated_at: string
@@ -755,6 +756,7 @@ export type Database = {
           hide_collections?: boolean
           hide_highlights?: boolean
           id: string
+          last_seen?: string | null
           name?: string | null
           social_links?: Json | null
           updated_at?: string
@@ -771,6 +773,7 @@ export type Database = {
           hide_collections?: boolean
           hide_highlights?: boolean
           id?: string
+          last_seen?: string | null
           name?: string | null
           social_links?: Json | null
           updated_at?: string
