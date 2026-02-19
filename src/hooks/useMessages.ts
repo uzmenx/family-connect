@@ -37,8 +37,6 @@ export const useMessages = (conversationId: string | null) => {
   const fetchMessages = useCallback(async () => {
     if (!conversationId) return;
 
-    // Only show loading if no cached data
-    setIsLoading(prev => messages.length === 0 ? true : prev);
     try {
       const { data, error } = await supabase
         .from('messages')

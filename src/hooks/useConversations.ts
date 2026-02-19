@@ -45,8 +45,6 @@ export const useConversations = () => {
   const fetchConversations = useCallback(async () => {
     if (!user?.id) return;
 
-    // Only show loading spinner if no cached data
-    setIsLoading(prev => conversations.length === 0 ? true : prev);
     try {
       const { data: convData, error: convError } = await supabase
         .from('conversations')
