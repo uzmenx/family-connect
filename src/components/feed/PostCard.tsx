@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
 import { Card, CardContent } from '@/components/ui/card';
@@ -12,6 +12,7 @@ import { UserAvatar } from '@/components/user/UserAvatar';
 import { UserInfo } from '@/components/user/UserInfo';
 import { FollowButton } from '@/components/user/FollowButton';
 import { SamsungUltraVideoPlayer } from '@/components/video/SamsungUltraVideoPlayer';
+import { supabase } from '@/integrations/supabase/client';
 
 interface PostCardProps {
   post: Post;
@@ -23,7 +24,28 @@ interface PostCardProps {
 export const PostCard = ({ post, onDelete, onMediaClick, index = 0 }: PostCardProps) => {
   const [showVideoPlayer, setShowVideoPlayer] = useState(false);
   const [videoPlayerSrc, setVideoPlayerSrc] = useState('');
+  const [collabPartner, setCollabPartner] = useState<{ name: string | null; username: string | null } | null>(null);
   const timeAgo = formatDistanceToNow(new Date(post.created_at), { addSuffix: true });
+
+  // Fetch collab partner for this post
+  useEffect(() => {
+    (async () => {
+      const { data: collabs } = await supabase
+        .from('post_collabs')
+        .select('user_id')
+        .eq('post_id', post.id)
+        .eq('status', 'accepted')
+        .limit(1);
+      if (collabs && collabs.length > 0) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('name, username')
+          .eq('id', collabs[0].user_id)
+          .single();
+        if (profile) setCollabPartner(profile);
+      }
+    })();
+  }, [post.id]);
   
   const mediaUrls = post.media_urls?.length > 0 
     ? post.media_urls 
@@ -45,11 +67,20 @@ export const PostCard = ({ post, onDelete, onMediaClick, index = 0 }: PostCardPr
               avatarUrl={post.author?.avatar_url}
               name={post.author?.full_name}
             />
-            <UserInfo 
-              userId={post.user_id}
-              name={post.author?.full_name}
-              username={post.author?.username}
-            />
+            <div className="flex flex-col">
+              <div className="flex items-center gap-1">
+                <UserInfo 
+                  userId={post.user_id}
+                  name={post.author?.full_name}
+                  username={post.author?.username}
+                />
+                {collabPartner && (
+                  <span className="text-xs text-muted-foreground">
+                    &amp; {collabPartner.username || collabPartner.name}
+                  </span>
+                )}
+              </div>
+            </div>
           </div>
           <div className="flex items-center gap-2">
             <FollowButton targetUserId={post.user_id} size="sm" />

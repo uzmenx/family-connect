@@ -174,6 +174,28 @@ export const useComments = (postId: string) => {
         });
       }
 
+      // Detect @mentions in comment and send notifications
+      const commentMentions = (content.match(/@(\w+)/g) || []).map(m => m.slice(1));
+      if (commentMentions.length > 0) {
+        const { data: mentionedProfiles } = await supabase
+          .from('profiles')
+          .select('id, username')
+          .in('username', commentMentions);
+        if (mentionedProfiles) {
+          for (const mp of mentionedProfiles) {
+            if (mp.id !== userId) {
+              await supabase.from('notifications').insert({
+                user_id: mp.id,
+                actor_id: userId,
+                type: 'mention',
+                post_id: postId,
+                comment_id: data.id,
+              });
+            }
+          }
+        }
+      }
+
       // Replace temp comment with real one
       const realComment: Comment = {
         ...data,

@@ -60,7 +60,9 @@ export const NotificationItem = ({ notification, onRead }: NotificationItemProps
       case 'family_invitation_accepted':
         return 'oila daraxtiga qo\'shildi';
       case 'mention':
-        return 'sizni postda belgiladi';
+        return notification.comment_id
+          ? 'izohda sizni belgiladi'
+          : 'postda sizni belgiladi';
       case 'collab_request':
         return 'sizni hamkor sifatida qo\'shmoqchi';
       case 'collab_accepted':
