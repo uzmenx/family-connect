@@ -897,43 +897,22 @@ export const SamsungUltraVideoPlayer = ({
         {/* ─────────────────────────────────────────────────────── */}
         {/* TOP BAR - Status & System Info */}
         {/* ─────────────────────────────────────────────────────── */}
-        <div className={`absolute top-0 left-0 right-0 ${theme.controlsBg} backdrop-blur-xl border-b ${theme.border} px-6 py-4`}>
+        <div className="absolute top-0 left-0 right-0 bg-black/10 backdrop-blur-sm px-4 py-3">
           <div className="flex items-center justify-between">
-            {/* Left - Back button & Title */}
-            <div className="flex items-center gap-4">
-              <button
-                onClick={onClose}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl ${theme.buttonBg} ${theme.buttonHover} ${theme.border} border transition-all active:scale-95`}>
-
-                <ChevronLeft className={theme.text} size={20} />
-                <span className={`${theme.text} font-semibold text-sm hidden sm:block`}>Back</span>
-              </button>
-              
-              <div className="hidden md:block">
-                
-
-
-                {currentChapter &&
-                <p className={`${theme.textMuted} text-xs mt-0.5`}>
-                    {currentChapter.title}
-                  </p>
-                }
-              </div>
-            </div>
-
-            {/* Right - Theme toggle */}
-            <div className="flex items-center gap-3">
-              <button
-                onClick={() => setIsDarkTheme((prev) => !prev)}
-                className={`p-2 rounded-lg ${theme.buttonBg} ${theme.buttonHover} transition-all`}>
-
-                {isDarkTheme ?
-                <Sun className={theme.text} size={18} /> :
-
-                <Moon className={theme.text} size={18} />
-                }
-              </button>
-            </div>
+            <button
+              onClick={onClose}
+              className="p-2.5 rounded-full bg-white/10 backdrop-blur-md active:scale-95 transition-all">
+              <ChevronLeft className="text-white" size={22} />
+            </button>
+            
+            <button
+              onClick={() => setIsDarkTheme((prev) => !prev)}
+              className="p-2.5 rounded-full bg-white/10 backdrop-blur-md active:scale-95 transition-all">
+              {isDarkTheme ?
+                <Sun className="text-white" size={18} /> :
+                <Moon className="text-white" size={18} />
+              }
+            </button>
           </div>
         </div>
 
@@ -972,98 +951,60 @@ export const SamsungUltraVideoPlayer = ({
         {/* ─────────────────────────────────────────────────────── */}
         {/* BOTTOM BAR - Timeline & Controls */}
         {/* ─────────────────────────────────────────────────────── */}
-        <div className={`absolute bottom-0 left-0 right-0 ${theme.controlsBg} backdrop-blur-xl border-t ${theme.border} px-6 py-4`}>
-          {/* Progress Bar with Chapter Markers */}
-          <div className="mb-4">
+        <div className="absolute bottom-0 left-0 right-0 bg-black/10 backdrop-blur-sm px-4 py-3 safe-bottom">
+          {/* Progress Bar */}
+          <div className="mb-3">
             <div
               ref={progressRef}
-              className="relative h-2 bg-white/10 rounded-full cursor-pointer group hover:h-3 transition-all"
+              className="relative h-1.5 bg-white/15 rounded-full cursor-pointer group hover:h-2.5 transition-all"
               onClick={handleSeekBarClick}
               onMouseMove={handleSeekBarHover}
               onMouseLeave={() => setSeekPreview(null)}>
 
-              {/* Buffered */}
               <div
                 className="absolute h-full bg-white/20 rounded-full transition-all"
                 style={{ width: `${buffered}%` }} />
 
-
-              {/* Progress */}
               <div
                 className="absolute h-full bg-blue-500 rounded-full transition-all"
                 style={{ width: `${progress}%` }}>
-
-                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-4 h-4 bg-blue-500 rounded-full shadow-lg opacity-0 group-hover:opacity-100 transition-opacity border-2 border-white" />
+                <div className="absolute right-0 top-1/2 -translate-y-1/2 w-3.5 h-3.5 bg-white rounded-full shadow-lg border-2 border-blue-500 opacity-0 group-hover:opacity-100 transition-opacity" />
               </div>
 
-              {/* Chapter Markers */}
-              {chapters.map((chapter, idx) =>
-              <div
-                key={idx}
-                className="absolute top-0 bottom-0 w-0.5 bg-white/60"
-                style={{ left: `${(chapter.time / safeDuration) * 100}%` }}>
-
-                  <div className="absolute -top-8 left-1/2 -translate-x-1/2 px-2 py-1 bg-black/80 rounded text-white text-xs font-medium whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none">
-                    {chapter.title}
-                  </div>
-                </div>
-              )}
-
-              {/* Bookmark Markers */}
-              {bookmarks.map((bookmark) =>
-              <div
-                key={bookmark.id}
-                className="absolute top-0 bottom-0 w-0.5 bg-yellow-400"
-                style={{ left: `${(bookmark.time / safeDuration) * 100}%` }} />
-
-              )}
-
-              {/* Seek Preview */}
               {seekPreview !== null &&
-              <div
-                className="absolute -top-12 -translate-x-1/2 px-3 py-2 bg-black/90 rounded-lg text-white text-sm font-semibold pointer-events-none shadow-xl border border-white/20"
-                style={{ left: `${(seekPreview / safeDuration) * 100}%` }}>
-
+                <div
+                  className="absolute -top-10 -translate-x-1/2 px-2.5 py-1.5 bg-black/80 rounded-lg text-white text-xs font-semibold pointer-events-none"
+                  style={{ left: `${(seekPreview / safeDuration) * 100}%` }}>
                   {formatTime(seekPreview)}
                 </div>
               }
             </div>
 
-            {/* Time Display */}
-            <div className="flex items-center justify-between mt-2">
-              <span className={`${theme.text} text-sm font-semibold tabular-nums`}>
+            {/* Time */}
+            <div className="flex items-center justify-between mt-1.5">
+              <span className="text-white/90 text-xs font-medium tabular-nums">
                 {formatTime(currentTime)}
               </span>
-              <span className={`${theme.textMuted} text-xs font-medium`}>
+              <span className="text-white/50 text-[10px] font-medium">
                 {selectedQuality} • {playbackRate}x
               </span>
-              <span className={`${theme.text} text-sm font-semibold tabular-nums`}>
+              <span className="text-white/90 text-xs font-medium tabular-nums">
                 {formatTime(duration)}
               </span>
             </div>
           </div>
 
-          {/* Control Buttons Row */}
+          {/* Controls Row - minimal */}
           <div className="flex items-center justify-between">
-            {/* Left Controls */}
-            <div className="flex items-center gap-2">
-              <ControlButton onClick={togglePlay} theme={theme}>
-                {isPlaying ? <Pause size={20} /> : <Play size={20} className="ml-0.5" />}
-              </ControlButton>
+            <div className="flex items-center gap-3">
+              <button onClick={togglePlay} className="p-2 rounded-full bg-white/10 active:scale-90 transition-all">
+                {isPlaying ? <Pause className="text-white" size={22} /> : <Play className="text-white ml-0.5" size={22} />}
+              </button>
 
-              <ControlButton onClick={() => skip(-10)} theme={theme}>
-                <SkipBack size={18} />
-              </ControlButton>
-
-              <ControlButton onClick={() => skip(10)} theme={theme}>
-                <SkipForward size={18} />
-              </ControlButton>
-
-              {/* Volume */}
-              <div className="flex items-center gap-2">
-                <ControlButton onClick={toggleMute} theme={theme}>
-                  {isMuted || volume === 0 ? <VolumeX size={18} /> : <Volume2 size={18} />}
-                </ControlButton>
+              <div className="flex items-center gap-1">
+                <button onClick={toggleMute} className="p-2 rounded-full bg-white/10 active:scale-90 transition-all">
+                  {isMuted || volume === 0 ? <VolumeX className="text-white" size={18} /> : <Volume2 className="text-white" size={18} />}
+                </button>
                 <input
                   type="range"
                   min="0"
@@ -1071,61 +1012,17 @@ export const SamsungUltraVideoPlayer = ({
                   step="0.01"
                   value={isMuted ? 0 : volume}
                   onChange={(e) => handleVolumeChange(parseFloat(e.target.value))}
-                  className="w-24 h-1 bg-white/20 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:shadow-lg" />
-
+                  className="w-16 sm:w-24 h-1 bg-white/20 rounded-full appearance-none cursor-pointer [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-3 [&::-webkit-slider-thumb]:h-3 [&::-webkit-slider-thumb]:bg-white [&::-webkit-slider-thumb]:rounded-full" />
               </div>
             </div>
 
-            {/* Center Info */}
-            <div className="hidden lg:flex items-center gap-4">
-              {isLooping &&
-              <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-blue-500/20 border border-blue-500/30">
-                  <Repeat className="text-blue-400" size={14} />
-                  <span className="text-blue-400 text-xs font-medium">Loop</span>
-                </div>
-              }
-              
-              {zoom > 1 &&
-              <div className="flex items-center gap-1 px-2 py-1 rounded-md bg-purple-500/20 border border-purple-500/30">
-                  <span className="text-purple-400 text-xs font-medium">{zoom.toFixed(1)}x Zoom</span>
-                </div>
-              }
-            </div>
-
-            {/* Right Controls */}
             <div className="flex items-center gap-2">
-              <ControlButton onClick={addBookmark} theme={theme} title="Add Bookmark (B)">
-                <Bookmark size={18} />
-              </ControlButton>
-
-              <ControlButton onClick={() => setShowChapters((prev) => !prev)} theme={theme} title="Chapters (C)">
-                <List size={18} />
-              </ControlButton>
-
-              <ControlButton onClick={() => setShowInfo((prev) => !prev)} theme={theme} title="Info (I)">
-                <Info size={18} />
-              </ControlButton>
-
-              <ControlButton onClick={togglePiP} theme={theme} title="Picture-in-Picture (P)">
-                <PictureInPicture size={18} />
-              </ControlButton>
-
-              <ControlButton
-                onClick={() => setIsRotationLocked((prev) => !prev)}
-                theme={theme}
-                active={isRotationLocked}
-                title="Rotation Lock">
-
-                {isRotationLocked ? <Lock size={18} /> : <Unlock size={18} />}
-              </ControlButton>
-
-              <ControlButton onClick={() => setShowSettings((prev) => !prev)} theme={theme} title="Settings">
-                <Settings size={18} className={showSettings ? 'rotate-90 transition-transform' : 'transition-transform'} />
-              </ControlButton>
-
-              <ControlButton onClick={toggleFullscreen} theme={theme} title="Fullscreen (F)">
-                {isFullscreen ? <Minimize size={18} /> : <Maximize size={18} />}
-              </ControlButton>
+              <button onClick={() => setShowSettings((prev) => !prev)} className="p-2 rounded-full bg-white/10 active:scale-90 transition-all">
+                <Settings className="text-white" size={18} />
+              </button>
+              <button onClick={toggleFullscreen} className="p-2 rounded-full bg-white/10 active:scale-90 transition-all">
+                {isFullscreen ? <Minimize className="text-white" size={18} /> : <Maximize className="text-white" size={18} />}
+              </button>
             </div>
           </div>
         </div>
@@ -1135,7 +1032,7 @@ export const SamsungUltraVideoPlayer = ({
       {/* SETTINGS PANEL */}
       {/* ═══════════════════════════════════════════════════════════ */}
       {showSettings &&
-      <div className="absolute right-6 bottom-24 z-30 w-96 max-h-[calc(100vh-200px)] overflow-y-auto">
+      <div className="absolute right-2 left-2 sm:left-auto sm:right-6 bottom-28 z-30 sm:w-96 max-h-[60vh] overflow-y-auto">
           <div className={`${theme.cardBg} backdrop-blur-2xl border ${theme.border} rounded-2xl shadow-2xl p-6 space-y-6 animate-slide-up`}>
             <div className="flex items-center justify-between">
               <h3 className={`${theme.text} text-xl font-bold`}>Settings</h3>
