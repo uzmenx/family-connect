@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { getCache, setCache } from '@/lib/localCache';
 
 export interface Conversation {
   id: string;
@@ -23,18 +24,30 @@ export interface Conversation {
   unreadCount: number;
 }
 
+const CACHE_KEY = 'conversations_cache';
+
 export const useConversations = () => {
   const { user } = useAuth();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [totalUnread, setTotalUnread] = useState(0);
 
+  // Load from cache first
+  useEffect(() => {
+    const cached = getCache<Conversation[]>(CACHE_KEY);
+    if (cached && cached.length > 0) {
+      setConversations(cached);
+      setTotalUnread(cached.reduce((acc, c) => acc + c.unreadCount, 0));
+      setIsLoading(false);
+    }
+  }, []);
+
   const fetchConversations = useCallback(async () => {
     if (!user?.id) return;
 
-    setIsLoading(true);
+    // Only show loading spinner if no cached data
+    setIsLoading(prev => conversations.length === 0 ? true : prev);
     try {
-      // Get all conversations
       const { data: convData, error: convError } = await supabase
         .from('conversations')
         .select('*')
@@ -45,11 +58,11 @@ export const useConversations = () => {
 
       if (!convData || convData.length === 0) {
         setConversations([]);
+        setCache(CACHE_KEY, []);
         setIsLoading(false);
         return;
       }
 
-      // Get other users' profiles
       const otherUserIds = convData.map(c => 
         c.participant1_id === user.id ? c.participant2_id : c.participant1_id
       );
@@ -61,14 +74,12 @@ export const useConversations = () => {
 
       const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
 
-      // Get last messages and unread counts
       const conversationsWithDetails = await Promise.all(
         convData.map(async (conv) => {
           const otherUserId = conv.participant1_id === user.id 
             ? conv.participant2_id 
             : conv.participant1_id;
 
-          // Get last message
           const { data: lastMsgData } = await supabase
             .from('messages')
             .select('content, sender_id, created_at, status')
@@ -77,7 +88,6 @@ export const useConversations = () => {
             .limit(1)
             .maybeSingle();
 
-          // Get unread count
           const { count: unreadCount } = await supabase
             .from('messages')
             .select('*', { count: 'exact', head: true })
@@ -101,6 +111,7 @@ export const useConversations = () => {
 
       setConversations(conversationsWithDetails);
       setTotalUnread(conversationsWithDetails.reduce((acc, c) => acc + c.unreadCount, 0));
+      setCache(CACHE_KEY, conversationsWithDetails);
     } catch (error) {
       console.error('Error fetching conversations:', error);
     } finally {
@@ -140,7 +151,6 @@ export const useConversations = () => {
     if (!user?.id) return null;
 
     try {
-      // Check if conversation exists
       const { data: existing } = await supabase
         .from('conversations')
         .select('id')
@@ -149,7 +159,6 @@ export const useConversations = () => {
 
       if (existing) return existing.id;
 
-      // Create new conversation
       const { data: newConv, error } = await supabase
         .from('conversations')
         .insert({

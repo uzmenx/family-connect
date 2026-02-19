@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { getCache, setCache } from '@/lib/localCache';
 
 export interface Message {
   id: string;
@@ -14,6 +15,8 @@ export interface Message {
   media_type?: 'image' | 'video' | 'audio' | null;
 }
 
+const cacheKey = (convId: string) => `messages_cache_${convId}`;
+
 export const useMessages = (conversationId: string | null) => {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
@@ -21,10 +24,21 @@ export const useMessages = (conversationId: string | null) => {
   const [otherUserTyping, setOtherUserTyping] = useState(false);
   const typingTimeoutRef = useRef<NodeJS.Timeout>();
 
+  // Load from cache first
+  useEffect(() => {
+    if (!conversationId) return;
+    const cached = getCache<Message[]>(cacheKey(conversationId));
+    if (cached && cached.length > 0) {
+      setMessages(cached);
+      setIsLoading(false);
+    }
+  }, [conversationId]);
+
   const fetchMessages = useCallback(async () => {
     if (!conversationId) return;
 
-    setIsLoading(true);
+    // Only show loading if no cached data
+    setIsLoading(prev => messages.length === 0 ? true : prev);
     try {
       const { data, error } = await supabase
         .from('messages')
@@ -33,7 +47,9 @@ export const useMessages = (conversationId: string | null) => {
         .order('created_at', { ascending: true });
 
       if (error) throw error;
-      setMessages((data || []) as Message[]);
+      const msgs = (data || []) as Message[];
+      setMessages(msgs);
+      setCache(cacheKey(conversationId), msgs);
 
       // Mark messages as seen
       if (user?.id && data && data.length > 0) {
@@ -71,7 +87,11 @@ export const useMessages = (conversationId: string | null) => {
         },
         (payload) => {
           const newMessage = payload.new as Message;
-          setMessages(prev => [...prev, newMessage]);
+          setMessages(prev => {
+            const updated = [...prev, newMessage];
+            setCache(cacheKey(conversationId), updated);
+            return updated;
+          });
           
           // Mark as seen if from other user
           if (user?.id && newMessage.sender_id !== user.id) {
@@ -93,9 +113,28 @@ export const useMessages = (conversationId: string | null) => {
         },
         (payload) => {
           const updatedMessage = payload.new as Message;
-          setMessages(prev => 
-            prev.map(m => m.id === updatedMessage.id ? updatedMessage : m)
-          );
+          setMessages(prev => {
+            const updated = prev.map(m => m.id === updatedMessage.id ? updatedMessage : m);
+            setCache(cacheKey(conversationId), updated);
+            return updated;
+          });
+        }
+      )
+      .on(
+        'postgres_changes',
+        {
+          event: 'DELETE',
+          schema: 'public',
+          table: 'messages',
+          filter: `conversation_id=eq.${conversationId}`
+        },
+        (payload) => {
+          const deletedId = (payload.old as any).id;
+          setMessages(prev => {
+            const updated = prev.filter(m => m.id !== deletedId);
+            setCache(cacheKey(conversationId), updated);
+            return updated;
+          });
         }
       )
       .subscribe();
@@ -135,7 +174,6 @@ export const useMessages = (conversationId: string | null) => {
   const sendMessage = async (content: string, mediaUrl?: string, mediaType?: string) => {
     if (!conversationId || !user?.id) return null;
     
-    // Must have content or media
     if (!content.trim() && !mediaUrl) return null;
 
     try {
