@@ -36,15 +36,15 @@ export const FollowButton = ({ targetUserId, size = 'default', className }: Foll
   return (
     <Button
       ref={btnRef}
-      variant={isFollowing ? "default" : "outline"}
+      variant="outline"
       size={size}
       onClick={handleClick}
       disabled={isLoading || !user}
       className={cn(
-        "min-w-[100px] relative overflow-hidden transition-all duration-300",
+        "min-w-[90px] relative overflow-hidden transition-all duration-300 rounded-full backdrop-blur-xl border border-white/15",
         isFollowing
-          ? "bg-primary hover:bg-primary/90"
-          : "border-primary text-primary hover:bg-primary/10 hover:border-primary/80 hover:text-primary",
+          ? "bg-white/10 text-foreground hover:bg-white/15"
+          : "bg-white/5 text-foreground hover:bg-white/10 border-white/20",
         className
       )}
     >

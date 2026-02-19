@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Play, Pause, ChevronLeft, ChevronRight, Heart, X } from 'lucide-react';
 import { Post } from '@/types';
@@ -44,6 +44,7 @@ export const UnifiedFullScreenViewer = ({
   const videoRef = useRef<HTMLVideoElement>(null);
   const touchStartY = useRef(0);
   const touchStartX = useRef(0);
+  const touchStartTime = useRef(0);
   const lastTapRef = useRef(0);
 
   const currentPost = activeTab === 'posts' ? posts[postIndex] : null;
@@ -85,24 +86,30 @@ export const UnifiedFullScreenViewer = ({
   const currentIndex = activeTab === 'posts' ? postIndex : shortIndex;
   const setCurrentIndex = activeTab === 'posts' ? setPostIndex : setShortIndex;
 
-  const smoothNavigate = (direction: 'up' | 'down') => {
+  const smoothNavigate = useCallback((direction: 'up' | 'down') => {
     if (isTransitioning) return;
-    const canGo = direction === 'down' ? currentIndex < itemCount - 1 : currentIndex > 0;
+    const idx = activeTab === 'posts' ? postIndex : shortIndex;
+    const count = activeTab === 'posts' ? posts.length : shorts.length;
+    const canGo = direction === 'down' ? idx < count - 1 : idx > 0;
     if (!canGo) return;
 
     setIsTransitioning(true);
     setSlideDirection(direction);
 
     setTimeout(() => {
-      setCurrentIndex(prev => direction === 'down' ? prev + 1 : prev - 1);
+      if (activeTab === 'posts') {
+        setPostIndex(prev => direction === 'down' ? prev + 1 : prev - 1);
+      } else {
+        setShortIndex(prev => direction === 'down' ? prev + 1 : prev - 1);
+      }
       setTimeout(() => {
         setSlideDirection(null);
         setIsTransitioning(false);
-      }, 300);
-    }, 200);
-  };
+      }, 250);
+    }, 150);
+  }, [isTransitioning, activeTab, postIndex, shortIndex, posts.length, shorts.length]);
 
-  // Wheel
+  // Wheel - with proper deps
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
@@ -111,15 +118,15 @@ export const UnifiedFullScreenViewer = ({
     const handleWheel = (e: WheelEvent) => {
       e.preventDefault();
       if (isScrolling || isTransitioning) return;
-      if (Math.abs(e.deltaY) > 30) {
+      if (Math.abs(e.deltaY) > 20) {
         isScrolling = true;
         smoothNavigate(e.deltaY > 0 ? 'down' : 'up');
-        timeout = setTimeout(() => { isScrolling = false; }, 600);
+        timeout = setTimeout(() => { isScrolling = false; }, 500);
       }
     };
     container.addEventListener('wheel', handleWheel, { passive: false });
     return () => { container.removeEventListener('wheel', handleWheel); clearTimeout(timeout); };
-  }, [itemCount, isTransitioning, currentIndex, activeTab]);
+  }, [smoothNavigate, isTransitioning]);
 
   // Keyboard
   useEffect(() => {
@@ -129,23 +136,30 @@ export const UnifiedFullScreenViewer = ({
       if (e.key === 'ArrowUp') smoothNavigate('up');
       if (e.key === 'ArrowLeft') currentMediaIndex > 0 && setCurrentMediaIndex(p => p - 1);
       if (e.key === 'ArrowRight') currentMediaIndex < mediaUrls.length - 1 && setCurrentMediaIndex(p => p + 1);
-      if (e.key === ' ') setIsPlaying(p => !p);
+      if (e.key === ' ') { e.preventDefault(); setIsPlaying(p => !p); }
     };
     window.addEventListener('keydown', handleKey);
     return () => window.removeEventListener('keydown', handleKey);
-  }, [currentIndex, currentMediaIndex, activeTab]);
+  }, [smoothNavigate, currentMediaIndex, mediaUrls.length, onClose]);
 
-  // Touch
+  // Touch - improved with velocity detection
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartY.current = e.touches[0].clientY;
     touchStartX.current = e.touches[0].clientX;
+    touchStartTime.current = Date.now();
   };
   const handleTouchEnd = (e: React.TouchEvent) => {
     const diffY = touchStartY.current - e.changedTouches[0].clientY;
     const diffX = touchStartX.current - e.changedTouches[0].clientX;
-    if (Math.abs(diffY) > Math.abs(diffX) && Math.abs(diffY) > 50) {
+    const elapsed = Date.now() - touchStartTime.current;
+    const velocityY = Math.abs(diffY) / Math.max(elapsed, 1);
+
+    // Lower threshold for fast swipes
+    const threshold = velocityY > 0.5 ? 30 : 60;
+
+    if (Math.abs(diffY) > Math.abs(diffX) && Math.abs(diffY) > threshold) {
       smoothNavigate(diffY > 0 ? 'down' : 'up');
-    } else if (Math.abs(diffX) > 50 && mediaUrls.length > 1) {
+    } else if (Math.abs(diffX) > 40 && mediaUrls.length > 1) {
       diffX > 0 ? setCurrentMediaIndex(p => Math.min(p + 1, mediaUrls.length - 1)) : setCurrentMediaIndex(p => Math.max(p - 1, 0));
     }
   };
@@ -191,10 +205,34 @@ export const UnifiedFullScreenViewer = ({
           allowFullScreen
           title={currentShort.title}
         />
-        {/* Bottom info */}
-        <div className="absolute bottom-0 left-0 right-16 bg-gradient-to-t from-black/70 via-black/40 to-transparent p-4 pt-10 z-[2]">
-          <p className="text-sm font-semibold text-white drop-shadow-lg line-clamp-2">{currentShort.title}</p>
-          <p className="text-xs text-white/60 mt-1">{currentShort.channelTitle}</p>
+        {/* Bottom info - minimalist */}
+        <div className="absolute bottom-14 left-0 right-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent px-4 pb-4 pt-16 z-[2]">
+          <div className="flex items-end gap-3">
+            <div className="flex-1 min-w-0">
+              <p className="text-[13px] font-medium text-white leading-snug line-clamp-2 drop-shadow-lg">
+                {currentShort.title}
+              </p>
+              <p className="text-[11px] text-white/50 mt-1 drop-shadow">{currentShort.channelTitle}</p>
+            </div>
+            {/* YouTube logo indicator */}
+            <div className="shrink-0 flex items-center gap-1 bg-white/10 backdrop-blur-md rounded-full px-2.5 py-1 border border-white/10">
+              <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 text-red-500 fill-current">
+                <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814z"/>
+                <path d="M9.545 15.568V8.432L15.818 12l-6.273 3.568z" className="fill-white"/>
+              </svg>
+              <span className="text-[10px] text-white/70 font-medium">Shorts</span>
+            </div>
+          </div>
+        </div>
+
+        {/* Position indicator */}
+        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex flex-col gap-1 z-[3]">
+          {shorts.map((_, i) => (
+            <div key={i} className={cn(
+              "w-1 rounded-full transition-all duration-300",
+              i === shortIndex ? "h-4 bg-white/80" : "h-1.5 bg-white/20"
+            )} />
+          ))}
         </div>
       </div>
     );
@@ -236,22 +274,22 @@ export const UnifiedFullScreenViewer = ({
           {/* Multi-media dots */}
           {mediaUrls.length > 1 && (
             <>
-              <div className="absolute bottom-24 left-1/2 -translate-x-1/2 flex gap-1.5">
+              <div className="absolute bottom-20 left-1/2 -translate-x-1/2 flex gap-1.5">
                 {mediaUrls.map((_, i) => (
                   <button key={i} onClick={(e) => { e.stopPropagation(); setCurrentMediaIndex(i); }}
-                    className={cn("w-2 h-2 rounded-full transition-colors", currentMediaIndex === i ? "bg-white" : "bg-white/40")} />
+                    className={cn("w-1.5 h-1.5 rounded-full transition-colors", currentMediaIndex === i ? "bg-white" : "bg-white/30")} />
                 ))}
               </div>
               {currentMediaIndex > 0 && (
                 <button onClick={(e) => { e.stopPropagation(); setCurrentMediaIndex(p => p - 1); }}
-                  className="absolute left-2 top-1/2 -translate-y-1/2 p-2 bg-black/30 backdrop-blur-sm rounded-2xl">
-                  <ChevronLeft className="h-5 w-5 text-white" />
+                  className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 bg-black/20 backdrop-blur-sm rounded-full">
+                  <ChevronLeft className="h-4 w-4 text-white" />
                 </button>
               )}
               {currentMediaIndex < mediaUrls.length - 1 && (
                 <button onClick={(e) => { e.stopPropagation(); setCurrentMediaIndex(p => p + 1); }}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-black/30 backdrop-blur-sm rounded-2xl">
-                  <ChevronRight className="h-5 w-5 text-white" />
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-black/20 backdrop-blur-sm rounded-full">
+                  <ChevronRight className="h-4 w-4 text-white" />
                 </button>
               )}
             </>
@@ -259,7 +297,7 @@ export const UnifiedFullScreenViewer = ({
         </div>
 
         {/* Actions */}
-        <div className="absolute right-3 bottom-28 z-[2]">
+        <div className="absolute right-3 bottom-24 z-[2]">
           <FullscreenActions
             postId={currentPost.id}
             initialLikesCount={currentPost.likes_count}
@@ -275,9 +313,9 @@ export const UnifiedFullScreenViewer = ({
         </div>
 
         {/* Author info */}
-        <div className="absolute bottom-0 left-0 right-16 bg-gradient-to-t from-black/70 via-black/50 to-transparent p-4 pt-12 z-[1] mb-[61px]">
-          <div className="flex items-center mb-3 gap-2">
-            <UserAvatar userId={currentPost.user_id} avatarUrl={currentPost.author?.avatar_url} name={currentPost.author?.full_name} size="lg" className="border-2 border-white/30 ring-0" />
+        <div className="absolute bottom-14 left-0 right-14 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 pt-14 z-[1]">
+          <div className="flex items-center mb-2 gap-2">
+            <UserAvatar userId={currentPost.user_id} avatarUrl={currentPost.author?.avatar_url} name={currentPost.author?.full_name} size="lg" className="border-2 border-white/20 ring-0" />
             <UserInfo userId={currentPost.user_id} name={currentPost.author?.full_name} username={currentPost.author?.username} variant="fullscreen" />
             <FollowButton targetUserId={currentPost.user_id} size="sm" />
           </div>
@@ -291,12 +329,12 @@ export const UnifiedFullScreenViewer = ({
     <>
       <div
         ref={containerRef}
-        className="fixed inset-0 z-50 flex flex-col overflow-hidden"
+        className="fixed inset-0 z-50 flex flex-col overflow-hidden touch-none"
         style={bgStyle}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
       >
-        {activeTab === 'posts' && (
+        {activeTab === 'posts' && dominantColor && (
           <div className="absolute inset-0 z-0" style={{
             background: `radial-gradient(ellipse at center, transparent 0%, ${dominantColor} 70%)`,
             backdropFilter: 'blur(20px)'
@@ -304,20 +342,20 @@ export const UnifiedFullScreenViewer = ({
         )}
 
         {/* Top bar with tabs */}
-        <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-4 pt-[env(safe-area-inset-top,12px)] pb-2 bg-gradient-to-b from-black/60 to-transparent">
-          <button onClick={onClose} className="p-2 rounded-full bg-white/10 backdrop-blur-md border border-white/10">
+        <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-3 pt-[env(safe-area-inset-top,10px)] pb-2 bg-gradient-to-b from-black/50 to-transparent">
+          <button onClick={onClose} className="p-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/10">
             <X className="w-4 h-4 text-white" />
           </button>
 
-          {/* Tabs - glass pills */}
-          <div className="flex gap-1 bg-white/10 backdrop-blur-md rounded-full p-0.5 border border-white/10">
+          {/* Tabs */}
+          <div className="flex gap-0.5 bg-white/10 backdrop-blur-md rounded-full p-0.5 border border-white/10">
             <button
               onClick={() => handleTabSwitch('shorts')}
               className={cn(
-                "px-4 py-1.5 rounded-full text-xs font-medium transition-all",
+                "px-3.5 py-1 rounded-full text-[11px] font-medium transition-all",
                 activeTab === 'shorts'
                   ? "bg-white/20 text-white shadow-sm"
-                  : "text-white/60 hover:text-white/80"
+                  : "text-white/50 hover:text-white/70"
               )}
             >
               yt shorts
@@ -325,17 +363,17 @@ export const UnifiedFullScreenViewer = ({
             <button
               onClick={() => handleTabSwitch('posts')}
               className={cn(
-                "px-4 py-1.5 rounded-full text-xs font-medium transition-all",
+                "px-3.5 py-1 rounded-full text-[11px] font-medium transition-all",
                 activeTab === 'posts'
                   ? "bg-white/20 text-white shadow-sm"
-                  : "text-white/60 hover:text-white/80"
+                  : "text-white/50 hover:text-white/70"
               )}
             >
               postlar
             </button>
           </div>
 
-          <div className="w-8" /> {/* spacer */}
+          <div className="w-7" />
         </div>
 
         {/* Content */}
