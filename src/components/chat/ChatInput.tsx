@@ -213,7 +213,7 @@ export const ChatInput = ({ conversationId, onSendMessage, onTyping }: ChatInput
   // Recording active UI (Telegram-style fullwidth recording bar)
   if (isRecording && !showConfirmSend) {
     return (
-      <div className="sticky bottom-0 safe-area-bottom">
+      <div className="safe-area-bottom">
         <div className="mx-2 mb-2 rounded-2xl bg-background/80 backdrop-blur-xl border border-border/30 p-3">
           <div className="flex items-center gap-3">
             {/* Cancel - slide left hint */}
@@ -267,7 +267,7 @@ export const ChatInput = ({ conversationId, onSendMessage, onTyping }: ChatInput
   // Audio recorded - confirm send
   if (showConfirmSend && audioBlob) {
     return (
-      <div className="sticky bottom-0 safe-area-bottom">
+      <div className="safe-area-bottom">
         <div className="mx-2 mb-2 rounded-2xl bg-background/80 backdrop-blur-xl border border-border/30 p-3">
           <div className="flex items-center gap-3">
             <button onClick={handleCancelVoice} className="p-2 rounded-full hover:bg-destructive/10 transition-colors">
@@ -295,7 +295,7 @@ export const ChatInput = ({ conversationId, onSendMessage, onTyping }: ChatInput
 
   // Normal chat input
   return (
-    <div className="sticky bottom-0 safe-area-bottom">
+    <div className="safe-area-bottom">
       {/* Selected media preview */}
       {selectedMedia && (
         <div className="mx-2 mt-1 mb-1">

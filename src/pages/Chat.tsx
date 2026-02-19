@@ -336,7 +336,7 @@ const Chat = () => {
         />
       )}
 
-      <div className="min-h-screen bg-background flex flex-col relative">
+      <div className="h-screen bg-background flex flex-col relative overflow-hidden">
         {/* Wallpaper background */}
         {chatWallpaper !== 'none' && (
           <div 
@@ -395,7 +395,7 @@ const Chat = () => {
         {/* Messages */}
         <div 
           ref={containerRef}
-          className="flex-1 overflow-y-auto px-3 py-3 relative z-10"
+          className="flex-1 overflow-y-auto px-3 py-3 relative z-10 min-h-0"
           style={{ 
             overscrollBehavior: 'contain',
             WebkitOverflowScrolling: 'touch'
@@ -527,16 +527,16 @@ const Chat = () => {
           )}
         </div>
 
-        {/* Reply Preview */}
-        <div className="relative z-20 bg-background/50 backdrop-blur-xl">
+        {/* Bottom bar - always visible */}
+        <div className="relative z-20 flex-shrink-0">
           {replyTo && (
-            <ReplyPreview
-              replyToContent={replyTo.content}
-              onCancel={() => setReplyTo(null)}
-            />
+            <div className="bg-background/50 backdrop-blur-xl border-t border-border/20">
+              <ReplyPreview
+                replyToContent={replyTo.content}
+                onCancel={() => setReplyTo(null)}
+              />
+            </div>
           )}
-
-          {/* Chat Input */}
           <ChatInput
             conversationId={conversationId}
             onSendMessage={handleSendMessage}
