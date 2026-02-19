@@ -88,6 +88,7 @@ export const PostCard = ({ post, onDelete, onMediaClick, index = 0 }: PostCardPr
             <PostCaption 
               username={post.author?.username || 'user'}
               content={post.content}
+              postId={post.id}
             />
           )}
           

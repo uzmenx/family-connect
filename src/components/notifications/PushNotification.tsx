@@ -10,7 +10,7 @@ import { cn } from '@/lib/utils';
 
 interface PushNotificationData {
   id: string;
-  type: 'follow' | 'like' | 'comment' | 'message' | 'story_like';
+  type: 'follow' | 'like' | 'comment' | 'message' | 'story_like' | 'mention' | 'collab_request' | 'collab_accepted';
   actor: {
     id: string;
     name: string | null;
@@ -147,6 +147,12 @@ export const PushNotification = () => {
         return `${actorName} izoh qoldirdi`;
       case 'message':
         return `${actorName} xabar yubordi`;
+      case 'mention':
+        return `${actorName} sizni postda belgiladi`;
+      case 'collab_request':
+        return `${actorName} hamkorlik so'radi`;
+      case 'collab_accepted':
+        return `${actorName} hamkorlikni qabul qildi`;
       default:
         return '';
     }

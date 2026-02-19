@@ -5,13 +5,14 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Grid3X3, Bookmark, Users } from 'lucide-react';
+import { ArrowLeft, Grid3X3, Bookmark, Users, AtSign } from 'lucide-react';
 import { useStoryHighlights } from '@/hooks/useStoryHighlights';
 import { usePostCollections } from '@/hooks/usePostCollections';
 import { HighlightsRow } from '@/components/profile/HighlightsRow';
 import { CollectionsFilter } from '@/components/profile/CollectionsFilter';
 import { useUserPosts } from '@/hooks/useUserPosts';
 import { useFollow } from '@/hooks/useFollow';
+import { useMentionsCollabs } from '@/hooks/useMentionsCollabs';
 import { PostCard } from '@/components/feed/PostCard';
 import { FullScreenViewer } from '@/components/feed/FullScreenViewer';
 import { PullToRefresh } from '@/components/feed/PullToRefresh';
@@ -43,12 +44,13 @@ const UserProfilePage = () => {
   const [isLoading, setIsLoading] = useState(true);
   const { posts, isLoading: postsLoading, postsCount, refetch } = useUserPosts(userId);
   const { followersCount, followingCount } = useFollow(userId);
-  const [activeTab, setActiveTab] = useState<'posts' | 'saved'>('posts');
+  const [activeTab, setActiveTab] = useState<'posts' | 'saved' | 'mentions'>('posts');
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
   
   const { highlights } = useStoryHighlights(userId);
   const { collections, selectedCollectionId, setSelectedCollectionId, collectionPosts } = usePostCollections(userId);
+  const { mentionedPosts: userMentionedPosts, collabPosts: userCollabPosts } = useMentionsCollabs(userId);
 
   // Family tree states
   const { members, addMember, sendInvitation } = useFamilyTree();
@@ -236,6 +238,17 @@ const UserProfilePage = () => {
             >
               <Bookmark className="h-5 w-5" />
             </button>
+            <button
+              onClick={() => setActiveTab('mentions')}
+              className={cn(
+                "flex-1 py-3 flex items-center justify-center gap-2 border-b-2 transition-colors",
+                activeTab === 'mentions'
+                  ? "border-primary text-primary"
+                  : "border-transparent text-muted-foreground"
+              )}
+            >
+              <AtSign className="h-5 w-5" />
+            </button>
           </div>
         </div>
 
@@ -271,6 +284,30 @@ const UserProfilePage = () => {
           <div className="text-center py-12 px-4">
             <Bookmark className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
             <p className="text-muted-foreground">Saqlangan postlar yo'q</p>
+          </div>
+        )}
+
+        {/* Mentions tab */}
+        {activeTab === 'mentions' && (
+          <div>
+            {userMentionedPosts.length === 0 && userCollabPosts.length === 0 ? (
+              <div className="text-center py-12 px-4">
+                <AtSign className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
+                <p className="text-muted-foreground">Belgilangan postlar yo'q</p>
+              </div>
+            ) : (
+              <div className="space-y-4 px-0 md:px-4">
+                {[...userMentionedPosts, ...userCollabPosts]
+                  .filter((v, i, a) => a.findIndex(p => p.id === v.id) === i)
+                  .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())
+                  .map((post, index) => (
+                    <div key={post.id} onClick={() => openViewer(index)} className="cursor-pointer">
+                      <PostCard post={post} />
+                    </div>
+                  ))}
+                <EndOfFeed />
+              </div>
+            )}
           </div>
         )}
 
