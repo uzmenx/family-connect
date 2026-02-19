@@ -475,9 +475,11 @@ const Chat = () => {
                           getBubbleRadius(),
                           hasMedia && "px-1.5 py-1.5",
                           isMine 
-                            ? "bg-primary text-primary-foreground" 
+                            ? "text-white" 
                             : "bg-muted/80 backdrop-blur-md text-foreground"
-                        )}>
+                        )}
+                        style={isMine ? { background: 'linear-gradient(135deg, hsl(217 91% 60%), hsl(263 70% 50%))' } : undefined}
+                        >
                           {renderMessageContent(msg, isMine)}
                           <div className={cn(
                             "flex items-center gap-1 mt-0.5",
@@ -486,7 +488,7 @@ const Chat = () => {
                           )}>
                             <span className={cn(
                               "text-[10px] tabular-nums",
-                              isMine ? "text-primary-foreground/50" : "text-muted-foreground/60"
+                              isMine ? "text-white/60" : "text-muted-foreground/60"
                             )}>
                               {formatMessageTime(msg.created_at)}
                             </span>
