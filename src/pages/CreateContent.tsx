@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
@@ -8,11 +8,14 @@ import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { uploadMedia } from '@/lib/r2Upload';
-import { Check, Image } from 'lucide-react';
+import { Check, Image, AtSign, Users, ChevronRight, X } from 'lucide-react';
 import MediaCapture, { CapturedMedia } from '@/components/create/MediaCapture';
 import MediaEditor from '@/components/create/MediaEditor';
 import { STORY_RINGS, type StoryRingId } from '@/components/stories/storyRings';
 import { StoryRingPreview } from '@/components/stories/StoryRingPreview';
+import { useMentionsCollabs } from '@/hooks/useMentionsCollabs';
+import { UserSearchPicker } from '@/components/post/UserSearchPicker';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 type Step = 'capture' | 'edit' | 'publish';
 
@@ -30,6 +33,27 @@ const CreateContent = () => {
   const [uploadProgress, setUploadProgress] = useState(0);
   const [showSuccess, setShowSuccess] = useState(false);
   const [selectedRingId, setSelectedRingId] = useState<StoryRingId>('default');
+  const [mentionIds, setMentionIds] = useState<string[]>([]);
+  const [collabIds, setCollabIds] = useState<string[]>([]);
+  const [showMentionPicker, setShowMentionPicker] = useState(false);
+  const [showCollabPicker, setShowCollabPicker] = useState(false);
+  const [mentionProfiles, setMentionProfiles] = useState<any[]>([]);
+  const [collabProfiles, setCollabProfiles] = useState<any[]>([]);
+  const { addMentions, addCollabs } = useMentionsCollabs();
+
+  useEffect(() => {
+    if (mentionIds.length > 0) {
+      supabase.from('profiles').select('id, name, username, avatar_url').in('id', mentionIds)
+        .then(({ data }) => setMentionProfiles(data || []));
+    } else setMentionProfiles([]);
+  }, [mentionIds]);
+
+  useEffect(() => {
+    if (collabIds.length > 0) {
+      supabase.from('profiles').select('id, name, username, avatar_url').in('id', collabIds)
+        .then(({ data }) => setCollabProfiles(data || []));
+    } else setCollabProfiles([]);
+  }, [collabIds]);
 
   // Step 1 → 2: Capture done
   const handleCaptureNext = useCallback((media: CapturedMedia[]) => {
@@ -85,12 +109,29 @@ const CreateContent = () => {
       }
 
       if (sharePost && postUrls.length > 0) {
-        const { error } = await supabase.from('posts').insert({
+        const { data: post, error } = await supabase.from('posts').insert({
           user_id: user.id,
           content: caption || null,
           media_urls: postUrls,
-        });
+        }).select().single();
         if (error) throw error;
+
+        if (post) {
+          // Parse @mentions from caption
+          const captionMentions = (caption.match(/@(\w+)/g) || []).map(m => m.slice(1));
+          let allMentionIds = [...mentionIds];
+          if (captionMentions.length > 0) {
+            const { data: mp } = await supabase.from('profiles').select('id, username')
+              .in('username', captionMentions);
+            if (mp) {
+              for (const p of mp) {
+                if (p.id !== user.id && !allMentionIds.includes(p.id)) allMentionIds.push(p.id);
+              }
+            }
+          }
+          if (allMentionIds.length > 0) await addMentions(post.id, allMentionIds);
+          if (collabIds.length > 0) await addCollabs(post.id, collabIds);
+        }
       }
 
       if (shareStory && storyUrl) {
@@ -196,7 +237,61 @@ const CreateContent = () => {
           />
           <p className="text-xs text-muted-foreground text-right -mt-3">{caption.length}/2200</p>
 
-          {/* Share toggles */}
+          {/* Tag people & Collab - Instagram style rows */}
+          <div className="space-y-0 rounded-2xl border border-border overflow-hidden">
+            <button
+              onClick={() => setShowMentionPicker(true)}
+              className="w-full flex items-center gap-3 px-4 py-3.5 bg-background hover:bg-muted/50 transition-colors border-b border-border"
+            >
+              <AtSign className="h-5 w-5 text-muted-foreground" />
+              <span className="flex-1 text-left text-sm font-medium">Odamlarni belgilash</span>
+              {mentionIds.length > 0 && (
+                <span className="text-xs text-primary font-medium">{mentionIds.length} kishi</span>
+              )}
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </button>
+            <button
+              onClick={() => setShowCollabPicker(true)}
+              className="w-full flex items-center gap-3 px-4 py-3.5 bg-background hover:bg-muted/50 transition-colors"
+            >
+              <Users className="h-5 w-5 text-muted-foreground" />
+              <span className="flex-1 text-left text-sm font-medium">Hamkorlik taklifi</span>
+              {collabIds.length > 0 && (
+                <span className="text-xs text-primary font-medium">{collabIds.length} hamkor</span>
+              )}
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            </button>
+          </div>
+
+          {/* Selected mention/collab chips */}
+          {(mentionProfiles.length > 0 || collabProfiles.length > 0) && (
+            <div className="flex flex-wrap gap-2">
+              {mentionProfiles.map(u => (
+                <div key={u.id} className="flex items-center gap-1.5 px-2.5 py-1 bg-primary/10 rounded-full">
+                  <Avatar className="h-5 w-5">
+                    <AvatarImage src={u.avatar_url || undefined} />
+                    <AvatarFallback className="text-[10px]">U</AvatarFallback>
+                  </Avatar>
+                  <span className="text-xs font-medium">@{u.username || u.name}</span>
+                  <button onClick={() => setMentionIds(prev => prev.filter(id => id !== u.id))}>
+                    <X className="h-3 w-3 text-muted-foreground" />
+                  </button>
+                </div>
+              ))}
+              {collabProfiles.map(u => (
+                <div key={u.id} className="flex items-center gap-1.5 px-2.5 py-1 bg-accent/20 rounded-full">
+                  <Avatar className="h-5 w-5">
+                    <AvatarImage src={u.avatar_url || undefined} />
+                    <AvatarFallback className="text-[10px]">U</AvatarFallback>
+                  </Avatar>
+                  <span className="text-xs font-medium">{u.name || u.username}</span>
+                  <button onClick={() => setCollabIds(prev => prev.filter(id => id !== u.id))}>
+                    <X className="h-3 w-3 text-muted-foreground" />
+                  </button>
+                </div>
+              ))}
+            </div>
+          )}
           <div className="rounded-2xl border border-border bg-muted/30 p-4 space-y-3">
             <p className="text-sm font-semibold">Qayerga joylash</p>
 
@@ -254,6 +349,23 @@ const CreateContent = () => {
           <div className="h-8" />
         </div>
       </div>
+
+      {/* Pickers */}
+      <UserSearchPicker
+        open={showMentionPicker}
+        onClose={() => setShowMentionPicker(false)}
+        selectedIds={mentionIds}
+        onSelectionChange={setMentionIds}
+        title="Odamlarni belgilash"
+      />
+      <UserSearchPicker
+        open={showCollabPicker}
+        onClose={() => setShowCollabPicker(false)}
+        selectedIds={collabIds}
+        onSelectionChange={setCollabIds}
+        title="Hamkor qo'shish"
+        maxSelection={5}
+      />
     </div>
   );
 };
