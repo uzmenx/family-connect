@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Paperclip, Bot, X, Cpu, Zap } from 'lucide-react';
+import { Send, Paperclip, X, Cpu, Zap } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { toast } from 'sonner';
 
@@ -150,8 +150,15 @@ const AIChatView = ({ messages, setMessages }: AIChatViewProps) => {
       <div ref={scrollRef} className="flex-1 overflow-y-auto px-4 pb-2" style={{ overscrollBehavior: 'contain' }}>
         {messages.length === 0 ? (
           <div className="h-full flex flex-col items-center justify-center text-center px-4">
-            <div className="h-20 w-20 rounded-full bg-gradient-to-br from-violet-500 via-purple-500 to-pink-500 flex items-center justify-center mb-5 shadow-2xl shadow-purple-500/40">
-              <Bot className="h-10 w-10 text-white" />
+            <div className="h-20 w-20 rounded-full bg-gradient-to-br from-violet-500 via-purple-500 to-pink-500 p-[2px] mb-5 shadow-2xl shadow-purple-500/40">
+              <img
+                src="/ai-avatar.png"
+                alt="AI"
+                className="h-full w-full rounded-full object-cover bg-background"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).src = '/favicon.ico';
+                }}
+              />
             </div>
             <h2 className="text-xl font-bold text-foreground mb-2">AI Do'stim 🤖</h2>
             <p className="text-muted-foreground mb-5 max-w-xs text-sm">

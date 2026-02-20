@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, MessageSquare, Wand2, Mic, Bot, Sparkles } from 'lucide-react';
+import { ArrowLeft, MessageSquare, Wand2, Mic, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { cn } from '@/lib/utils';
 import AIChatView from '@/components/ai/AIChatView';
@@ -38,8 +38,15 @@ const AIChat = () => {
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <div className="relative">
-            <div className="h-9 w-9 rounded-full bg-gradient-to-br from-violet-500 via-purple-500 to-pink-500 flex items-center justify-center shadow-lg shadow-purple-500/30">
-              <Bot className="h-4.5 w-4.5 text-white" />
+            <div className="h-9 w-9 rounded-full bg-gradient-to-br from-violet-500 via-purple-500 to-pink-500 p-[1.5px] shadow-lg shadow-purple-500/30">
+              <img
+                src="/ai-avatar.png"
+                alt="AI"
+                className="h-full w-full rounded-full object-cover bg-background"
+                onError={(e) => {
+                  (e.currentTarget as HTMLImageElement).src = '/favicon.ico';
+                }}
+              />
             </div>
             <div className="absolute -bottom-0.5 -right-0.5 h-3 w-3 rounded-full bg-green-500 border-2 border-background" />
           </div>
