@@ -8,10 +8,10 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { Check, X, Link, GitMerge, Loader2 } from 'lucide-react';
+import { Check, X, Link, GitMerge, Loader2, Users } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { MergeDialogData } from '@/hooks/useFamilyInvitations';
-import { ChildProfile, ChildMergeSuggestion } from '@/hooks/useTreeMerging';
+import { ChildProfile, ChildMergeSuggestion, CoupleGroup } from '@/hooks/useTreeMerging';
 
 interface ChildMergeItem {
   sourceChild: ChildProfile;
@@ -27,6 +27,80 @@ interface UnifiedMergeDialogProps {
   isProcessing: boolean;
 }
 
+/**
+ * Build child merge items for a couple group
+ */
+const buildChildItems = (group: CoupleGroup): ChildMergeItem[] => {
+  const items: ChildMergeItem[] = [];
+  const usedTargetIds = new Set<string>();
+  
+  for (const suggestion of group.childSuggestions) {
+    items.push({
+      sourceChild: suggestion.sourceChild,
+      targetChild: suggestion.targetChild,
+      shouldMerge: true,
+    });
+    usedTargetIds.add(suggestion.targetChild.id);
+  }
+  
+  for (const source of group.sourceChildren) {
+    if (items.find(i => i.sourceChild.id === source.id)) continue;
+    
+    const availableTarget = group.targetChildren.find(
+      t => t.gender === source.gender && !usedTargetIds.has(t.id)
+    );
+    
+    if (availableTarget) {
+      items.push({
+        sourceChild: source,
+        targetChild: availableTarget,
+        shouldMerge: false,
+      });
+      usedTargetIds.add(availableTarget.id);
+    } else {
+      items.push({
+        sourceChild: source,
+        targetChild: null,
+        shouldMerge: false,
+      });
+    }
+  }
+  
+  return items;
+};
+
+/**
+ * Build child items from flat data (backward compat when no coupleGroups)
+ */
+const buildFlatChildItems = (data: MergeDialogData): ChildMergeItem[] => {
+  const items: ChildMergeItem[] = [];
+  const usedTargetIds = new Set<string>();
+  
+  for (const suggestion of data.childSuggestions) {
+    items.push({
+      sourceChild: suggestion.sourceChild,
+      targetChild: suggestion.targetChild,
+      shouldMerge: true,
+    });
+    usedTargetIds.add(suggestion.targetChild.id);
+  }
+  
+  for (const source of data.allSourceChildren) {
+    if (items.find(i => i.sourceChild.id === source.id)) continue;
+    const availableTarget = data.allTargetChildren.find(
+      t => t.gender === source.gender && !usedTargetIds.has(t.id)
+    );
+    if (availableTarget) {
+      items.push({ sourceChild: source, targetChild: availableTarget, shouldMerge: false });
+      usedTargetIds.add(availableTarget.id);
+    } else {
+      items.push({ sourceChild: source, targetChild: null, shouldMerge: false });
+    }
+  }
+  
+  return items;
+};
+
 export const UnifiedMergeDialog = ({
   isOpen,
   onClose,
@@ -34,79 +108,81 @@ export const UnifiedMergeDialog = ({
   onConfirm,
   isProcessing,
 }: UnifiedMergeDialogProps) => {
-  // Farzandlar birlashish holatini boshqarish
-  const [childItems, setChildItems] = useState<ChildMergeItem[]>(() => {
-    const items: ChildMergeItem[] = [];
-    const usedTargetIds = new Set<string>();
-    
-    // Avval tavsiya etilganlarni qo'shish (avtomatik tanlangan)
-    for (const suggestion of data.childSuggestions) {
-      items.push({
-        sourceChild: suggestion.sourceChild,
-        targetChild: suggestion.targetChild,
-        shouldMerge: true, // Tavsiya etilganlar avtomatik tanlangan
-      });
-      usedTargetIds.add(suggestion.targetChild.id);
+  const hasCoupleGroups = data.coupleGroups.length > 0;
+  
+  // State: grouped child items (2D array, one per couple group)
+  const [groupedChildItems, setGroupedChildItems] = useState<ChildMergeItem[][]>(() => {
+    if (hasCoupleGroups) {
+      return data.coupleGroups.map(buildChildItems);
     }
-    
-    // Tavsiya etilmagan source farzandlarni qo'shish
-    for (const source of data.allSourceChildren) {
-      if (items.find(i => i.sourceChild.id === source.id)) continue;
-      
-      // Bir xil jinsdagi bo'sh target ni topish
-      const availableTarget = data.allTargetChildren.find(
-        t => t.gender === source.gender && !usedTargetIds.has(t.id)
-      );
-      
-      if (availableTarget) {
-        items.push({
-          sourceChild: source,
-          targetChild: availableTarget,
-          shouldMerge: false,
-        });
-        usedTargetIds.add(availableTarget.id);
-      } else {
-        items.push({
-          sourceChild: source,
-          targetChild: null,
-          shouldMerge: false,
-        });
-      }
-    }
-    
-    return items;
+    // Backward compat: single flat group
+    const flatItems = buildFlatChildItems(data);
+    return flatItems.length > 0 ? [flatItems] : [];
   });
   
-  // Toggle merge status
-  const toggleMerge = (index: number) => {
-    setChildItems(prev => prev.map((item, i) => {
-      if (i !== index) return item;
-      if (!item.targetChild) return item;
-      if (item.sourceChild.gender !== item.targetChild.gender) return item;
-      return { ...item, shouldMerge: !item.shouldMerge };
+  // Toggle merge status for a specific group and index
+  const toggleMerge = (groupIdx: number, itemIdx: number) => {
+    setGroupedChildItems(prev => prev.map((group, gi) => {
+      if (gi !== groupIdx) return group;
+      return group.map((item, ii) => {
+        if (ii !== itemIdx) return item;
+        if (!item.targetChild) return item;
+        if (item.sourceChild.gender !== item.targetChild.gender) return item;
+        return { ...item, shouldMerge: !item.shouldMerge };
+      });
     }));
   };
   
-  // Confirm button handler
+  // Confirm handler
   const handleConfirm = () => {
-    const childMerges = childItems
-      .filter(item => item.shouldMerge && item.targetChild)
-      .map(item => ({
-        sourceId: item.sourceChild.id,
-        targetId: item.targetChild!.id,
-      }));
-    
+    const childMerges: { sourceId: string; targetId: string }[] = [];
+    groupedChildItems.forEach(groupItems => {
+      groupItems.forEach(item => {
+        if (item.shouldMerge && item.targetChild) {
+          childMerges.push({
+            sourceId: item.sourceChild.id,
+            targetId: item.targetChild.id,
+          });
+        }
+      });
+    });
     onConfirm(childMerges);
   };
   
   // Stats
-  const stats = useMemo(() => ({
-    parents: data.parentMerges.length,
-    childrenMerge: childItems.filter(i => i.shouldMerge && i.targetChild).length,
-    childrenSeparate: childItems.filter(i => !i.shouldMerge || !i.targetChild).length,
-  }), [data.parentMerges.length, childItems]);
+  const stats = useMemo(() => {
+    let childrenMerge = 0;
+    let childrenSeparate = 0;
+    groupedChildItems.forEach(group => {
+      group.forEach(item => {
+        if (item.shouldMerge && item.targetChild) childrenMerge++;
+        else childrenSeparate++;
+      });
+    });
+    return {
+      parents: data.parentMerges.length,
+      childrenMerge,
+      childrenSeparate,
+    };
+  }, [data.parentMerges.length, groupedChildItems]);
   
-  const hasChildren = data.allSourceChildren.length > 0 || data.allTargetChildren.length > 0;
+  const hasAnyChildren = groupedChildItems.some(g => g.length > 0);
+  
+  // Get display couple groups (use coupleGroups if available, otherwise create a default)
+  const displayGroups = useMemo(() => {
+    if (hasCoupleGroups) return data.coupleGroups;
+    // Backward compat: create a single default group
+    if (data.allSourceChildren.length > 0 || data.allTargetChildren.length > 0) {
+      return [{
+        label: 'Farzandlar',
+        parentMerges: data.parentMerges,
+        sourceChildren: data.allSourceChildren,
+        targetChildren: data.allTargetChildren,
+        childSuggestions: data.childSuggestions,
+      }] as CoupleGroup[];
+    }
+    return [];
+  }, [hasCoupleGroups, data]);
   
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
@@ -121,114 +197,142 @@ export const UnifiedMergeDialog = ({
           </DialogDescription>
         </DialogHeader>
         
-        <div className="space-y-4">
-          {/* Ota-onalar (avtomatik) */}
-          {data.parentMerges.length > 0 && (
-            <div className="space-y-2">
-              <h3 className="text-sm font-medium flex items-center gap-2">
-                <Link className="h-4 w-4 text-emerald-500" />
-                Avtomatik birlashadi ({data.parentMerges.length})
-              </h3>
-              <div className="space-y-1.5">
-                {data.parentMerges.map((merge, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center gap-2 p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30"
-                  >
-                    <ProfileBadge
-                      name={merge.sourceName}
-                      photoUrl={merge.sourcePhotoUrl}
-                      gender="male"
-                    />
-                    <span className="text-xs text-emerald-600">=</span>
-                    <ProfileBadge
-                      name={merge.targetName}
-                      photoUrl={merge.targetPhotoUrl}
-                      gender="male"
-                    />
-                    <span className="text-[10px] text-muted-foreground ml-auto">
-                      {merge.relationship === 'parent' ? 'Ota-ona' : 'Buvi-bobo'}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-          
-          {/* Farzandlar (foydalanuvchi tanlov qiladi) */}
-          {hasChildren && (
-            <div className="space-y-2">
-              <h3 className="text-sm font-medium">Farzandlarni birlashtirish</h3>
-              <p className="text-xs text-muted-foreground">
-                ✓ belgilanganlari birlashadi, ✗ belgilanmagan alohida qoladi
-              </p>
-              
-              <ScrollArea className="h-[280px]">
-                <div className="space-y-2 pr-2">
-                  {childItems.map((item, idx) => (
-                    <ChildMergeRow
+        <ScrollArea className="max-h-[60vh]">
+          <div className="space-y-4 pr-2">
+            {/* Avtomatik birlashadigan profillar */}
+            {data.parentMerges.length > 0 && (
+              <div className="space-y-2">
+                <h3 className="text-sm font-medium flex items-center gap-2">
+                  <Link className="h-4 w-4 text-emerald-500" />
+                  Avtomatik birlashadi ({data.parentMerges.length})
+                </h3>
+                <div className="space-y-1.5">
+                  {data.parentMerges.map((merge, idx) => (
+                    <div
                       key={idx}
-                      item={item}
-                      onToggle={() => toggleMerge(idx)}
-                    />
+                      className="flex items-center gap-2 p-2 rounded-lg bg-emerald-500/10 border border-emerald-500/30"
+                    >
+                      <ProfileBadge
+                        name={merge.sourceName}
+                        photoUrl={merge.sourcePhotoUrl}
+                        gender="male"
+                      />
+                      <span className="text-xs text-emerald-600">=</span>
+                      <ProfileBadge
+                        name={merge.targetName}
+                        photoUrl={merge.targetPhotoUrl}
+                        gender="male"
+                      />
+                      <span className="text-[10px] text-muted-foreground ml-auto">
+                        {merge.relationship === 'parent' ? 'Ota-ona' : 'Bobo-buvi'}
+                      </span>
+                    </div>
                   ))}
-                  {childItems.length === 0 && (
-                    <p className="text-sm text-muted-foreground text-center py-4">
-                      Birlashtiriladigan farzandlar yo'q
-                    </p>
-                  )}
                 </div>
-              </ScrollArea>
-            </div>
+              </div>
+            )}
+            
+            {/* Couple Groups - har bir juftlik uchun farzandlar */}
+            {displayGroups.map((group, groupIdx) => {
+              const groupItems = groupedChildItems[groupIdx] || [];
+              if (groupItems.length === 0) return null;
+              
+              return (
+                <div key={groupIdx} className="space-y-2">
+                  <div className="flex items-center gap-2">
+                    <Users className="h-4 w-4 text-primary" />
+                    <h3 className="text-sm font-medium">
+                      {group.label} — farzandlar
+                    </h3>
+                  </div>
+                  
+                  {/* Couple parent badges (compact) */}
+                  {group.parentMerges.length > 0 && (
+                    <div className="flex flex-wrap gap-1">
+                      {group.parentMerges.map((pm, pmIdx) => (
+                        <div
+                          key={pmIdx}
+                          className="flex items-center gap-1 px-2 py-1 rounded-md bg-emerald-500/10 text-[10px]"
+                        >
+                          <span className="font-medium">{pm.sourceName}</span>
+                          <span className="text-emerald-500">=</span>
+                          <span className="font-medium">{pm.targetName}</span>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                  
+                  <p className="text-xs text-muted-foreground">
+                    ✓ belgilanganlari birlashadi, ✗ belgilanmagan alohida qoladi
+                  </p>
+                  
+                  <div className="space-y-2">
+                    {groupItems.map((item, itemIdx) => (
+                      <ChildMergeRow
+                        key={itemIdx}
+                        item={item}
+                        onToggle={() => toggleMerge(groupIdx, itemIdx)}
+                      />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
+            
+            {!hasAnyChildren && data.parentMerges.length > 0 && (
+              <p className="text-sm text-muted-foreground text-center py-2">
+                Birlashtiriladigan farzandlar yo'q
+              </p>
+            )}
+          </div>
+        </ScrollArea>
+        
+        {/* Summary */}
+        <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground bg-muted/30 py-2 rounded-lg">
+          {stats.parents > 0 && (
+            <span className="flex items-center gap-1">
+              <Link className="w-3.5 h-3.5 text-emerald-500" />
+              Birlashish: <strong className="text-foreground">{stats.parents}</strong>
+            </span>
           )}
-          
-          {/* Summary */}
-          <div className="flex items-center justify-center gap-4 text-sm text-muted-foreground bg-muted/30 py-2 rounded-lg">
-            {stats.parents > 0 && (
+          {hasAnyChildren && (
+            <>
               <span className="flex items-center gap-1">
-                <Link className="w-3.5 h-3.5 text-emerald-500" />
-                Ota-ona: <strong className="text-foreground">{stats.parents}</strong>
+                <Check className="w-3.5 h-3.5 text-emerald-500" />
+                <strong className="text-foreground">{stats.childrenMerge}</strong>
               </span>
-            )}
-            {hasChildren && (
+              <span className="flex items-center gap-1">
+                <X className="w-3.5 h-3.5" />
+                <strong className="text-foreground">{stats.childrenSeparate}</strong>
+              </span>
+            </>
+          )}
+        </div>
+        
+        {/* Actions */}
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            onClick={onClose}
+            className="flex-1"
+            disabled={isProcessing}
+          >
+            Bekor qilish
+          </Button>
+          <Button
+            onClick={handleConfirm}
+            className="flex-1"
+            disabled={isProcessing}
+          >
+            {isProcessing ? (
               <>
-                <span className="flex items-center gap-1">
-                  <Check className="w-3.5 h-3.5 text-emerald-500" />
-                  <strong className="text-foreground">{stats.childrenMerge}</strong>
-                </span>
-                <span className="flex items-center gap-1">
-                  <X className="w-3.5 h-3.5" />
-                  <strong className="text-foreground">{stats.childrenSeparate}</strong>
-                </span>
+                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                Saqlanmoqda...
               </>
+            ) : (
+              'Tasdiqlash'
             )}
-          </div>
-          
-          {/* Actions */}
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              onClick={onClose}
-              className="flex-1"
-              disabled={isProcessing}
-            >
-              Bekor qilish
-            </Button>
-            <Button
-              onClick={handleConfirm}
-              className="flex-1"
-              disabled={isProcessing}
-            >
-              {isProcessing ? (
-                <>
-                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                  Saqlanmoqda...
-                </>
-              ) : (
-                'Tasdiqlash'
-              )}
-            </Button>
-          </div>
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

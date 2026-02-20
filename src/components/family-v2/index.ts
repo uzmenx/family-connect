@@ -6,7 +6,7 @@ export { SendInvitationModal } from './SendInvitationModal';
 export { GenderSelectionModal } from './GenderSelectionModal';
 export { FamilyInvitationItem } from './FamilyInvitationItem';
 export { UnifiedMergeDialog } from './UnifiedMergeDialog';
-export { MergeSelectionOverlay } from './MergeSelectionOverlay';
+// MergeSelectionOverlay removed - replaced by inline merge bar in FamilyTreeV2
 export { MergedBadges } from './MergedBadges';
 export { MergedProfilesManager } from './MergedProfilesManager';
 export { default as SpouseEdge } from './SpouseEdge';
