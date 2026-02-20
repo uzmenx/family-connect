@@ -10,7 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Search, MessageCircle, Users, Megaphone, Bell, Sparkles, Edit2, Trash2, X, CheckSquare, Music, ChevronDown } from "lucide-react";
+import { Search, MessageCircle, Users, Megaphone, Bell, Sparkles, Edit2, Trash2, X, CheckSquare, Music } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
@@ -364,7 +364,7 @@ const Messages = () => {
                       {allGroupLabel}
                     </span>
                     <span className={cn('h-full w-11 flex items-center justify-center flex-shrink-0', isAllGroupActive ? 'bg-emerald-600/50' : 'bg-white/5')}>
-                      <ChevronDown className="h-4 w-4" />
+                      
                     </span>
                   </Button>
                 </DropdownMenuTrigger>
