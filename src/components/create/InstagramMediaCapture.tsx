@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronRight, Image as ImageIcon, Play, Pause, Smile, SwitchCamera, Type, Volume2, VolumeX, X } from 'lucide-react';
+import { ChevronRight, Image as ImageIcon, Music, Play, Pause, Smile, SwitchCamera, Type, Volume2, VolumeX, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EMOJIS, MEDIA_FILTERS } from './filters';
 import FilterStrip from './FilterStrip';
@@ -482,33 +482,45 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
 
         {/* Flip camera */}
         {showCaptureUi && (
-          <button
-            onClick={() => setFacingMode(f => (f === 'environment' ? 'user' : 'environment'))}
-            className="absolute top-[max(3.5rem,calc(env(safe-area-inset-top)+2.75rem))] left-3 z-20 w-10 h-10 rounded-full bg-black/40 backdrop-blur-xl border border-white/15 flex items-center justify-center active:scale-90 transition-transform"
-          >
-            <SwitchCamera className="w-5 h-5 text-white" />
-          </button>
-        )}
-
-        {/* Zoom pills */}
-        {showCaptureUi && (
-          <div className="absolute bottom-[max(5rem,calc(env(safe-area-inset-bottom)+4rem))] right-4 z-20 flex flex-col items-end gap-1">
-            <div className="flex gap-0.5 p-0.5 rounded-full bg-white/10 backdrop-blur-sm">
-              {[1, 2, 5].map((zl) => (
-                <button
-                  key={zl}
-                  onClick={() => setZoom(zl)}
-                  className={cn(
-                    'px-2.5 py-1 rounded-full text-[10px] font-bold transition-all',
-                    Math.abs(zoom - zl) < 0.5 ? 'bg-white/25 text-white' : 'text-white/40'
-                  )}
-                >
-                  {zl}x
-                </button>
-              ))}
+          <>
+            {/* Zoom pills (center, above shutter) */}
+            <div className="absolute bottom-[max(7.5rem,calc(env(safe-area-inset-bottom)+6.5rem))] left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1">
+              <div className="flex gap-0.5 p-0.5 rounded-full bg-white/10 backdrop-blur-sm">
+                {[1, 2, 5].map((zl) => (
+                  <button
+                    key={zl}
+                    onClick={() => setZoom(zl)}
+                    className={cn(
+                      'px-2.5 py-1 rounded-full text-[10px] font-bold transition-all',
+                      Math.abs(zoom - zl) < 0.5 ? 'bg-white/25 text-white' : 'text-white/40'
+                    )}
+                  >
+                    {zl}x
+                  </button>
+                ))}
+              </div>
+              <span className="text-white/50 text-[10px] font-medium">{items.length}/{maxItems}</span>
             </div>
-            <span className="text-white/50 text-[10px] font-medium">{items.length}/{maxItems}</span>
-          </div>
+
+            {/* Music button (UI only for now) */}
+            <button
+              type="button"
+              onClick={() => setTrayOpen(true)}
+              className="absolute bottom-[max(1.75rem,calc(env(safe-area-inset-bottom)+0.75rem))] left-5 z-20 w-12 h-12 rounded-full bg-black/35 backdrop-blur-xl border border-white/15 flex items-center justify-center active:scale-90 transition-transform"
+              aria-label="Music"
+            >
+              <Music className="w-6 h-6 text-white" />
+            </button>
+
+            {/* Flip camera (bottom-right) */}
+            <button
+              onClick={() => setFacingMode(f => (f === 'environment' ? 'user' : 'environment'))}
+              className="absolute bottom-[max(1.75rem,calc(env(safe-area-inset-bottom)+0.75rem))] right-5 z-20 w-12 h-12 rounded-full bg-black/35 backdrop-blur-xl border border-white/15 flex items-center justify-center active:scale-90 transition-transform"
+              aria-label="Switch camera"
+            >
+              <SwitchCamera className="w-6 h-6 text-white" />
+            </button>
+          </>
         )}
 
         {/* Capture button */}
@@ -744,7 +756,7 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
         <div
           className={cn(
             'absolute left-0 right-0 z-40 transition-transform duration-250',
-            trayOpen ? 'translate-y-0' : 'translate-y-[calc(100%-5.25rem)]'
+            trayOpen ? 'translate-y-0' : 'translate-y-[calc(100%_-_5.25rem)]'
           )}
           style={{ bottom: 0 }}
           onTouchStart={handleTrayTouchStart}
