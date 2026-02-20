@@ -10,7 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Search, MessageCircle, Users, Megaphone, Bell, Sparkles, Edit2, Trash2, X, CheckSquare, Music } from "lucide-react";
+import { Search, MessageCircle, Users, Megaphone, Bell, Sparkles, Edit2, Trash2, X, CheckSquare, Music, ChevronDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
@@ -18,6 +18,7 @@ import { uz } from "date-fns/locale";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { NotificationsTab } from "@/components/notifications/NotificationsTab";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 
 // Group components
 import { NewChatMenu } from "@/components/groups/NewChatMenu";
@@ -245,11 +246,26 @@ const Messages = () => {
 
   const isLoading = convLoading || groupsLoading;
 
+  const tabBtnClass = (isActive: boolean) => cn(
+    'flex-1 h-10 rounded-xl border text-sm font-semibold transition-colors',
+    isActive
+      ? 'bg-emerald-500/90 border-emerald-400/60 text-black shadow-sm'
+      : 'bg-black/25 border-white/15 text-foreground hover:bg-black/35'
+  );
+
+  const allGroupLabel = activeTab === 'followers'
+    ? t('followersTab')
+    : activeTab === 'following'
+      ? t('followingTab')
+      : t('allChats');
+
+  const isAllGroupActive = activeTab === 'all' || activeTab === 'followers' || activeTab === 'following';
+
   return (
     <AppLayout>
       <div className="min-h-screen pb-20">
         {/* Header */}
-        <div className="sticky top-0 z-40 bg-background/60 backdrop-blur-xl border-b border-border/20">
+        <div className="sticky top-0 z-40 bg-gradient-to-b from-indigo-500/25 via-violet-500/20 to-background/10 backdrop-blur-xl">
           <div className="px-4 flex items-center gap-3 py-[5px]">
             {isEditMode ? (
               <>
@@ -309,7 +325,7 @@ const Messages = () => {
                 placeholder={t('searchChats')}
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10" />
+                className="pl-10 h-10 rounded-xl bg-black/25 border-white/15 text-foreground placeholder:text-muted-foreground focus-visible:ring-0 focus-visible:ring-offset-0" />
 
             </div>
           </div>
@@ -317,30 +333,66 @@ const Messages = () => {
           {/* Tabs - 2 rows */}
           <div className="px-4 pb-2 space-y-2">
              <div className="flex gap-2">
-              <Button variant={activeTab === "all" ? "default" : "outline"} size="sm" onClick={() => setActiveTab("all")} className="flex-1">
-                {t('allChats')}
-              </Button>
-              <Button variant={activeTab === "groups" ? "default" : "outline"} size="sm" onClick={() => setActiveTab("groups")} className="flex-1">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className={cn(
+                      'flex-1 h-10 rounded-full border overflow-hidden p-0 justify-start gap-0',
+                      isAllGroupActive
+                        ? 'bg-emerald-500/90 border-emerald-400/60 text-black shadow-sm'
+                        : 'bg-black/25 border-white/15 text-foreground hover:bg-black/35'
+                    )}
+                    aria-label="All options"
+                  >
+                    <span
+                      className={cn(
+                        'h-full w-11 flex items-center justify-center flex-shrink-0',
+                        isAllGroupActive ? 'bg-emerald-600/90' : 'bg-white/10'
+                      )}
+                    >
+                      <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                        <path
+                          d="M4 4h16L12 20 4 4z"
+                          className={cn(isAllGroupActive ? 'fill-emerald-900/60' : 'fill-white/50')}
+                        />
+                      </svg>
+                    </span>
+                    <span className={cn('h-6 w-px', isAllGroupActive ? 'bg-emerald-200/60' : 'bg-white/15')} />
+                    <span className="flex-1 text-center font-semibold">
+                      {allGroupLabel}
+                    </span>
+                    <span className={cn('h-full w-11 flex items-center justify-center flex-shrink-0', isAllGroupActive ? 'bg-emerald-600/50' : 'bg-white/5')}>
+                      <ChevronDown className="h-4 w-4" />
+                    </span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="min-w-44">
+                  <DropdownMenuItem onClick={() => setActiveTab('all')}>{t('allChats')}</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setActiveTab('followers')}>{t('followersTab')}</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setActiveTab('following')}>{t('followingTab')}</DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+              <Button variant="outline" size="sm" onClick={() => setActiveTab("groups")} className={tabBtnClass(activeTab === "groups")}>
                 <Users className="h-4 w-4 mr-1" />
                 {t('groups')}
               </Button>
-              <Button variant={activeTab === "channels" ? "default" : "outline"} size="sm" onClick={() => setActiveTab("channels")} className="flex-1">
+              <Button variant="outline" size="sm" onClick={() => setActiveTab("channels")} className={tabBtnClass(activeTab === "channels")}>
                 <Megaphone className="h-4 w-4 mr-1" />
                 {t('channels')}
               </Button>
             </div>
             <div className="flex gap-2">
-              <Button variant={activeTab === "followers" ? "default" : "outline"} size="sm" onClick={() => setActiveTab("followers")} className="flex-1">
-                {t('followersTab')}
-              </Button>
-              <Button variant={activeTab === "following" ? "default" : "outline"} size="sm" onClick={() => setActiveTab("following")} className="flex-1">
-                {t('followingTab')}
-              </Button>
               <Button
-                variant={activeTab === "notifications" ? "default" : "outline"}
+                variant="outline"
                 size="sm"
                 onClick={() => setActiveTab("notifications")}
-                className="flex-1 relative">
+                className={cn('flex-1 h-10 rounded-xl border text-sm font-semibold transition-colors relative justify-center',
+                  activeTab === 'notifications'
+                    ? 'bg-black/25 border-white/15 text-foreground'
+                    : 'bg-black/25 border-white/15 text-foreground hover:bg-black/35'
+                )}>
 
                 <Bell className="h-4 w-4 mr-1" />
                 {notifUnreadCount > 0 &&
@@ -357,7 +409,7 @@ const Messages = () => {
         </div>
 
         {/* Content */}
-        <div className="divide-y divide-border">
+        <div className="">
           {/* All chats */}
           {activeTab === "all" &&
           <>
@@ -371,7 +423,6 @@ const Messages = () => {
                   <div
                 onClick={() => navigate('/ai-chat')}
                 className="flex items-center gap-3 p-4 cursor-pointer active:bg-muted transition-colors relative overflow-hidden group">
-
                     {/* Glass background effect */}
                     <div className="absolute inset-0 bg-gradient-to-r from-violet-500/10 via-purple-500/5 to-pink-500/10 group-hover:from-violet-500/15 group-hover:to-pink-500/15 transition-all" />
                     <div className="relative flex items-center gap-3 w-full">
@@ -401,38 +452,39 @@ const Messages = () => {
                     </div>
                   </div>
 
-                  {/* Groups */}
-                  {filteredGroups.map((group) =>
-              <GroupChatItem key={group.id} chat={group} onClick={() => handleGroupClick(group.id)} />
-              )}
+                  <div className="divide-y divide-border">
+                    {/* Groups */}
+                    {filteredGroups.map((group) =>
+                  <GroupChatItem key={group.id} chat={group} onClick={() => handleGroupClick(group.id)} />
+                  )}
 
-                  {/* Channels */}
-                  {filteredChannels.map((channel) =>
-              <GroupChatItem key={channel.id} chat={channel} onClick={() => handleGroupClick(channel.id)} />
-              )}
+                    {/* Channels */}
+                    {filteredChannels.map((channel) =>
+                  <GroupChatItem key={channel.id} chat={channel} onClick={() => handleGroupClick(channel.id)} />
+                  )}
 
-                  {/* Conversations */}
-                  {filteredConversations.map((conv) =>
-              <div
-                key={conv.id}
-                onClick={() => {
-                  if (isEditMode) {
-                    setSelectedConvIds(prev => {
-                      const next = new Set(prev);
-                      if (next.has(conv.id)) next.delete(conv.id);
-                      else next.add(conv.id);
-                      return next;
-                    });
-                  } else {
-                    handleUserClick(conv.otherUser.id);
-                  }
-                }}
-                className={cn(
-                  "flex items-center gap-3 p-4 cursor-pointer active:bg-muted transition-colors",
-                  isEditMode && selectedConvIds.has(conv.id) 
-                    ? "bg-primary/10" 
-                    : "hover:bg-muted/50"
-                )}>
+                    {/* Conversations */}
+                    {filteredConversations.map((conv) =>
+                  <div
+                    key={conv.id}
+                    onClick={() => {
+                      if (isEditMode) {
+                        setSelectedConvIds(prev => {
+                          const next = new Set(prev);
+                          if (next.has(conv.id)) next.delete(conv.id);
+                          else next.add(conv.id);
+                          return next;
+                        });
+                      } else {
+                        handleUserClick(conv.otherUser.id);
+                      }
+                    }}
+                    className={cn(
+                      "flex items-center gap-3 p-4 cursor-pointer active:bg-muted transition-colors",
+                      isEditMode && selectedConvIds.has(conv.id) 
+                        ? "bg-primary/10" 
+                        : "hover:bg-muted/50"
+                    )}>
 
                       {isEditMode && (
                         <div className={cn(
@@ -478,7 +530,9 @@ const Messages = () => {
                   }
                       </div>
                     </div>
-              )}
+                  )}
+
+                  </div>
 
                   {filteredConversations.length === 0 &&
               filteredGroups.length === 0 &&
@@ -489,7 +543,7 @@ const Messages = () => {
                          <p className="text-sm text-muted-foreground mt-1">{t('createGroupOrChannel')}</p>
                       </div>
               }
-                </>
+            </>
             }
             </>
           }
