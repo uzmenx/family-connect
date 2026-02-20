@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -46,6 +46,17 @@ const Profile = () => {
   const [showCollabRequests, setShowCollabRequests] = useState(false);
   const [showPostsStats, setShowPostsStats] = useState(false);
   const [bioExpanded, setBioExpanded] = useState(false);
+  const [needsMoreButton, setNeedsMoreButton] = useState(false);
+  const bioRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (bioRef.current && profile?.bio) {
+      // Check if bio text overflows 3 lines
+      const lineHeight = parseInt(window.getComputedStyle(bioRef.current).lineHeight) || 20;
+      const maxHeight = lineHeight * 3;
+      setNeedsMoreButton(bioRef.current.scrollHeight > maxHeight);
+    }
+  }, [profile?.bio]);
   const scrollContainerRef = useSmoothScroll(true, true);
 
   const hideHighlights = (profile as any)?.hide_highlights === true;
@@ -191,9 +202,42 @@ const Profile = () => {
 
           {/* Bio */}
           {profile?.bio && (
-            <p className="text-center text-sm text-muted-foreground mb-3 max-w-xs mx-auto leading-relaxed">
-              {profile.bio}
-            </p>
+            <div className="mb-4 px-4">
+              <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl p-4 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+                <div className="relative">
+                  <div 
+                    ref={bioRef}
+                    className={`text-sm text-muted-foreground leading-relaxed transition-all duration-300 ${
+                      !bioExpanded && needsMoreButton ? 'line-clamp-3' : ''
+                    }`}
+                    style={{
+                      overflow: 'hidden',
+                      display: '-webkit-box',
+                      WebkitBoxOrient: 'vertical',
+                      WebkitLineClamp: bioExpanded ? 'unset' : '3'
+                    }}
+                  >
+                    {profile.bio}
+                    {!bioExpanded && needsMoreButton && (
+                      <span 
+                        onClick={() => setBioExpanded(true)}
+                        className="text-blue-500 hover:underline cursor-pointer ml-1 transition-colors duration-200"
+                      >
+                        Ko'proq
+                      </span>
+                    )}
+                  </div>
+                  {bioExpanded && (
+                    <button
+                      onClick={() => setBioExpanded(false)}
+                      className="text-blue-500 hover:underline cursor-pointer text-sm font-medium mt-2 transition-colors duration-200"
+                    >
+                      Kamroq
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
           )}
 
           {/* Social Links */}
