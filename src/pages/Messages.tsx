@@ -337,12 +337,12 @@ const Messages = () => {
                 <div
                   className={cn(
                     "flex-1 h-10 rounded-full border overflow-hidden flex",
-                    isAllGroupActive
-                      ? "bg-gradient-to-r from-indigo-500/90 via-violet-500/90 to-fuchsia-500/90 border-white/20 text-white shadow-[0_14px_34px_-16px_rgba(99,102,241,0.9)]"
-                      : "bg-black/25 border-white/15 text-foreground hover:bg-black/35"
+                    isAllGroupActive ?
+                    "bg-gradient-to-r from-indigo-500/90 via-violet-500/90 to-fuchsia-500/90 border-white/20 text-white shadow-[0_14px_34px_-16px_rgba(99,102,241,0.9)]" :
+                    "bg-black/25 border-white/15 text-foreground hover:bg-black/35"
                   )}
-                  aria-label="All options"
-                >
+                  aria-label="All options">
+
                   <DropdownMenuTrigger asChild>
                     <button
                       type="button"
@@ -350,15 +350,15 @@ const Messages = () => {
                         "h-full w-[30%] flex items-center justify-center transition-colors",
                         isAllGroupActive ? "bg-black/10" : "bg-white/10",
                         "active:scale-[0.99]"
-                      )}
-                    >
+                      )}>
+
                       <span className="inline-flex items-center gap-1">
-                        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
-                          <path
-                            d="M4 4h16L12 20 4 4z"
-                            className={cn(isAllGroupActive ? "fill-black/40" : "fill-white/50")}
-                          />
-                        </svg>
+                        
+
+
+
+
+
                         <ChevronDown className="h-4 w-4 opacity-80" />
                       </span>
                     </button>
@@ -370,8 +370,8 @@ const Messages = () => {
                     className={cn(
                       "h-full flex-1 font-semibold flex items-center justify-center transition-colors",
                       "active:scale-[0.99]"
-                    )}
-                  >
+                    )}>
+
                     {t("allChats")}
                   </button>
                 </div>
