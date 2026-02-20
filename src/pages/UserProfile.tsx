@@ -2,7 +2,6 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { AppLayout } from '@/components/layout/AppLayout';
-import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Grid3X3, Bookmark, Users, AtSign } from 'lucide-react';
@@ -146,101 +145,135 @@ const UserProfilePage = () => {
         </div>
 
         {/* Cover Image */}
-        <div className="h-32 bg-gradient-to-r from-primary to-accent overflow-hidden">
-          {profile.cover_url && (
+        <div className="relative h-36 overflow-hidden">
+          {profile.cover_url ? (
             <img src={profile.cover_url} alt="Cover" className="w-full h-full object-cover" />
+          ) : (
+            <div className="w-full h-full bg-gradient-to-br from-primary via-accent to-primary/60" />
           )}
+          {/* Dark overlay for readability */}
+          <div className="absolute inset-0 bg-black/20" />
         </div>
         
         {/* Profile Info */}
-        <div className="px-4">
-          <div className="relative -mt-16 mb-4 flex items-end justify-between">
-            <Avatar className="h-24 w-24 border-4 border-background">
-              <AvatarImage src={profile.avatar_url || undefined} />
-              <AvatarFallback className="text-2xl bg-primary text-primary-foreground">
-                {getInitials(profile.name)}
-              </AvatarFallback>
-            </Avatar>
-            
-            {userId && (
-              <div className="flex gap-2 flex-wrap">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setSelectMemberOpen(true)}
-                  className="gap-1"
-                >
-                  <Users className="h-4 w-4" />
-                  Qarindoshim
-                </Button>
-                <FollowButton targetUserId={userId} />
-                <MessageButton userId={userId} />
-              </div>
-            )}
+        <div className="px-4 -mt-10 relative z-10">
+          {/* ROW 1: Followers | Avatar | Postlar */}
+          <div className="flex items-end justify-between gap-3 mb-3">
+
+            {/* LEFT: Followers */}
+            <div className="flex-1 flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-3 py-3 shadow-lg min-w-0">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
+                Kuzatuvchilar
+              </span>
+              <span className="text-xl font-extrabold text-foreground leading-none">
+                {formatCount(followersCount)}
+              </span>
+            </div>
+
+            {/* CENTER: Avatar */}
+            <div className="flex-shrink-0 flex flex-col items-center">
+              <Avatar className="h-24 w-24 border-4 border-background shadow-2xl ring-2 ring-primary/30">
+                <AvatarImage src={profile.avatar_url || undefined} />
+                <AvatarFallback className="text-2xl bg-gradient-to-br from-primary to-accent text-white font-bold">
+                  {getInitials(profile.name)}
+                </AvatarFallback>
+              </Avatar>
+            </div>
+
+            {/* RIGHT: Postlar */}
+            <div className="flex-1 flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-3 py-3 shadow-lg min-w-0">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
+                Postlar
+              </span>
+              <span className="text-xl font-extrabold text-foreground leading-none">
+                {formatCount(postsCount)}
+              </span>
+            </div>
           </div>
 
-          <div className="mb-4">
-            <h1 className="text-2xl font-bold">{profile.name || 'Foydalanuvchi'}</h1>
-            <p className="text-muted-foreground">
+          {/* ROW 2: Name & Username */}
+          <div className="text-center mb-3">
+            <h1 className="text-xl font-extrabold text-foreground leading-tight">
+              {profile.name || 'Foydalanuvchi'}
+            </h1>
+            <p className="text-sm text-muted-foreground mt-0.5">
               @{profile.username || 'username'}
             </p>
           </div>
 
+          {/* ROW 3: Kuzatilmoqda — centered */}
+          <div className="flex justify-center mb-3">
+            <div className="flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-8 py-3 shadow-lg">
+              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
+                Kuzatilmoqda
+              </span>
+              <span className="text-xl font-extrabold text-foreground leading-none">
+                {formatCount(followingCount)}
+              </span>
+            </div>
+          </div>
+
+          {/* Bio */}
           {profile.bio && (
-            <p className="text-sm mb-3">{profile.bio}</p>
+            <p className="text-center text-sm text-muted-foreground mb-3 max-w-xs mx-auto leading-relaxed">
+              {profile.bio}
+            </p>
+          )}
+
+          {/* Action Buttons */}
+          {userId && (
+            <div className="flex justify-center gap-2 mb-4">
+              <Button
+                variant="outline"
+                size="sm"
+                className="bg-white/10 dark:bg-white/5 border-white/20 hover:bg-white/20 text-foreground h-9 text-sm"
+                onClick={() => setSelectMemberOpen(true)}
+              >
+                <Users className="h-4 w-4 mr-2" />
+                Qarindoshim
+              </Button>
+              <FollowButton targetUserId={userId} />
+              <MessageButton userId={userId} />
+            </div>
           )}
 
           {/* Social Links */}
           {profile.social_links && profile.social_links.length > 0 && (
-            <SocialLinksList links={profile.social_links} className="mb-4" />
+            <SocialLinksList links={profile.social_links} className="justify-center mb-3" />
           )}
-
-          {/* Stats */}
-          <Card className="mb-6">
-            <CardContent className="py-4">
-              <div className="grid grid-cols-3 gap-4 text-center">
-                <div>
-                  <p className="text-2xl font-bold">{formatCount(postsCount)}</p>
-                  <p className="text-sm text-muted-foreground">Postlar</p>
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{formatCount(followersCount)}</p>
-                  <p className="text-sm text-muted-foreground">Kuzatuvchilar</p>
-                </div>
-                <div>
-                  <p className="text-2xl font-bold">{formatCount(followingCount)}</p>
-                  <p className="text-sm text-muted-foreground">Kuzatilmoqda</p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
         </div>
 
         {/* Story Highlights */}
         {highlights.length > 0 && (
-          <HighlightsRow highlights={highlights} isOwner={false} />
+          <div className="flex justify-center">
+            <HighlightsRow highlights={highlights} isOwner={false} />
+          </div>
         )}
 
         {/* Collections filter */}
         {collections.length > 0 && activeTab === 'posts' && (
-          <CollectionsFilter
-            collections={collections}
-            selectedId={selectedCollectionId}
-            onSelect={setSelectedCollectionId}
-            isOwner={false}
-          />
+          <div className="flex justify-center">
+            <CollectionsFilter
+              collections={collections}
+              selectedId={selectedCollectionId}
+              onSelect={setSelectedCollectionId}
+              isOwner={false}
+            />
+          </div>
         )}
 
+        {/* ═══════════════════════════════════════
+            TABS
+        ═══════════════════════════════════════ */}
         <div className="px-4">
-          {/* Tabs */}
           <div className="flex border-b border-border mb-4">
             <button
               onClick={() => setActiveTab('posts')}
               className={cn(
-                "flex-1 py-3 flex items-center justify-center gap-2 border-b-2 transition-colors",
-                activeTab === 'posts' 
-                  ? "border-primary text-primary" 
-                  : "border-transparent text-muted-foreground"
+                'flex-1 py-3 flex items-center justify-center border-b-2 transition-colors',
+                activeTab === 'posts'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted-foreground'
               )}
             >
               <Grid3X3 className="h-5 w-5" />
@@ -248,10 +281,10 @@ const UserProfilePage = () => {
             <button
               onClick={() => setActiveTab('saved')}
               className={cn(
-                "flex-1 py-3 flex items-center justify-center gap-2 border-b-2 transition-colors",
-                activeTab === 'saved' 
-                  ? "border-primary text-primary" 
-                  : "border-transparent text-muted-foreground"
+                'flex-1 py-3 flex items-center justify-center border-b-2 transition-colors',
+                activeTab === 'saved'
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted-foreground'
               )}
             >
               <Bookmark className="h-5 w-5" />
@@ -259,10 +292,10 @@ const UserProfilePage = () => {
             <button
               onClick={() => setActiveTab('mentions')}
               className={cn(
-                "flex-1 py-3 flex items-center justify-center gap-2 border-b-2 transition-colors",
+                'flex-1 py-3 flex items-center justify-center border-b-2 transition-colors',
                 activeTab === 'mentions'
-                  ? "border-primary text-primary"
-                  : "border-transparent text-muted-foreground"
+                  ? 'border-primary text-primary'
+                  : 'border-transparent text-muted-foreground'
               )}
             >
               <AtSign className="h-5 w-5" />
