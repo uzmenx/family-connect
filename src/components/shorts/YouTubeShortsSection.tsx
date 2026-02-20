@@ -33,7 +33,7 @@ function loadCache(): CacheData | null {
       return null;
     }
     return parsed;
-  } catch { return null; }
+  } catch {return null;}
 }
 
 function saveCache(shorts: Short[], nextPageToken: string | null) {
@@ -62,15 +62,15 @@ export function YouTubeShortsSection({ onShortClick }: YouTubeShortsProps) {
     fetchingRef.current = true;
 
     const isFirstLoad = !pageToken;
-    if (isFirstLoad) setIsLoading(true);
-    else setIsLoadingMore(true);
+    if (isFirstLoad) setIsLoading(true);else
+    setIsLoadingMore(true);
 
     try {
       const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
       const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       const params = new URLSearchParams({
         q: 'shorts trending viral funny',
-        maxResults: '20',
+        maxResults: '20'
       });
       if (pageToken) params.set('pageToken', pageToken);
 
@@ -83,11 +83,11 @@ export function YouTubeShortsSection({ onShortClick }: YouTubeShortsProps) {
       const newShorts: Short[] = data?.shorts || [];
       const newToken: string | null = data?.nextPageToken || null;
 
-      setShorts(prev => {
+      setShorts((prev) => {
         const combined = isFirstLoad ? newShorts : [...prev, ...newShorts];
         // Deduplicate by id
         const seen = new Set<string>();
-        const unique = combined.filter(s => {
+        const unique = combined.filter((s) => {
           if (seen.has(s.id)) return false;
           seen.add(s.id);
           return true;
@@ -137,7 +137,7 @@ export function YouTubeShortsSection({ onShortClick }: YouTubeShortsProps) {
     if (!scrollRef.current) return;
     scrollRef.current.scrollBy({
       left: direction === 'left' ? -240 : 240,
-      behavior: 'smooth',
+      behavior: 'smooth'
     });
   }, []);
 
@@ -149,12 +149,12 @@ export function YouTubeShortsSection({ onShortClick }: YouTubeShortsProps) {
           <div className="w-16 h-3 rounded bg-muted/50 animate-pulse" />
         </div>
         <div className="flex gap-2 overflow-hidden">
-          {[...Array(4)].map((_, i) => (
-            <div key={i} className="w-[110px] h-[196px] rounded-2xl bg-muted/30 animate-pulse shrink-0" />
-          ))}
+          {[...Array(4)].map((_, i) =>
+          <div key={i} className="w-[110px] h-[196px] rounded-2xl bg-muted/30 animate-pulse shrink-0" />
+          )}
         </div>
-      </div>
-    );
+      </div>);
+
   }
 
   if (shorts.length === 0) return null;
@@ -166,19 +166,19 @@ export function YouTubeShortsSection({ onShortClick }: YouTubeShortsProps) {
         <div className="flex items-center gap-1.5">
           <Flame className="w-3.5 h-3.5 text-destructive" />
           <span className="font-semibold text-xs text-foreground">Shorts</span>
-          <span className="text-[10px] text-muted-foreground">({shorts.length})</span>
+          
         </div>
         <div className="flex gap-0.5">
           <button
             onClick={() => scroll('left')}
-            className="w-6 h-6 rounded-full bg-background/60 backdrop-blur-sm flex items-center justify-center border border-border/20"
-          >
+            className="w-6 h-6 rounded-full bg-background/60 backdrop-blur-sm flex items-center justify-center border border-border/20">
+
             <ChevronLeft className="w-3 h-3 text-muted-foreground" />
           </button>
           <button
             onClick={() => scroll('right')}
-            className="w-6 h-6 rounded-full bg-background/60 backdrop-blur-sm flex items-center justify-center border border-border/20"
-          >
+            className="w-6 h-6 rounded-full bg-background/60 backdrop-blur-sm flex items-center justify-center border border-border/20">
+
             <ChevronRight className="w-3 h-3 text-muted-foreground" />
           </button>
         </div>
@@ -190,20 +190,20 @@ export function YouTubeShortsSection({ onShortClick }: YouTubeShortsProps) {
       <div
         ref={scrollRef}
         className="shorts-carousel flex gap-2 overflow-x-auto px-3 snap-x snap-mandatory"
-        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}
-      >
-        {shorts.map((short, index) => (
-          <div
-            key={`${short.id}-${index}`}
-            className="relative w-[110px] h-[196px] rounded-2xl overflow-hidden shrink-0 snap-start cursor-pointer group"
-            onClick={() => onShortClick?.(shorts, index)}
-          >
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}>
+
+        {shorts.map((short, index) =>
+        <div
+          key={`${short.id}-${index}`}
+          className="relative w-[110px] h-[196px] rounded-2xl overflow-hidden shrink-0 snap-start cursor-pointer group"
+          onClick={() => onShortClick?.(shorts, index)}>
+
             <img
-              src={short.thumbnail}
-              alt={short.title}
-              className="absolute inset-0 w-full h-full object-cover"
-              loading="lazy"
-            />
+            src={short.thumbnail}
+            alt={short.title}
+            className="absolute inset-0 w-full h-full object-cover"
+            loading="lazy" />
+
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/10" />
             
             <div className="absolute inset-0 flex items-center justify-center opacity-80 group-hover:opacity-100 transition-opacity">
@@ -221,19 +221,19 @@ export function YouTubeShortsSection({ onShortClick }: YouTubeShortsProps) {
               </p>
             </div>
           </div>
-        ))}
+        )}
 
         {/* Loader sentinel for infinite scroll */}
         <div ref={loaderRef} className="flex items-center justify-center shrink-0 w-[60px]">
-          {isLoadingMore ? (
-            <Loader2 className="w-5 h-5 text-muted-foreground animate-spin" />
-          ) : nextToken ? (
-            <div className="w-5 h-5 rounded-full border-2 border-muted-foreground/30" />
-          ) : (
-            <p className="text-[9px] text-muted-foreground whitespace-nowrap">Hammasi ✓</p>
-          )}
+          {isLoadingMore ?
+          <Loader2 className="w-5 h-5 text-muted-foreground animate-spin" /> :
+          nextToken ?
+          <div className="w-5 h-5 rounded-full border-2 border-muted-foreground/30" /> :
+
+          <p className="text-[9px] text-muted-foreground whitespace-nowrap">Hammasi ✓</p>
+          }
         </div>
       </div>
-    </div>
-  );
+    </div>);
+
 }
