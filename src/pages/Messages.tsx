@@ -332,7 +332,7 @@ const Messages = () => {
 
           {/* Tabs - 2 rows */}
           <div className="px-4 pb-2 space-y-2">
-             <div className="flex gap-2">
+             <div className="flex-row flex items-start justify-start gap-[3px]">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
@@ -539,7 +539,7 @@ const Messages = () => {
               filteredChannels.length === 0 &&
               <div className="text-center py-12 px-4">
                          <MessageCircle className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
-                         <p className="text-muted-foreground">{t('noChats')}</p>
+                         
                          <p className="text-sm text-muted-foreground mt-1">{t('createGroupOrChannel')}</p>
                       </div>
               }
