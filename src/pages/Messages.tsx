@@ -59,7 +59,7 @@ const Messages = () => {
   const [followers, setFollowers] = useState<FollowUser[]>([]);
   const [following, setFollowing] = useState<FollowUser[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
-  
+
   // Edit mode
   const [isEditMode, setIsEditMode] = useState(false);
   const [selectedConvIds, setSelectedConvIds] = useState<Set<string>>(new Set());
@@ -248,16 +248,16 @@ const Messages = () => {
 
   const tabBtnClass = (isActive: boolean) => cn(
     'flex-1 h-10 rounded-xl border text-sm font-semibold transition-colors',
-    isActive
-      ? 'bg-emerald-500/90 border-emerald-400/60 text-black shadow-sm'
-      : 'bg-black/25 border-white/15 text-foreground hover:bg-black/35'
+    isActive ?
+    'bg-emerald-500/90 border-emerald-400/60 text-black shadow-sm' :
+    'bg-black/25 border-white/15 text-foreground hover:bg-black/35'
   );
 
-  const allGroupLabel = activeTab === 'followers'
-    ? t('followersTab')
-    : activeTab === 'following'
-      ? t('followingTab')
-      : t('allChats');
+  const allGroupLabel = activeTab === 'followers' ?
+  t('followersTab') :
+  activeTab === 'following' ?
+  t('followingTab') :
+  t('allChats');
 
   const isAllGroupActive = activeTab === 'all' || activeTab === 'followers' || activeTab === 'following';
 
@@ -267,54 +267,54 @@ const Messages = () => {
         {/* Header */}
         <div className="sticky top-0 z-40 bg-gradient-to-b from-indigo-500/25 via-violet-500/20 to-background/10 backdrop-blur-xl">
           <div className="px-4 flex items-center gap-3 py-[5px]">
-            {isEditMode ? (
-              <>
-                <Button variant="ghost" size="icon" onClick={() => { setIsEditMode(false); setSelectedConvIds(new Set()); }}>
+            {isEditMode ?
+            <>
+                <Button variant="ghost" size="icon" onClick={() => {setIsEditMode(false);setSelectedConvIds(new Set());}}>
                   <X className="h-5 w-5" />
                 </Button>
                 <span className="flex-1 font-semibold">{selectedConvIds.size} tanlandi</span>
                 <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setShowRingtoneSelector(true)}
-                  title="Qo'ng'iroq ovozi"
-                >
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowRingtoneSelector(true)}
+                title="Qo'ng'iroq ovozi">
+
                   <Music className="h-5 w-5" />
                 </Button>
                 <Button
-                  variant="ghost"
-                  size="icon"
-                  className="text-destructive"
-                  disabled={selectedConvIds.size === 0}
-                  onClick={async () => {
-                    for (const id of selectedConvIds) {
-                      // Delete all messages first, then conversation
-                      await supabase.from('messages').delete().eq('conversation_id', id);
-                      await supabase.from('conversations').delete().eq('id', id);
-                    }
-                    setSelectedConvIds(new Set());
-                    setIsEditMode(false);
-                    toast.success("O'chirildi");
-                    // Refetch handled by realtime
-                  }}
-                >
+                variant="ghost"
+                size="icon"
+                className="text-destructive"
+                disabled={selectedConvIds.size === 0}
+                onClick={async () => {
+                  for (const id of selectedConvIds) {
+                    // Delete all messages first, then conversation
+                    await supabase.from('messages').delete().eq('conversation_id', id);
+                    await supabase.from('conversations').delete().eq('id', id);
+                  }
+                  setSelectedConvIds(new Set());
+                  setIsEditMode(false);
+                  toast.success("O'chirildi");
+                  // Refetch handled by realtime
+                }}>
+
                   <Trash2 className="h-5 w-5" />
                 </Button>
-              </>
-            ) : (
-              <>
+              </> :
+
+            <>
                 <h1 className="text-xl font-bold flex-1">{t('messages')}</h1>
                 {totalUnread > 0 &&
-                  <Badge variant="destructive" className="rounded-full">
+              <Badge variant="destructive" className="rounded-full">
                     {totalUnread}
                   </Badge>
-                }
+              }
                 <Button variant="ghost" size="icon" onClick={() => setIsEditMode(true)}>
                   <Edit2 className="h-5 w-5" />
                 </Button>
                 <NewChatMenu onNewGroup={handleNewGroup} onNewChannel={handleNewChannel} />
               </>
-            )}
+            }
           </div>
 
           {/* Search */}
@@ -340,24 +340,24 @@ const Messages = () => {
                     size="sm"
                     className={cn(
                       'flex-1 h-10 rounded-full border overflow-hidden p-0 justify-start gap-0',
-                      isAllGroupActive
-                        ? 'bg-emerald-500/90 border-emerald-400/60 text-black shadow-sm'
-                        : 'bg-black/25 border-white/15 text-foreground hover:bg-black/35'
+                      isAllGroupActive ?
+                      'bg-emerald-500/90 border-emerald-400/60 text-black shadow-sm' :
+                      'bg-black/25 border-white/15 text-foreground hover:bg-black/35'
                     )}
-                    aria-label="All options"
-                  >
+                    aria-label="All options">
+
                     <span
                       className={cn(
                         'h-full w-11 flex items-center justify-center flex-shrink-0',
                         isAllGroupActive ? 'bg-emerald-600/90' : 'bg-white/10'
-                      )}
-                    >
-                      <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
-                        <path
-                          d="M4 4h16L12 20 4 4z"
-                          className={cn(isAllGroupActive ? 'fill-emerald-900/60' : 'fill-white/50')}
-                        />
-                      </svg>
+                      )}>
+
+                      
+
+
+
+
+
                     </span>
                     <span className={cn('h-6 w-px', isAllGroupActive ? 'bg-emerald-200/60' : 'bg-white/15')} />
                     <span className="flex-1 text-center font-semibold">
@@ -389,9 +389,9 @@ const Messages = () => {
                 size="sm"
                 onClick={() => setActiveTab("notifications")}
                 className={cn('flex-1 h-10 rounded-xl border text-sm font-semibold transition-colors relative justify-center',
-                  activeTab === 'notifications'
-                    ? 'bg-black/25 border-white/15 text-foreground'
-                    : 'bg-black/25 border-white/15 text-foreground hover:bg-black/35'
+                activeTab === 'notifications' ?
+                'bg-black/25 border-white/15 text-foreground' :
+                'bg-black/25 border-white/15 text-foreground hover:bg-black/35'
                 )}>
 
                 <Bell className="h-4 w-4 mr-1" />
@@ -429,13 +429,13 @@ const Messages = () => {
                       <div className="relative">
                         <div className="h-12 w-12 rounded-full bg-gradient-to-br from-violet-500 via-purple-500 to-pink-500 p-[2px] shadow-lg shadow-purple-500/30">
                           <img
-                            src="/ai-avatar.png"
-                            alt="AI"
-                            className="h-full w-full rounded-full object-cover bg-background"
-                            onError={(e) => {
-                              (e.currentTarget as HTMLImageElement).src = '/favicon.ico';
-                            }}
-                          />
+                        src="/ai-avatar.png"
+                        alt="AI"
+                        className="h-full w-full rounded-full object-cover bg-background"
+                        onError={(e) => {
+                          (e.currentTarget as HTMLImageElement).src = '/favicon.ico';
+                        }} />
+
                         </div>
                         <div className="absolute -bottom-0.5 -right-0.5 h-3.5 w-3.5 rounded-full bg-green-500 border-2 border-background" />
                       </div>
@@ -455,59 +455,59 @@ const Messages = () => {
                   <div className="divide-y divide-border">
                     {/* Groups */}
                     {filteredGroups.map((group) =>
-                  <GroupChatItem key={group.id} chat={group} onClick={() => handleGroupClick(group.id)} />
-                  )}
+                <GroupChatItem key={group.id} chat={group} onClick={() => handleGroupClick(group.id)} />
+                )}
 
                     {/* Channels */}
                     {filteredChannels.map((channel) =>
-                  <GroupChatItem key={channel.id} chat={channel} onClick={() => handleGroupClick(channel.id)} />
-                  )}
+                <GroupChatItem key={channel.id} chat={channel} onClick={() => handleGroupClick(channel.id)} />
+                )}
 
                     {/* Conversations */}
                     {filteredConversations.map((conv) =>
-                  <div
-                    key={conv.id}
-                    onClick={() => {
-                      if (isEditMode) {
-                        setSelectedConvIds(prev => {
-                          const next = new Set(prev);
-                          if (next.has(conv.id)) next.delete(conv.id);
-                          else next.add(conv.id);
-                          return next;
-                        });
-                      } else {
-                        handleUserClick(conv.otherUser.id);
-                      }
-                    }}
-                    className={cn(
-                      "flex items-center gap-3 p-4 cursor-pointer active:bg-muted transition-colors",
-                      isEditMode && selectedConvIds.has(conv.id) 
-                        ? "bg-primary/10" 
-                        : "hover:bg-muted/50"
-                    )}>
+                <div
+                  key={conv.id}
+                  onClick={() => {
+                    if (isEditMode) {
+                      setSelectedConvIds((prev) => {
+                        const next = new Set(prev);
+                        if (next.has(conv.id)) next.delete(conv.id);else
+                        next.add(conv.id);
+                        return next;
+                      });
+                    } else {
+                      handleUserClick(conv.otherUser.id);
+                    }
+                  }}
+                  className={cn(
+                    "flex items-center gap-3 p-4 cursor-pointer active:bg-muted transition-colors",
+                    isEditMode && selectedConvIds.has(conv.id) ?
+                    "bg-primary/10" :
+                    "hover:bg-muted/50"
+                  )}>
 
-                      {isEditMode && (
-                        <div className={cn(
-                          "w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0",
-                          selectedConvIds.has(conv.id) 
-                            ? "bg-primary border-primary" 
-                            : "border-muted-foreground/40"
-                        )}>
-                          {selectedConvIds.has(conv.id) && (
-                            <CheckSquare className="h-3 w-3 text-primary-foreground" />
-                          )}
+                      {isEditMode &&
+                  <div className={cn(
+                    "w-5 h-5 rounded-full border-2 flex items-center justify-center flex-shrink-0",
+                    selectedConvIds.has(conv.id) ?
+                    "bg-primary border-primary" :
+                    "border-muted-foreground/40"
+                  )}>
+                          {selectedConvIds.has(conv.id) &&
+                    <CheckSquare className="h-3 w-3 text-primary-foreground" />
+                    }
                         </div>
-                      )}
+                  }
                       <div className="relative">
                         <Avatar className="h-12 w-12">
                           <AvatarImage src={conv.otherUser.avatar_url || undefined} />
                           <AvatarFallback>{getInitials(conv.otherUser.name)}</AvatarFallback>
                         </Avatar>
                         {conv.unreadCount > 0 &&
-                  <span className="absolute -top-1 -right-1 h-5 w-5 bg-primary text-primary-foreground text-xs rounded-full flex items-center justify-center">
+                    <span className="absolute -top-1 -right-1 h-5 w-5 bg-primary text-primary-foreground text-xs rounded-full flex items-center justify-center">
                             {conv.unreadCount > 9 ? "9+" : conv.unreadCount}
                           </span>
-                  }
+                    }
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
@@ -515,22 +515,22 @@ const Messages = () => {
                             {conv.otherUser.name || conv.otherUser.username || t('user')}
                           </h3>
                           {conv.lastMessage &&
-                    <span className="text-xs text-muted-foreground">
+                      <span className="text-xs text-muted-foreground">
                               {formatTime(conv.lastMessage.created_at)}
                             </span>
-                    }
+                      }
                         </div>
                         {conv.lastMessage &&
-                  <p
-                    className={`text-sm truncate ${conv.unreadCount > 0 ? "text-foreground font-medium" : "text-muted-foreground"}`}>
+                    <p
+                      className={`text-sm truncate ${conv.unreadCount > 0 ? "text-foreground font-medium" : "text-muted-foreground"}`}>
 
                             {conv.lastMessage.sender_id === user?.id ? `${t('you')}: ` : ""}
                             {conv.lastMessage.content}
                           </p>
-                  }
+                    }
                       </div>
                     </div>
-                  )}
+                )}
 
                   </div>
 
@@ -699,10 +699,10 @@ const Messages = () => {
         </>
       }
 
-      <RingtoneSelector 
-        open={showRingtoneSelector} 
-        onOpenChange={setShowRingtoneSelector} 
-      />
+      <RingtoneSelector
+        open={showRingtoneSelector}
+        onOpenChange={setShowRingtoneSelector} />
+
     </AppLayout>);
 
 };
