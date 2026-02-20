@@ -6,7 +6,7 @@ import { supabase } from '@/integrations/supabase/client';
  * Jarayon:
  * 1. Taklif qabul qilinadi → receiver profilini placeholder ga bog'laymiz
  * 2. Ota-onalarni avtomatik birlashtiramiz (jinsi va munosabat bo'yicha)
- * 3. Farzandlarni tavsiya qilamiz (ism o'xshashligi va jinsi bo'yicha)
+ * 3. Farzandlarni juftlik (couple) bo'yicha guruhlash va tavsiya qilish
  * 4. Foydalanuvchi tasdiqlaydi
  * 
  * Qoida: merged_into maydonidan foydalanamiz, relation_type ni O'ZGARTIRMAYMIZ!
@@ -37,8 +37,18 @@ export interface ChildMergeSuggestion {
   similarity: number;
 }
 
+export interface CoupleGroup {
+  label: string;
+  parentMerges: MergeCandidate[];
+  sourceChildren: ChildProfile[];
+  targetChildren: ChildProfile[];
+  childSuggestions: ChildMergeSuggestion[];
+}
+
 export interface MergeResult {
   parentMerges: MergeCandidate[];
+  coupleGroups: CoupleGroup[];
+  // backward compat
   childSuggestions: ChildMergeSuggestion[];
   allSourceChildren: ChildProfile[];
   allTargetChildren: ChildProfile[];
@@ -61,7 +71,7 @@ interface TreeMember {
 /**
  * Ism o'xshashligini hisoblash (0-100)
  */
-const calculateSimilarity = (name1: string, name2: string): number => {
+export const calculateSimilarity = (name1: string, name2: string): number => {
   if (!name1 || !name2) return 0;
   
   const n1 = name1.toLowerCase().trim();
@@ -71,7 +81,6 @@ const calculateSimilarity = (name1: string, name2: string): number => {
   if (n1.includes(n2) || n2.includes(n1)) return 80;
   if (n1.length >= 3 && n2.length >= 3 && n1.slice(0, 3) === n2.slice(0, 3)) return 60;
   
-  // Oddiy harf mosligini hisoblash
   const maxLen = Math.max(n1.length, n2.length);
   let matches = 0;
   for (let i = 0; i < Math.min(n1.length, n2.length); i++) {
@@ -82,20 +91,55 @@ const calculateSimilarity = (name1: string, name2: string): number => {
 };
 
 /**
+ * Farzandlar uchun tavsiyalarni hisoblash
+ */
+const computeChildSuggestions = (
+  sourceChildren: ChildProfile[],
+  targetChildren: ChildProfile[]
+): ChildMergeSuggestion[] => {
+  const suggestions: ChildMergeSuggestion[] = [];
+  const usedTargetIds = new Set<string>();
+  
+  for (const sourceChild of sourceChildren) {
+    const availableTargets = targetChildren.filter(
+      t => t.gender === sourceChild.gender && !usedTargetIds.has(t.id)
+    );
+    
+    if (availableTargets.length === 0) continue;
+    
+    const scored = availableTargets.map(target => ({
+      target,
+      similarity: calculateSimilarity(sourceChild.name, target.name),
+    }));
+    scored.sort((a, b) => b.similarity - a.similarity);
+    
+    const best = scored[0];
+    if (best && best.similarity >= 30) {
+      suggestions.push({
+        sourceChild,
+        targetChild: best.target,
+        similarity: best.similarity,
+      });
+      usedTargetIds.add(best.target.id);
+    }
+  }
+  
+  return suggestions;
+};
+
+/**
  * Member ning ota-onalarini topish
  */
 const findParents = (member: TreeMember, allMembers: TreeMember[]): TreeMember[] => {
   const parents: TreeMember[] = [];
   const relType = member.relation_type || '';
   
-  // child_of_X formatidagi ota-onalarni topish
   const childMatch = relType.match(/child_of_([a-f0-9-]+)/);
   if (childMatch) {
     const parentId = childMatch[1];
     const parent = allMembers.find(m => m.id === parentId);
     if (parent) {
       parents.push(parent);
-      // Juftini ham topish
       const spouse = allMembers.find(m => 
         m.relation_type === `spouse_of_${parentId}` || 
         parent.relation_type === `spouse_of_${m.id}`
@@ -104,7 +148,6 @@ const findParents = (member: TreeMember, allMembers: TreeMember[]): TreeMember[]
     }
   }
   
-  // father_of_X / mother_of_X formatidagi ota-onalarni topish
   allMembers.forEach(m => {
     if (m.relation_type === `father_of_${member.id}` || 
         m.relation_type === `mother_of_${member.id}`) {
@@ -118,42 +161,86 @@ const findParents = (member: TreeMember, allMembers: TreeMember[]): TreeMember[]
 };
 
 /**
- * Member ning farzandlarini topish
+ * Member ning farzandlarini topish (unique)
  */
 const findChildren = (member: TreeMember, allMembers: TreeMember[]): TreeMember[] => {
-  const children: TreeMember[] = [];
+  const childrenMap = new Map<string, TreeMember>();
   const relType = member.relation_type || '';
   
-  // father_of_X / mother_of_X formatidagi farzandlarni topish
+  // father_of_X / mother_of_X
   if (relType.startsWith('father_of_') || relType.startsWith('mother_of_')) {
     const childId = relType.replace('father_of_', '').replace('mother_of_', '');
     const child = allMembers.find(m => m.id === childId);
-    if (child) children.push(child);
+    if (child) childrenMap.set(child.id, child);
   }
   
-  // child_of_X formatidagi farzandlarni topish
+  // child_of_X
   allMembers.forEach(m => {
     if (m.relation_type.includes(`child_of_${member.id}`)) {
-      if (!children.find(c => c.id === m.id)) {
-        children.push(m);
-      }
+      childrenMap.set(m.id, m);
     }
   });
   
-  // Juftning farzandlarini ham topish
+  // Spouse children
   const spouseMatch = relType.match(/spouse_of_([a-f0-9-]+)/);
   if (spouseMatch) {
     const spouseId = spouseMatch[1];
     allMembers.forEach(m => {
       if (m.relation_type.includes(`child_of_${spouseId}`)) {
-        if (!children.find(c => c.id === m.id)) {
-          children.push(m);
-        }
+        childrenMap.set(m.id, m);
       }
     });
   }
   
-  return children;
+  return Array.from(childrenMap.values());
+};
+
+/**
+ * Ikki ota-onaning barcha farzandlarini topish (combined, unique)
+ */
+const findCoupleChildren = (
+  parents: TreeMember[],
+  allMembers: TreeMember[],
+  excludeIds: string[]
+): TreeMember[] => {
+  const childrenMap = new Map<string, TreeMember>();
+  
+  for (const parent of parents) {
+    const children = findChildren(parent, allMembers);
+    children.forEach(c => {
+      if (!excludeIds.includes(c.id)) {
+        childrenMap.set(c.id, c);
+      }
+    });
+  }
+  
+  return Array.from(childrenMap.values());
+};
+
+const toChildProfile = (m: TreeMember): ChildProfile => ({
+  id: m.id,
+  name: m.member_name || 'Ism kiritilmagan',
+  photoUrl: m.avatar_url || undefined,
+  gender: (m.gender as 'male' | 'female') || 'male',
+});
+
+const createMergeEntry = (
+  sp: TreeMember,
+  rp: TreeMember,
+  rel: 'parent' | 'grandparent'
+): MergeCandidate => {
+  const sDate = new Date(sp.created_at);
+  const rDate = new Date(rp.created_at);
+  const [source, target] = sDate <= rDate ? [sp, rp] : [rp, sp];
+  return {
+    sourceId: source.id,
+    targetId: target.id,
+    sourceName: source.member_name || 'Ism kiritilmagan',
+    targetName: target.member_name || 'Ism kiritilmagan',
+    sourcePhotoUrl: source.avatar_url || undefined,
+    targetPhotoUrl: target.avatar_url || undefined,
+    relationship: rel,
+  };
 };
 
 // ============= MAIN HOOK =============
@@ -161,10 +248,7 @@ const findChildren = (member: TreeMember, allMembers: TreeMember[]): TreeMember[
 export const useTreeMerging = () => {
   
   /**
-   * Birlashtirish kandidatlarini topish
-   * senderId - taklif yuboruvchi
-   * receiverId - taklif qabul qiluvchi
-   * linkedMemberId - receiver biriktirilgan placeholder ID
+   * Birlashtirish kandidatlarini topish - juftlik (couple) bo'yicha guruhlangan
    */
   const findMergeCandidates = async (
     senderId: string,
@@ -173,13 +257,13 @@ export const useTreeMerging = () => {
   ): Promise<MergeResult> => {
     const result: MergeResult = {
       parentMerges: [],
+      coupleGroups: [],
       childSuggestions: [],
       allSourceChildren: [],
       allTargetChildren: [],
     };
     
     try {
-      // Har ikkala foydalanuvchining daraxtlarini olish
       const [senderRes, receiverRes] = await Promise.all([
         supabase.from('family_tree_members').select('*')
           .eq('owner_id', senderId)
@@ -189,7 +273,6 @@ export const useTreeMerging = () => {
           .is('merged_into', null)
       ]);
       
-      // Eski merged_into_ format bilan yozuvlarni filtrlash
       const senderMembers = ((senderRes.data || []) as TreeMember[]).filter(
         m => !m.relation_type.startsWith('merged_into_')
       );
@@ -199,113 +282,133 @@ export const useTreeMerging = () => {
       
       if (!senderMembers.length || !receiverMembers.length) return result;
       
-      // Linked member va receiver o'zini topish
       const linkedMember = senderMembers.find(m => m.id === linkedMemberId);
       const receiverSelf = receiverMembers.find(m => m.linked_user_id === receiverId);
       
       if (!linkedMember || !receiverSelf) return result;
       
-      // Ota-onalarni topish
+      // === OTA-ONALAR ===
       const senderParents = findParents(linkedMember, senderMembers);
       const receiverParents = findParents(receiverSelf, receiverMembers);
       
-      // Ota-onalarni jinsi bo'yicha moslashtirish
-      for (const senderParent of senderParents) {
-        const matchingReceiverParent = receiverParents.find(
-          rp => rp.gender === senderParent.gender
+      const senderFather = senderParents.find(p => p.gender === 'male');
+      const senderMother = senderParents.find(p => p.gender === 'female');
+      const receiverFather = receiverParents.find(p => p.gender === 'male');
+      const receiverMother = receiverParents.find(p => p.gender === 'female');
+      
+      // Parent couple merges
+      const parentCoupleMerges: MergeCandidate[] = [];
+      if (senderFather && receiverFather) {
+        const merge = createMergeEntry(senderFather, receiverFather, 'parent');
+        parentCoupleMerges.push(merge);
+        result.parentMerges.push(merge);
+      }
+      if (senderMother && receiverMother) {
+        const merge = createMergeEntry(senderMother, receiverMother, 'parent');
+        parentCoupleMerges.push(merge);
+        result.parentMerges.push(merge);
+      }
+      
+      // Parent couple children (siblings of the linked member)
+      if (parentCoupleMerges.length > 0) {
+        const sChildren = findCoupleChildren(
+          [senderFather, senderMother].filter(Boolean) as TreeMember[],
+          senderMembers,
+          [linkedMemberId]
+        );
+        const rChildren = findCoupleChildren(
+          [receiverFather, receiverMother].filter(Boolean) as TreeMember[],
+          receiverMembers,
+          [receiverSelf.id]
         );
         
-        if (matchingReceiverParent) {
-          // Eski yaratilgan profilni asosiy qilib olish
-          const senderDate = new Date(senderParent.created_at);
-          const receiverDate = new Date(matchingReceiverParent.created_at);
+        const sourceChildren = sChildren.map(toChildProfile);
+        const targetChildren = rChildren.map(toChildProfile);
+        const childSuggestions = computeChildSuggestions(sourceChildren, targetChildren);
+        
+        result.allSourceChildren.push(...sourceChildren);
+        result.allTargetChildren.push(...targetChildren);
+        result.childSuggestions.push(...childSuggestions);
+        
+        if (sourceChildren.length > 0 || targetChildren.length > 0) {
+          // Couple label: "Ota + Ona"
+          const fatherName = (senderFather || receiverFather)?.member_name || '';
+          const motherName = (senderMother || receiverMother)?.member_name || '';
+          const label = [fatherName, motherName].filter(Boolean).join(' va ') || 'Ota-ona';
           
-          const [sourceParent, targetParent] = senderDate <= receiverDate 
-            ? [senderParent, matchingReceiverParent]
-            : [matchingReceiverParent, senderParent];
-          
-          result.parentMerges.push({
-            sourceId: sourceParent.id,
-            targetId: targetParent.id,
-            sourceName: sourceParent.member_name || 'Ism kiritilmagan',
-            targetName: targetParent.member_name || 'Ism kiritilmagan',
-            sourcePhotoUrl: sourceParent.avatar_url || undefined,
-            targetPhotoUrl: targetParent.avatar_url || undefined,
-            relationship: 'parent',
+          result.coupleGroups.push({
+            label,
+            parentMerges: parentCoupleMerges,
+            sourceChildren,
+            targetChildren,
+            childSuggestions,
           });
+        }
+      }
+      
+      // === BOBO-BUVILAR ===
+      const processedPairs = new Set<string>();
+      
+      for (const sParent of [senderFather, senderMother].filter(Boolean) as TreeMember[]) {
+        const matchingRParent = [receiverFather, receiverMother].find(
+          r => r && r.gender === sParent.gender
+        );
+        if (!matchingRParent) continue;
+        
+        const sGrandparents = findParents(sParent, senderMembers);
+        const rGrandparents = findParents(matchingRParent, receiverMembers);
+        
+        if (sGrandparents.length === 0 || rGrandparents.length === 0) continue;
+        
+        const grandCoupleMerges: MergeCandidate[] = [];
+        
+        for (const sgp of sGrandparents) {
+          const matchingRgp = rGrandparents.find(rgp => rgp.gender === sgp.gender);
+          if (!matchingRgp) continue;
           
-          // Bobo-buvilarni ham birlashtirish
-          const senderGrandparents = findParents(senderParent, senderMembers);
-          const receiverGrandparents = findParents(matchingReceiverParent, receiverMembers);
+          const pairKey = [sgp.id, matchingRgp.id].sort().join('-');
+          if (processedPairs.has(pairKey)) continue;
+          processedPairs.add(pairKey);
           
-          for (const sgp of senderGrandparents) {
-            const matchingRgp = receiverGrandparents.find(rgp => rgp.gender === sgp.gender);
-            if (matchingRgp) {
-              const sDate = new Date(sgp.created_at);
-              const rDate = new Date(matchingRgp.created_at);
-              
-              const [sourceGp, targetGp] = sDate <= rDate ? [sgp, matchingRgp] : [matchingRgp, sgp];
-              
-              result.parentMerges.push({
-                sourceId: sourceGp.id,
-                targetId: targetGp.id,
-                sourceName: sourceGp.member_name || 'Ism kiritilmagan',
-                targetName: targetGp.member_name || 'Ism kiritilmagan',
-                sourcePhotoUrl: sourceGp.avatar_url || undefined,
-                targetPhotoUrl: targetGp.avatar_url || undefined,
-                relationship: 'grandparent',
-              });
-            }
-          }
+          const merge = createMergeEntry(sgp, matchingRgp, 'grandparent');
+          grandCoupleMerges.push(merge);
+          result.parentMerges.push(merge);
+        }
+        
+        if (grandCoupleMerges.length > 0) {
+          // Find children of grandparents (aunts/uncles), excluding the parent itself
+          const sGpChildren = findCoupleChildren(
+            sGrandparents,
+            senderMembers,
+            [sParent.id]
+          );
+          const rGpChildren = findCoupleChildren(
+            rGrandparents,
+            receiverMembers,
+            [matchingRParent.id]
+          );
           
-          // Farzandlarni (aka-uka-singillar) topish
-          const senderSiblings = findChildren(senderParent, senderMembers)
-            .filter(c => c.id !== linkedMemberId);
-          const receiverSiblings = findChildren(matchingReceiverParent, receiverMembers)
-            .filter(c => c.id !== receiverSelf.id);
+          const sourceChildren = sGpChildren.map(toChildProfile);
+          const targetChildren = rGpChildren.map(toChildProfile);
+          const childSuggestions = computeChildSuggestions(sourceChildren, targetChildren);
           
-          // Source (sender tomonidagi farzandlar)
-          result.allSourceChildren = senderSiblings.map(c => ({
-            id: c.id,
-            name: c.member_name || 'Ism kiritilmagan',
-            photoUrl: c.avatar_url || undefined,
-            gender: (c.gender as 'male' | 'female') || 'male',
-          }));
+          result.allSourceChildren.push(...sourceChildren);
+          result.allTargetChildren.push(...targetChildren);
+          result.childSuggestions.push(...childSuggestions);
           
-          // Target (receiver tomonidagi farzandlar)
-          result.allTargetChildren = receiverSiblings.map(c => ({
-            id: c.id,
-            name: c.member_name || 'Ism kiritilmagan',
-            photoUrl: c.avatar_url || undefined,
-            gender: (c.gender as 'male' | 'female') || 'male',
-          }));
-          
-          // Tavsiyalarni yaratish (jinsi va ism o'xshashligi bo'yicha)
-          const usedTargetIds = new Set<string>();
-          
-          for (const sourceChild of result.allSourceChildren) {
-            const availableTargets = result.allTargetChildren.filter(
-              t => t.gender === sourceChild.gender && !usedTargetIds.has(t.id)
-            );
+          if (sourceChildren.length > 0 || targetChildren.length > 0) {
+            const gpFather = sGrandparents.find(g => g.gender === 'male');
+            const gpMother = sGrandparents.find(g => g.gender === 'female');
+            const label = [gpFather?.member_name, gpMother?.member_name]
+              .filter(Boolean).join(' va ') || 'Bobo-buvi';
             
-            if (availableTargets.length === 0) continue;
-            
-            // Eng yaxshi moslikni topish
-            const scored = availableTargets.map(target => ({
-              target,
-              similarity: calculateSimilarity(sourceChild.name, target.name),
-            }));
-            scored.sort((a, b) => b.similarity - a.similarity);
-            
-            const best = scored[0];
-            if (best && best.similarity >= 30) {
-              result.childSuggestions.push({
-                sourceChild,
-                targetChild: best.target,
-                similarity: best.similarity,
-              });
-              usedTargetIds.add(best.target.id);
-            }
+            result.coupleGroups.push({
+              label,
+              parentMerges: grandCoupleMerges,
+              sourceChildren,
+              targetChildren,
+              childSuggestions,
+            });
           }
         }
       }
@@ -319,12 +422,10 @@ export const useTreeMerging = () => {
   
   /**
    * Ota-onalarni avtomatik birlashtirish
-   * MUHIM: relation_type ni O'ZGARTIRMAYMIZ - faqat merged_into maydonidan foydalanamiz!
    */
   const executeParentMerge = async (merges: MergeCandidate[]): Promise<boolean> => {
     try {
       for (const merge of merges) {
-        // Source profilga ma'lumotlarni qo'shish (agar kerak bo'lsa)
         const [sourceRes, targetRes] = await Promise.all([
           supabase.from('family_tree_members').select('*').eq('id', merge.sourceId).single(),
           supabase.from('family_tree_members').select('*').eq('id', merge.targetId).single()
@@ -335,7 +436,6 @@ export const useTreeMerging = () => {
         
         if (!source || !target) continue;
         
-        // Target dagi ma'lumotlarni source ga ko'chirish
         const updates: Record<string, unknown> = {};
         
         if (target.linked_user_id && !source.linked_user_id) {
@@ -356,7 +456,6 @@ export const useTreeMerging = () => {
             .eq('id', merge.sourceId);
         }
         
-        // Target ni merged sifatida belgilash (relation_type O'ZGARTIRILMAYDI!)
         await supabase
           .from('family_tree_members')
           .update({ 
@@ -393,7 +492,6 @@ export const useTreeMerging = () => {
       
       if (!source || !target) return false;
       
-      // Target dagi ma'lumotlarni source ga ko'chirish
       const updates: Record<string, unknown> = {};
       
       if (target.linked_user_id && !source.linked_user_id) {
@@ -414,7 +512,6 @@ export const useTreeMerging = () => {
           .eq('id', sourceId);
       }
       
-      // Target ni merged sifatida belgilash
       await supabase
         .from('family_tree_members')
         .update({ 

@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { useTreeMerging, MergeResult, MergeCandidate, ChildProfile, ChildMergeSuggestion } from './useTreeMerging';
+import { useTreeMerging, MergeResult, MergeCandidate, ChildProfile, ChildMergeSuggestion, CoupleGroup } from './useTreeMerging';
 
 export interface FamilyInvitation {
   id: string;
@@ -24,6 +24,8 @@ export interface MergeDialogData {
   senderName: string;
   receiverName: string;
   parentMerges: MergeCandidate[];
+  coupleGroups: CoupleGroup[];
+  // backward compat
   childSuggestions: ChildMergeSuggestion[];
   allSourceChildren: ChildProfile[];
   allTargetChildren: ChildProfile[];
@@ -58,7 +60,6 @@ export const useFamilyInvitations = () => {
       if (error) throw error;
 
       if (data && data.length > 0) {
-        // Fetch sender profiles
         const senderIds = [...new Set(data.map(inv => inv.sender_id))];
         const { data: profiles } = await supabase
           .from('profiles')
@@ -82,9 +83,6 @@ export const useFamilyInvitations = () => {
     }
   }, [user?.id]);
 
-  /**
-   * Link two users to the same family network
-   */
   const linkToSameNetwork = async (senderId: string, receiverId: string): Promise<string | null> => {
     try {
       const { data: senderProfile } = await supabase
@@ -125,12 +123,10 @@ export const useFamilyInvitations = () => {
     }
   };
 
-  // Accept invitation
   const acceptInvitation = async (invitation: FamilyInvitation) => {
     if (!user?.id || !profile) return false;
 
     try {
-      // 1. Update invitation status
       const { error: updateError } = await supabase
         .from('family_invitations')
         .update({ status: 'accepted', updated_at: new Date().toISOString() })
@@ -138,13 +134,11 @@ export const useFamilyInvitations = () => {
 
       if (updateError) throw updateError;
 
-      // 2. Link both users to the same family network
       const networkId = await linkToSameNetwork(invitation.sender_id, user.id);
       if (networkId) {
         await refreshProfile?.();
       }
 
-      // 3. Link user to the family member placeholder
       const { error: linkError } = await supabase
         .from('family_tree_members')
         .update({ 
@@ -158,29 +152,28 @@ export const useFamilyInvitations = () => {
 
       if (linkError) throw linkError;
 
-      // 4. Create notification
       await supabase.from('notifications').insert({
         user_id: invitation.sender_id,
         actor_id: user.id,
         type: 'family_invitation_accepted',
       });
 
-      // 5. Find merge candidates
       const result = await findMergeCandidates(
         invitation.sender_id,
         user.id,
         invitation.member_id
       );
 
-      // 6. Show merge dialog if there are candidates
       const hasParentMerges = result.parentMerges.length > 0;
+      const hasCoupleGroups = result.coupleGroups.length > 0;
       const hasChildren = result.allSourceChildren.length > 0 || result.allTargetChildren.length > 0;
 
-      if (hasParentMerges || hasChildren) {
+      if (hasParentMerges || hasCoupleGroups || hasChildren) {
         setMergeData({
           senderName: invitation.sender?.name || invitation.sender?.username || 'Foydalanuvchi',
           receiverName: profile.name || profile.username || 'Siz',
           parentMerges: result.parentMerges,
+          coupleGroups: result.coupleGroups,
           childSuggestions: result.childSuggestions,
           allSourceChildren: result.allSourceChildren,
           allTargetChildren: result.allTargetChildren,
@@ -207,11 +200,6 @@ export const useFamilyInvitations = () => {
     }
   };
 
-  /**
-   * Birlashtirish jarayonini bajarish
-   * parentMerges - avtomatik birlashtiriladi
-   * childMerges - foydalanuvchi tanlagan farzandlar
-   */
   const executeMerge = async (
     childMerges: { sourceId: string; targetId: string }[]
   ) => {
@@ -220,12 +208,10 @@ export const useFamilyInvitations = () => {
     setIsMerging(true);
     
     try {
-      // 1. Ota-onalarni avtomatik birlashtirish
       if (mergeData.parentMerges.length > 0) {
         await executeParentMerge(mergeData.parentMerges);
       }
       
-      // 2. Tanlangan farzandlarni birlashtirish
       for (const merge of childMerges) {
         await executeChildMerge(merge.sourceId, merge.targetId);
       }
@@ -238,7 +224,6 @@ export const useFamilyInvitations = () => {
       setShowMergeDialog(false);
       setMergeData(null);
       
-      // Sahifani yangilash
       window.location.reload();
     } catch (error) {
       console.error('Error executing merge:', error);
@@ -252,14 +237,12 @@ export const useFamilyInvitations = () => {
     }
   };
 
-  // Close merge dialog
   const closeMergeDialog = () => {
     setShowMergeDialog(false);
     setMergeData(null);
     window.location.reload();
   };
 
-  // Reject invitation
   const rejectInvitation = async (invitation: FamilyInvitation) => {
     if (!user?.id) return false;
 
@@ -324,7 +307,6 @@ export const useFamilyInvitations = () => {
     fetchInvitations,
     acceptInvitation,
     rejectInvitation,
-    // Merge dialog
     showMergeDialog,
     mergeData,
     executeMerge,

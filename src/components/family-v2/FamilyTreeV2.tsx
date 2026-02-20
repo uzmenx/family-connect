@@ -1,21 +1,23 @@
 import { useEffect, useState, useCallback } from 'react';
-import { TreeDeciduous } from 'lucide-react';
+import { TreeDeciduous, X, GitMerge } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { Button } from '@/components/ui/button';
 import { FamilyTreeCanvas } from './FamilyTreeCanvas';
 import { AddMemberModal } from './AddMemberModal';
 import { ProfileModal } from './ProfileModal';
 import { SendInvitationModal } from './SendInvitationModal';
 import { GenderSelectionModal } from './GenderSelectionModal';
 import { UnifiedMergeDialog } from './UnifiedMergeDialog';
-import { MergeSelectionOverlay } from './MergeSelectionOverlay';
 import { useLocalFamilyTree } from '@/hooks/useLocalFamilyTree';
-import { useFamilyInvitations } from '@/hooks/useFamilyInvitations';
+import { useFamilyInvitations, MergeDialogData } from '@/hooks/useFamilyInvitations';
 import { useMergeMode } from '@/hooks/useMergeMode';
 import { useSpouseLock } from '@/hooks/useSpouseLock';
+import { useTreeMerging } from '@/hooks/useTreeMerging';
 import { FamilyMember, AddMemberData } from '@/types/family';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { FamilyInvitationItem } from './FamilyInvitationItem';
+import { toast } from 'sonner';
 
 type ModalState = {
   type: 'none' | 'addParentFather' | 'addParentMother' | 'addSpouse' | 'addChild' | 'profile' | 'invitation' | 'genderSelect';
@@ -56,14 +58,15 @@ export const FamilyTreeV2 = () => {
     isActive: isMergeMode,
     selectedIds: mergeSelectedIds,
     mergedProfiles,
-    suggestions: mergeSuggestions,
     isProcessing: isMergeProcessing,
     startMergeMode,
     toggleSelection: toggleMergeSelection,
     cancelMerge,
-    executeMerge: executeManualMerge,
-    applySuggestion
+    computeMergeData,
   } = useMergeMode(members);
+
+  // Tree merging for manual merge execution
+  const { executeParentMerge, executeChildMerge } = useTreeMerging();
 
   // Spouse lock hook
   const { isPairLocked, toggleLock } = useSpouseLock();
@@ -72,6 +75,11 @@ export const FamilyTreeV2 = () => {
   const [showGenderSelect, setShowGenderSelect] = useState(false);
   const [processingInvitation, setProcessingInvitation] = useState<string | null>(null);
   const [isSelectingGender, setIsSelectingGender] = useState(false);
+
+  // Manual merge dialog state (for long-press flow)
+  const [manualMergeData, setManualMergeData] = useState<MergeDialogData | null>(null);
+  const [showManualMergeDialog, setShowManualMergeDialog] = useState(false);
+  const [isManualMerging, setIsManualMerging] = useState(false);
 
   // Build positions map from members
   const positions = Object.fromEntries(
@@ -83,11 +91,9 @@ export const FamilyTreeV2 = () => {
   // Check if user needs to select gender on first visit
   useEffect(() => {
     if (!isLoading && user?.id && profile) {
-      // Check if gender is not set
       if (!profile.gender) {
         setShowGenderSelect(true);
       } else if (Object.keys(members).length === 0) {
-        // Gender is set but no tree exists - create self node
         createSelfNode(profile.gender as 'male' | 'female');
       }
     }
@@ -98,18 +104,13 @@ export const FamilyTreeV2 = () => {
     setIsSelectingGender(true);
 
     try {
-      // Update profile with gender
       await supabase
         .from('profiles')
         .update({ gender })
         .eq('id', user.id);
 
-      // Refresh profile
       await refreshProfile();
-
-      // Create self node
       await createSelfNode(gender);
-
       setShowGenderSelect(false);
     } catch (error) {
       console.error('Error setting gender:', error);
@@ -186,6 +187,52 @@ export const FamilyTreeV2 = () => {
     toggleMergeSelection(memberId);
   }, [toggleMergeSelection]);
 
+  // Open UnifiedMergeDialog for manual (long-press) merge
+  const handleOpenManualMergeDialog = useCallback(() => {
+    const data = computeMergeData();
+    if (data) {
+      setManualMergeData(data);
+      setShowManualMergeDialog(true);
+    }
+  }, [computeMergeData]);
+
+  // Execute manual merge via UnifiedMergeDialog
+  const handleManualMergeConfirm = useCallback(async (
+    childMerges: { sourceId: string; targetId: string }[]
+  ) => {
+    if (!manualMergeData) return;
+    
+    setIsManualMerging(true);
+    try {
+      // Execute parent merges (auto)
+      if (manualMergeData.parentMerges.length > 0) {
+        await executeParentMerge(manualMergeData.parentMerges);
+      }
+      
+      // Execute child merges (user-selected)
+      for (const merge of childMerges) {
+        await executeChildMerge(merge.sourceId, merge.targetId);
+      }
+      
+      toast.success('Profillar muvaffaqiyatli birlashtirildi');
+      setShowManualMergeDialog(false);
+      setManualMergeData(null);
+      cancelMerge();
+      
+      window.location.reload();
+    } catch (error) {
+      console.error('Manual merge error:', error);
+      toast.error('Birlashtirishda xatolik');
+    } finally {
+      setIsManualMerging(false);
+    }
+  }, [manualMergeData, executeParentMerge, executeChildMerge, cancelMerge]);
+
+  const handleCloseManualMergeDialog = useCallback(() => {
+    setShowManualMergeDialog(false);
+    setManualMergeData(null);
+  }, []);
+
   const handleAcceptInvitation = async (invitation: any) => {
     setProcessingInvitation(invitation.id);
     await acceptInvitation(invitation);
@@ -205,8 +252,8 @@ export const FamilyTreeV2 = () => {
           <TreeDeciduous className="w-12 h-12 mx-auto text-primary animate-pulse" />
           <p className="mt-4 text-muted-foreground">Yuklanmoqda...</p>
         </div>
-      </div>);
-
+      </div>
+    );
   }
 
   return (
@@ -215,19 +262,48 @@ export const FamilyTreeV2 = () => {
       <GenderSelectionModal
         isOpen={showGenderSelect}
         onSelect={handleGenderSelect}
-        disabled={isSelectingGender} />
+        disabled={isSelectingGender}
+      />
 
- 
-       {/* Merge Selection Overlay */}
-       <MergeSelectionOverlay
-        isActive={isMergeMode}
-        selectedCount={mergeSelectedIds.length}
-        suggestions={mergeSuggestions}
-        isProcessing={isMergeProcessing}
-        onCancel={cancelMerge}
-        onConfirm={executeManualMerge}
-        onApplySuggestion={applySuggestion} />
-
+      {/* Inline Merge Mode Bar (replaces MergeSelectionOverlay) */}
+      {isMergeMode && (
+        <div className="fixed inset-x-0 top-0 z-50 bg-background/95 backdrop-blur-lg border-b border-border shadow-lg">
+          <div className="container mx-auto px-4 py-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={cancelMerge}
+                  className="shrink-0"
+                >
+                  <X className="h-5 w-5" />
+                </Button>
+                <div>
+                  <h3 className="font-semibold text-foreground">
+                    Birlashtirish rejimi
+                  </h3>
+                  <p className="text-sm text-muted-foreground">
+                    {mergeSelectedIds.length} ta profil tanlandi
+                  </p>
+                </div>
+              </div>
+              
+              <Button
+                onClick={handleOpenManualMergeDialog}
+                disabled={mergeSelectedIds.length < 2 || isMergeProcessing}
+                className="gap-2"
+              >
+                <GitMerge className="h-4 w-4" />
+                Birlashtirish
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground mt-2 text-center">
+              Birinchi tanlangan profil asosiy bo'ladi. Boshqa profillarni tanlang.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Header */}
       <div className="container mx-auto px-4 py-6">
@@ -245,65 +321,41 @@ avlodlarimiz uchun xotiralar qoldiraylik</p>
         </div>
         
         {/* Pending Invitations */}
-        {pendingInvitations.length > 0 && <div className="mt-4 rounded-xl border border-border overflow-hidden">
+        {pendingInvitations.length > 0 && (
+          <div className="mt-4 rounded-xl border border-border overflow-hidden">
             <div className="px-4 py-2 bg-muted/50 border-b border-border">
               <p className="text-sm font-medium">{pendingInvitations.length} ta taklifnoma kutmoqda</p>
             </div>
             <div className="divide-y divide-border">
-              {pendingInvitations.map((inv) =>
-            <FamilyInvitationItem
-              key={inv.id}
-              invitation={inv}
-              onAccept={handleAcceptInvitation}
-              onReject={handleRejectInvitation}
-              isProcessing={processingInvitation === inv.id} />
-
-            )}
+              {pendingInvitations.map((inv) => (
+                <FamilyInvitationItem
+                  key={inv.id}
+                  invitation={inv}
+                  onAccept={handleAcceptInvitation}
+                  onReject={handleRejectInvitation}
+                  isProcessing={processingInvitation === inv.id}
+                />
+              ))}
             </div>
           </div>
-        }
-        
-        {/* Legend */}
-        
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+        )}
       </div>
       
       {/* Canvas */}
-       <div className={cn("flex-1 container mx-auto px-4 pb-6", isMergeMode && "pt-16")}>
+      <div className={cn("flex-1 container mx-auto px-4 pb-6", isMergeMode && "pt-16")}>
         <div className="h-[calc(100vh-280px)] min-h-[400px]">
           <FamilyTreeCanvas
             members={members}
             positions={positions}
             onOpenProfile={handleOpenProfile}
             onPositionChange={handlePositionChange}
-            // Merge mode props
             isMergeMode={isMergeMode}
             mergeSelectedIds={mergeSelectedIds}
             mergedProfiles={mergedProfiles}
             onLongPress={handleLongPress}
             onToggleMergeSelect={handleToggleMergeSelect}
-            // Spouse lock props
-            isPairLocked={isPairLocked} />
-
+            isPairLocked={isPairLocked}
+          />
         </div>
       </div>
 
@@ -316,8 +368,8 @@ avlodlarimiz uchun xotiralar qoldiraylik</p>
         gender="male"
         title="Ota ma'lumotlari"
         showNextPrompt={true}
-        nextPromptText="Saqlangandan so'ng ona uchun ham ma'lumot kiritasiz" />
-
+        nextPromptText="Saqlangandan so'ng ona uchun ham ma'lumot kiritasiz"
+      />
 
       {/* Add Mother Modal */}
       <AddMemberModal
@@ -326,8 +378,8 @@ avlodlarimiz uchun xotiralar qoldiraylik</p>
         onSave={handleSaveMother}
         type="parents"
         gender="female"
-        title="Ona ma'lumotlari" />
-
+        title="Ona ma'lumotlari"
+      />
 
       {/* Add Spouse Modal */}
       <AddMemberModal
@@ -336,8 +388,8 @@ avlodlarimiz uchun xotiralar qoldiraylik</p>
         onSave={handleSaveSpouse}
         type="spouse"
         gender={members[modal.targetId || '']?.gender === 'male' ? 'female' : 'male'}
-        title="Juft ma'lumotlari" />
-
+        title="Juft ma'lumotlari"
+      />
 
       {/* Add Child Modal */}
       <AddMemberModal
@@ -346,46 +398,57 @@ avlodlarimiz uchun xotiralar qoldiraylik</p>
         onSave={handleSaveChild}
         type="child"
         gender="male"
-        title="Farzand ma'lumotlari" />
-
+        title="Farzand ma'lumotlari"
+      />
 
       {/* Profile Modal */}
-      {modal.member &&
-      <ProfileModal
-        isOpen={modal.type === 'profile'}
-        onClose={handleCloseModal}
-        member={modal.member}
-        onUpdate={updateMember}
-        onDelete={removeMember}
-        onAddParents={handleAddParents}
-        onAddSpouse={handleAddSpouse}
-        onAddChild={handleAddChild}
-        onSendInvitation={handleSendInvitation}
-        hasParents={(modal.member.parentIds?.length || 0) > 0}
-        hasSpouse={!!modal.member.spouseId}
-        canAddChild={!!modal.member.spouseId}
-        isSpouseLocked={isPairLocked(modal.member.id, modal.member.spouseId)}
-        onToggleSpouseLock={() => toggleLock(modal.member!.id, modal.member!.spouseId)} />
-
-      }
+      {modal.member && (
+        <ProfileModal
+          isOpen={modal.type === 'profile'}
+          onClose={handleCloseModal}
+          member={modal.member}
+          onUpdate={updateMember}
+          onDelete={removeMember}
+          onAddParents={handleAddParents}
+          onAddSpouse={handleAddSpouse}
+          onAddChild={handleAddChild}
+          onSendInvitation={handleSendInvitation}
+          hasParents={(modal.member.parentIds?.length || 0) > 0}
+          hasSpouse={!!modal.member.spouseId}
+          canAddChild={!!modal.member.spouseId}
+          isSpouseLocked={isPairLocked(modal.member.id, modal.member.spouseId)}
+          onToggleSpouseLock={() => toggleLock(modal.member!.id, modal.member!.spouseId)}
+        />
+      )}
 
       {/* Invitation Modal */}
       <SendInvitationModal
         isOpen={modal.type === 'invitation'}
         onClose={handleCloseModal}
-        member={modal.member || null} />
+        member={modal.member || null}
+      />
 
+      {/* Tree Merge Dialog (invitation flow) */}
+      {mergeData && (
+        <UnifiedMergeDialog
+          isOpen={showMergeDialog}
+          onClose={closeMergeDialog}
+          data={mergeData}
+          onConfirm={executeTreeMerge}
+          isProcessing={isMerging}
+        />
+      )}
 
-      {/* Tree Merge Dialog */}
-      {mergeData &&
-      <UnifiedMergeDialog
-        isOpen={showMergeDialog}
-        onClose={closeMergeDialog}
-        data={mergeData}
-        onConfirm={executeTreeMerge}
-        isProcessing={isMerging} />
-
-      }
-    </section>);
-
+      {/* Manual Merge Dialog (long-press flow) */}
+      {manualMergeData && (
+        <UnifiedMergeDialog
+          isOpen={showManualMergeDialog}
+          onClose={handleCloseManualMergeDialog}
+          data={manualMergeData}
+          onConfirm={handleManualMergeConfirm}
+          isProcessing={isManualMerging}
+        />
+      )}
+    </section>
+  );
 };
