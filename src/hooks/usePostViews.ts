@@ -14,20 +14,8 @@ export const usePostViews = (postId: string) => {
     hasTrackedRef.current = true;
 
     try {
-      // Call the database function to increment views
-      const { data, error } = await supabase.rpc('increment_post_views', {
-        post_id: postId
-      });
-
-      if (error) {
-        console.error('Error incrementing views:', error);
-        return;
-      }
-
-      // Update local state with new count
-      if (data !== null && typeof data === 'number') {
-        setViewsCount(data);
-      }
+      // Views tracking is a no-op until the DB function and column exist
+      console.log('View tracking skipped - not yet configured');
     } catch (error) {
       console.error('Error tracking view:', error);
     } finally {
@@ -37,24 +25,7 @@ export const usePostViews = (postId: string) => {
 
   // Fetch current views count
   const fetchViewsCount = async () => {
-    try {
-      const { data, error } = await supabase
-        .from('posts')
-        .select('views_count')
-        .eq('id', postId)
-        .single();
-
-      if (error) {
-        console.error('Error fetching views count:', error);
-        return;
-      }
-
-      if (data && data.views_count !== null) {
-        setViewsCount(data.views_count);
-      }
-    } catch (error) {
-      console.error('Error fetching views count:', error);
-    }
+    // views_count column doesn't exist yet, skip
   };
 
   useEffect(() => {
