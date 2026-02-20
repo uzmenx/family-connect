@@ -134,15 +134,18 @@ const UserProfilePage = () => {
     <AppLayout>
       <div className="min-h-screen pb-20">
         {/* Header with back button */}
-        <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border px-4 py-3 flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="font-semibold">{profile.name || 'Foydalanuvchi'}</h1>
-            <p className="text-xs text-muted-foreground">{postsCount} ta post</p>
-          </div>
-        </div>
+        <Button 
+          variant="ghost" 
+          size="icon" 
+          onClick={() => navigate(-1)}
+          className="absolute top-4 left-4 z-10 h-9 w-9 rounded-full"
+          style={{
+            backgroundColor: 'rgba(255,255,255,0.15)',
+            backdropFilter: 'blur(8px)'
+          }}
+        >
+          <ArrowLeft className="h-5 w-5 text-white" />
+        </Button>
 
         {/* Cover Image */}
         <div className="relative h-36 overflow-hidden">
