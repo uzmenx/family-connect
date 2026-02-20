@@ -7,7 +7,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/hooks/use-toast';
 import { ArrowLeft, X, Plus, Check, AtSign, Users } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
-import { MediaPicker } from '@/components/post/MediaPicker';
+import InstagramMediaCapture from '@/components/create/InstagramMediaCapture';
 import { uploadMedia } from '@/lib/r2Upload';
 import { usePostCollections } from '@/hooks/usePostCollections';
 import { useMentionsCollabs } from '@/hooks/useMentionsCollabs';
@@ -19,7 +19,10 @@ interface MediaFile {
   file: File;
   preview: string;
   type: 'image' | 'video';
+  filter?: string;
 }
+
+type Step = 'media' | 'caption';
 
 const CreatePost = () => {
   const { user } = useAuth();
@@ -27,7 +30,7 @@ const CreatePost = () => {
   const { toast } = useToast();
   const { collections, createCollection, addPostToCollection } = usePostCollections();
   
-  const [step, setStep] = useState<'media' | 'caption'>('media');
+  const [step, setStep] = useState<Step>('media');
   const [selectedMedia, setSelectedMedia] = useState<MediaFile[]>([]);
   const [content, setContent] = useState('');
   const [isLoading, setIsLoading] = useState(false);
@@ -41,6 +44,17 @@ const CreatePost = () => {
   const [mentionProfiles, setMentionProfiles] = useState<any[]>([]);
   const [collabProfiles, setCollabProfiles] = useState<any[]>([]);
   const { addMentions, addCollabs } = useMentionsCollabs();
+
+  const handleMediaFromCapture = (items: { file: File; filter: string }[]) => {
+    const newMedia: MediaFile[] = items.map((item) => ({
+      file: item.file,
+      preview: URL.createObjectURL(item.file),
+      type: item.file.type.startsWith('video/') ? 'video' : 'image',
+      filter: item.filter,
+    }));
+    setSelectedMedia(newMedia);
+    setStep('caption');
+  };
 
   // Fetch profiles for selected mention/collab users
   useEffect(() => {
@@ -56,14 +70,6 @@ const CreatePost = () => {
         .then(({ data }) => setCollabProfiles(data || []));
     } else setCollabProfiles([]);
   }, [collabIds]);
-
-  const handleNext = () => {
-    if (selectedMedia.length === 0) {
-      toast({ title: "Xatolik", description: "Kamida bitta rasm yoki video tanlang", variant: "destructive" });
-      return;
-    }
-    setStep('caption');
-  };
 
   const handleBack = () => {
     if (step === 'caption') setStep('media');
@@ -164,167 +170,161 @@ const CreatePost = () => {
 
   return (
     <AppLayout showNav={false}>
+      {step === 'media' ? (
+        <InstagramMediaCapture
+          onClose={() => navigate(-1)}
+          onNext={handleMediaFromCapture}
+        />
+      ) : (
       <div className="max-w-lg mx-auto min-h-screen flex flex-col">
         {/* Header */}
         <header className="sticky top-0 bg-background/95 backdrop-blur-sm border-b border-border z-40 flex items-center justify-between px-4 py-3">
           <Button variant="ghost" size="icon" onClick={handleBack}>
-            {step === 'media' ? <X className="h-6 w-6" /> : <ArrowLeft className="h-6 w-6" />}
+            <ArrowLeft className="h-6 w-6" />
           </Button>
-          <h1 className="text-lg font-semibold">
-            {step === 'media' ? 'Yangi post' : 'Nashr qilish'}
-          </h1>
-          {step === 'media' ? (
-            <Button variant="ghost" className="text-primary font-semibold" onClick={handleNext} disabled={selectedMedia.length === 0}>
-              Keyingi
-            </Button>
-          ) : (
-            <Button className="font-semibold" onClick={handlePublish} disabled={isLoading}>
-              {isLoading ? "Yuklanmoqda..." : "Ulashish"}
-            </Button>
-          )}
+          <h1 className="text-lg font-semibold">Nashr qilish</h1>
+          <Button className="font-semibold" onClick={handlePublish} disabled={isLoading}>
+            {isLoading ? "Yuklanmoqda..." : "Ulashish"}
+          </Button>
         </header>
 
         {/* Content */}
         <div className="flex-1 p-4">
-          {step === 'media' ? (
-            <MediaPicker selectedMedia={selectedMedia} onMediaChange={setSelectedMedia} maxFiles={5} />
-          ) : (
-            <div className="space-y-4">
-              {/* Preview */}
-              <div className="flex gap-2 overflow-x-auto pb-2">
-                {selectedMedia.map((media, index) => (
-                  <div key={index} className="flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden bg-muted">
-                    {media.type === 'image' ? (
-                      <img src={media.preview} alt={`Preview ${index + 1}`} className="w-full h-full object-cover" />
-                    ) : (
-                      <video src={media.preview} className="w-full h-full object-cover" />
-                    )}
+          <div className="space-y-4">
+            {/* Preview */}
+            <div className="flex gap-2 overflow-x-auto pb-2">
+              {selectedMedia.map((media, index) => (
+                <div key={index} className="flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden bg-muted">
+                  {media.type === 'image' ? (
+                    <img src={media.preview} alt={`Preview ${index + 1}`} className="w-full h-full object-cover" />
+                  ) : (
+                    <video src={media.preview} className="w-full h-full object-cover" />
+                  )}
+                </div>
+              ))}
+            </div>
+            
+            {/* Caption */}
+            <div className="space-y-2">
+              <Textarea placeholder="Izoh yozing... @username bilan belgilang (ixtiyoriy)" value={content} onChange={(e) => setContent(e.target.value)} rows={4} className="resize-none text-base" />
+              <p className="text-xs text-muted-foreground text-right">{content.length}/2200</p>
+            </div>
+
+            {/* Mention & Collab buttons */}
+            <div className="flex gap-2">
+              <button
+                onClick={() => setShowMentionPicker(true)}
+                className={cn(
+                  "flex-1 flex items-center gap-2 px-3 py-3 rounded-xl border transition-colors",
+                  mentionIds.length > 0 ? "border-primary bg-primary/5" : "border-border hover:bg-muted"
+                )}
+              >
+                <AtSign className="h-5 w-5 text-primary" />
+                <div className="text-left">
+                  <p className="text-sm font-semibold">Belgilash</p>
+                  <p className="text-xs text-muted-foreground">
+                    {mentionIds.length > 0 ? `${mentionIds.length} kishi` : 'Tag'}
+                  </p>
+                </div>
+              </button>
+              <button
+                onClick={() => setShowCollabPicker(true)}
+                className={cn(
+                  "flex-1 flex items-center gap-2 px-3 py-3 rounded-xl border transition-colors",
+                  collabIds.length > 0 ? "border-primary bg-primary/5" : "border-border hover:bg-muted"
+                )}
+              >
+                <Users className="h-5 w-5 text-primary" />
+                <div className="text-left">
+                  <p className="text-sm font-semibold">Hamkorlik</p>
+                  <p className="text-xs text-muted-foreground">
+                    {collabIds.length > 0 ? `${collabIds.length} hamkor` : 'Collab'}
+                  </p>
+                </div>
+              </button>
+            </div>
+
+            {/* Selected mention/collab chips */}
+            {(mentionProfiles.length > 0 || collabProfiles.length > 0) && (
+              <div className="flex flex-wrap gap-2">
+                {mentionProfiles.map(u => (
+                  <div key={u.id} className="flex items-center gap-1.5 px-2 py-1 bg-primary/10 rounded-full">
+                    <Avatar className="h-5 w-5">
+                      <AvatarImage src={u.avatar_url || undefined} />
+                      <AvatarFallback className="text-[10px]">U</AvatarFallback>
+                    </Avatar>
+                    <span className="text-xs font-medium">@{u.username || u.name}</span>
+                    <button onClick={() => setMentionIds(prev => prev.filter(id => id !== u.id))}>
+                      <X className="h-3 w-3 text-muted-foreground" />
+                    </button>
+                  </div>
+                ))}
+                {collabProfiles.map(u => (
+                  <div key={u.id} className="flex items-center gap-1.5 px-2 py-1 bg-accent/20 rounded-full">
+                    <Avatar className="h-5 w-5">
+                      <AvatarImage src={u.avatar_url || undefined} />
+                      <AvatarFallback className="text-[10px]">U</AvatarFallback>
+                    </Avatar>
+                    <span className="text-xs font-medium">{u.name || u.username}</span>
+                    <button onClick={() => setCollabIds(prev => prev.filter(id => id !== u.id))}>
+                      <X className="h-3 w-3 text-muted-foreground" />
+                    </button>
                   </div>
                 ))}
               </div>
-              
-              {/* Caption */}
+            )}
+
+            {/* Collection selection */}
+            <div className="space-y-2">
+              <p className="text-sm font-semibold">Qayerga joylash</p>
               <div className="space-y-2">
-                <Textarea placeholder="Izoh yozing... @username bilan belgilang (ixtiyoriy)" value={content} onChange={(e) => setContent(e.target.value)} rows={4} className="resize-none text-base" />
-                <p className="text-xs text-muted-foreground text-right">{content.length}/2200</p>
-              </div>
+                {collections.map(c => (
+                  <button
+                    key={c.id}
+                    onClick={() => toggleCollection(c.id)}
+                    className={cn(
+                      "w-full flex items-center justify-between px-3 py-2.5 rounded-lg border transition-colors",
+                      selectedCollectionIds.has(c.id) ? "border-primary bg-primary/10" : "border-border"
+                    )}
+                  >
+                    <span className="text-sm font-medium">{c.name}</span>
+                    {selectedCollectionIds.has(c.id) && (
+                      <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center">
+                        <Check className="h-3 w-3 text-primary-foreground" />
+                      </div>
+                    )}
+                  </button>
+                ))}
 
-              {/* Mention & Collab buttons */}
-              <div className="flex gap-2">
-                <button
-                  onClick={() => setShowMentionPicker(true)}
-                  className={cn(
-                    "flex-1 flex items-center gap-2 px-3 py-3 rounded-xl border transition-colors",
-                    mentionIds.length > 0 ? "border-primary bg-primary/5" : "border-border hover:bg-muted"
-                  )}
-                >
-                  <AtSign className="h-5 w-5 text-primary" />
-                  <div className="text-left">
-                    <p className="text-sm font-semibold">Belgilash</p>
-                    <p className="text-xs text-muted-foreground">
-                      {mentionIds.length > 0 ? `${mentionIds.length} kishi` : 'Tag'}
-                    </p>
-                  </div>
-                </button>
-                <button
-                  onClick={() => setShowCollabPicker(true)}
-                  className={cn(
-                    "flex-1 flex items-center gap-2 px-3 py-3 rounded-xl border transition-colors",
-                    collabIds.length > 0 ? "border-primary bg-primary/5" : "border-border hover:bg-muted"
-                  )}
-                >
-                  <Users className="h-5 w-5 text-primary" />
-                  <div className="text-left">
-                    <p className="text-sm font-semibold">Hamkorlik</p>
-                    <p className="text-xs text-muted-foreground">
-                      {collabIds.length > 0 ? `${collabIds.length} hamkor` : 'Collab'}
-                    </p>
-                  </div>
-                </button>
-              </div>
-
-              {/* Selected mention/collab chips */}
-              {(mentionProfiles.length > 0 || collabProfiles.length > 0) && (
-                <div className="flex flex-wrap gap-2">
-                  {mentionProfiles.map(u => (
-                    <div key={u.id} className="flex items-center gap-1.5 px-2 py-1 bg-primary/10 rounded-full">
-                      <Avatar className="h-5 w-5">
-                        <AvatarImage src={u.avatar_url || undefined} />
-                        <AvatarFallback className="text-[10px]">U</AvatarFallback>
-                      </Avatar>
-                      <span className="text-xs font-medium">@{u.username || u.name}</span>
-                      <button onClick={() => setMentionIds(prev => prev.filter(id => id !== u.id))}>
-                        <X className="h-3 w-3 text-muted-foreground" />
-                      </button>
-                    </div>
-                  ))}
-                  {collabProfiles.map(u => (
-                    <div key={u.id} className="flex items-center gap-1.5 px-2 py-1 bg-accent/20 rounded-full">
-                      <Avatar className="h-5 w-5">
-                        <AvatarImage src={u.avatar_url || undefined} />
-                        <AvatarFallback className="text-[10px]">U</AvatarFallback>
-                      </Avatar>
-                      <span className="text-xs font-medium">{u.name || u.username}</span>
-                      <button onClick={() => setCollabIds(prev => prev.filter(id => id !== u.id))}>
-                        <X className="h-3 w-3 text-muted-foreground" />
-                      </button>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Collection selection */}
-              <div className="space-y-2">
-                <p className="text-sm font-semibold">Qayerga joylash</p>
-                <div className="space-y-2">
-                  {collections.map(c => (
-                    <button
-                      key={c.id}
-                      onClick={() => toggleCollection(c.id)}
-                      className={cn(
-                        "w-full flex items-center justify-between px-3 py-2.5 rounded-lg border transition-colors",
-                        selectedCollectionIds.has(c.id) ? "border-primary bg-primary/10" : "border-border"
-                      )}
-                    >
-                      <span className="text-sm font-medium">{c.name}</span>
-                      {selectedCollectionIds.has(c.id) && (
-                        <div className="w-5 h-5 rounded-full bg-primary flex items-center justify-center">
-                          <Check className="h-3 w-3 text-primary-foreground" />
-                        </div>
-                      )}
-                    </button>
-                  ))}
-
-                  {showNewCollection ? (
-                    <div className="flex gap-2">
-                      <input
-                        value={newCollectionName}
-                        onChange={e => setNewCollectionName(e.target.value)}
-                        placeholder="Ro'yxat nomi"
-                        className="flex-1 px-3 py-2 rounded-lg border border-border bg-background text-sm"
-                        autoFocus
-                        onKeyDown={e => e.key === 'Enter' && handleCreateCollection()}
-                      />
-                      <Button size="sm" onClick={handleCreateCollection} disabled={!newCollectionName.trim()}>
-                        <Plus className="h-4 w-4" />
-                      </Button>
-                      <Button size="sm" variant="ghost" onClick={() => setShowNewCollection(false)}>
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setShowNewCollection(true)}
-                      className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border border-dashed border-border text-muted-foreground text-sm hover:bg-secondary/50"
-                    >
+                {showNewCollection ? (
+                  <div className="flex gap-2">
+                    <input
+                      value={newCollectionName}
+                      onChange={e => setNewCollectionName(e.target.value)}
+                      placeholder="Ro'yxat nomi"
+                      className="flex-1 px-3 py-2 rounded-lg border border-border bg-background text-sm"
+                      autoFocus
+                      onKeyDown={e => e.key === 'Enter' && handleCreateCollection()}
+                    />
+                    <Button size="sm" onClick={handleCreateCollection} disabled={!newCollectionName.trim()}>
                       <Plus className="h-4 w-4" />
-                      Yangi ro'yxat yaratish
-                    </button>
-                  )}
-                </div>
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => setShowNewCollection(false)}>
+                      <X className="h-4 w-4" />
+                    </Button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => setShowNewCollection(true)}
+                    className="w-full flex items-center gap-2 px-3 py-2.5 rounded-lg border border-dashed border-border text-muted-foreground text-sm hover:bg-secondary/50"
+                  >
+                    <Plus className="h-4 w-4" />
+                    Yangi ro'yxat yaratish
+                  </button>
+                )}
               </div>
             </div>
-          )}
+          </div>
         </div>
 
         {/* Pickers */}
@@ -344,6 +344,7 @@ const CreatePost = () => {
           maxSelection={5}
         />
       </div>
+      )}
     </AppLayout>
   );
 };

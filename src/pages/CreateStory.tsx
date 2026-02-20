@@ -1,6 +1,6 @@
-import { useState, useRef } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Camera, Image, X, Send, Loader2 } from 'lucide-react';
+import { ArrowLeft, Send, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { useAuth } from '@/contexts/AuthContext';
@@ -10,33 +10,41 @@ import { uploadMedia } from '@/lib/r2Upload';
 import { STORY_RINGS, type StoryRingId } from '@/components/stories/storyRings';
 import { StoryRingPreview } from '@/components/stories/StoryRingPreview';
 import { useStoryHighlights } from '@/hooks/useStoryHighlights';
+import InstagramMediaCapture from '@/components/create/InstagramMediaCapture';
 
 const CreateStory = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const { autoSaveStoryToHighlight } = useStoryHighlights();
   
+  const [step, setStep] = useState<'media' | 'publish'>('media');
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<string | null>(null);
   const [caption, setCaption] = useState('');
   const [isUploading, setIsUploading] = useState(false);
   const [selectedRingId, setSelectedRingId] = useState<StoryRingId>('default');
 
-  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
+  useEffect(() => {
+    if (!selectedFile) {
+      setPreview(null);
+      return;
+    }
+    const url = URL.createObjectURL(selectedFile);
+    setPreview(url);
+    return () => URL.revokeObjectURL(url);
+  }, [selectedFile]);
+
+  const handleMediaFromCapture = useCallback((items: { file: File; filter: string }[]) => {
+    const file = items[0]?.file;
     if (!file) return;
 
-    // Check file type
     const isImage = file.type.startsWith('image/');
     const isVideo = file.type.startsWith('video/');
-    
     if (!isImage && !isVideo) {
       toast.error('Faqat rasm yoki video yuklash mumkin');
       return;
     }
 
-    // Check file size (max 50MB for video, 10MB for image)
     const maxSize = isVideo ? 50 * 1024 * 1024 : 10 * 1024 * 1024;
     if (file.size > maxSize) {
       toast.error(`Fayl hajmi juda katta. Maksimum: ${isVideo ? '50MB' : '10MB'}`);
@@ -44,8 +52,8 @@ const CreateStory = () => {
     }
 
     setSelectedFile(file);
-    setPreview(URL.createObjectURL(file));
-  };
+    setStep('publish');
+  }, []);
 
   const handleSubmit = async () => {
     if (!selectedFile || !user) return;
@@ -89,13 +97,20 @@ const CreateStory = () => {
 
   const clearSelection = () => {
     setSelectedFile(null);
-    setPreview(null);
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
+    setStep('media');
   };
 
   const isVideo = selectedFile?.type.startsWith('video/');
+
+  if (step === 'media') {
+    return (
+      <InstagramMediaCapture
+        onClose={() => navigate(-1)}
+        onNext={handleMediaFromCapture}
+        maxItems={1}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -126,47 +141,8 @@ const CreateStory = () => {
       </header>
 
       <div className="max-w-lg mx-auto p-4">
-        {!preview ? (
-          // File selection
-          <div className="flex flex-col items-center justify-center py-12 gap-6">
-            <div className="text-center">
-              <h2 className="text-xl font-semibold mb-2">Hikoya yarating</h2>
-              <p className="text-muted-foreground">Rasm yoki video yuklang</p>
-            </div>
-            
-            <div className="flex gap-4">
-              <Button
-                variant="outline"
-                size="lg"
-                className="gap-2 h-20 w-32 flex-col"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <Image className="h-6 w-6" />
-                <span className="text-sm">Galereya</span>
-              </Button>
-              
-              <Button
-                variant="outline"
-                size="lg"
-                className="gap-2 h-20 w-32 flex-col"
-                onClick={() => fileInputRef.current?.click()}
-              >
-                <Camera className="h-6 w-6" />
-                <span className="text-sm">Kamera</span>
-              </Button>
-            </div>
-
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*,video/*"
-              className="hidden"
-              onChange={handleFileSelect}
-            />
-          </div>
-        ) : (
-          // Preview
-          <div className="space-y-4">
+        <div className="space-y-4">
+          {preview && (
             <div className="relative aspect-[9/16] bg-black rounded-lg overflow-hidden">
               <Button
                 variant="ghost"
@@ -174,9 +150,10 @@ const CreateStory = () => {
                 className="absolute top-2 right-2 z-10 bg-black/50 text-white hover:bg-black/70"
                 onClick={clearSelection}
               >
-                <X className="h-5 w-5" />
+                <span className="sr-only">Bekor qilish</span>
+                <ArrowLeft className="h-5 w-5" />
               </Button>
-              
+
               {isVideo ? (
                 <video
                   src={preview}
@@ -193,34 +170,34 @@ const CreateStory = () => {
                 />
               )}
             </div>
+          )}
 
-            <Textarea
-              placeholder="Caption qo'shing... (ixtiyoriy)"
-              value={caption}
-              onChange={(e) => setCaption(e.target.value)}
-              className="resize-none"
-              rows={3}
-            />
+          <Textarea
+            placeholder="Caption qo'shing... (ixtiyoriy)"
+            value={caption}
+            onChange={(e) => setCaption(e.target.value)}
+            className="resize-none"
+            rows={3}
+          />
 
-            {/* Ring selector */}
-            <div className="space-y-2">
-              <p className="text-sm font-semibold">Halqa rangi</p>
-              <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
-                {STORY_RINGS.map((ring) => (
-                  <StoryRingPreview
-                    key={ring.id}
-                    ringId={ring.id}
-                    avatarSrc={preview || ''}
-                    size="sm"
-                    selected={selectedRingId === ring.id}
-                    onClick={() => setSelectedRingId(ring.id)}
-                    label={ring.label}
-                  />
-                ))}
-              </div>
+          {/* Ring selector */}
+          <div className="space-y-2">
+            <p className="text-sm font-semibold">Halqa rangi</p>
+            <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+              {STORY_RINGS.map((ring) => (
+                <StoryRingPreview
+                  key={ring.id}
+                  ringId={ring.id}
+                  avatarSrc={preview || ''}
+                  size="sm"
+                  selected={selectedRingId === ring.id}
+                  onClick={() => setSelectedRingId(ring.id)}
+                  label={ring.label}
+                />
+              ))}
             </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

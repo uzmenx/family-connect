@@ -9,22 +9,20 @@ import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { uploadMedia } from '@/lib/r2Upload';
 import { Check, AtSign, Users, ChevronRight, X, ChevronLeft, Video } from 'lucide-react';
-import MediaCapture, { CapturedMedia } from '@/components/create/MediaCapture';
-import MediaEditor from '@/components/create/MediaEditor';
+import InstagramMediaCapture from '@/components/create/InstagramMediaCapture';
 import { STORY_RINGS, type StoryRingId } from '@/components/stories/storyRings';
 import { StoryRingPreview } from '@/components/stories/StoryRingPreview';
 import { useMentionsCollabs } from '@/hooks/useMentionsCollabs';
 import { UserSearchPicker } from '@/components/post/UserSearchPicker';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
-type Step = 'capture' | 'edit' | 'publish';
+type Step = 'media' | 'publish';
 
 const CreateContent = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
 
-  const [step, setStep] = useState<Step>('capture');
-  const [capturedMedia, setCapturedMedia] = useState<CapturedMedia[]>([]);
+  const [step, setStep] = useState<Step>('media');
   const [editedFiles, setEditedFiles] = useState<{ file: File; filter: string }[]>([]);
   const [caption, setCaption] = useState('');
   const [sharePost, setSharePost] = useState(true);
@@ -55,19 +53,13 @@ const CreateContent = () => {
     } else setCollabProfiles([]);
   }, [collabIds]);
 
-  const handleCaptureNext = useCallback((media: CapturedMedia[]) => {
-    setCapturedMedia(media);
-    setStep('edit');
-  }, []);
-
-  const handleEditDone = useCallback((items: { file: File; filter: string }[]) => {
+  const handleMediaFromCapture = useCallback((items: { file: File; filter: string }[]) => {
     setEditedFiles(items);
     setStep('publish');
   }, []);
 
   const handleBack = useCallback(() => {
-    if (step === 'publish') setStep('edit');
-    else if (step === 'edit') setStep('capture');
+    if (step === 'publish') setStep('media');
     else navigate(-1);
   }, [step, navigate]);
 
@@ -147,10 +139,13 @@ const CreateContent = () => {
     );
   }
 
-  if (step === 'capture') return <MediaCapture onNext={handleCaptureNext} onClose={() => navigate(-1)} />;
-
-  if (step === 'edit') {
-    return <MediaEditor mediaItems={capturedMedia} onDone={handleEditDone} onBack={() => setStep('capture')} />;
+  if (step === 'media') {
+    return (
+      <InstagramMediaCapture
+        onClose={() => navigate(-1)}
+        onNext={handleMediaFromCapture}
+      />
+    );
   }
 
   // Publish form - minimalist modern design
