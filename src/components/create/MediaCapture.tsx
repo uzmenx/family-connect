@@ -33,6 +33,7 @@ export default function MediaCapture({ onNext, onClose }: MediaCaptureProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const recordTimerRef = useRef<number>();
   const captureTimerRef = useRef<number>();
+  const isTakingPhotoRef = useRef<boolean>(false);
 
   useEffect(() => {
     startCamera();
@@ -64,7 +65,8 @@ export default function MediaCapture({ onNext, onClose }: MediaCaptureProps) {
   };
 
   const takePhoto = useCallback(() => {
-    if (!videoRef.current || !canvasRef.current || selectedMedia.length >= 5) return;
+    if (!videoRef.current || !canvasRef.current || selectedMedia.length >= 5 || isTakingPhotoRef.current) return;
+    isTakingPhotoRef.current = true;
     const video = videoRef.current;
     const canvas = canvasRef.current;
     canvas.width = video.videoWidth;
@@ -84,6 +86,7 @@ export default function MediaCapture({ onNext, onClose }: MediaCaptureProps) {
       const file = new File([blob], `photo-${Date.now()}.jpg`, { type: 'image/jpeg' });
       const url = URL.createObjectURL(blob);
       setSelectedMedia(prev => [...prev, { id: Date.now().toString(), type: 'photo', file, url }]);
+      isTakingPhotoRef.current = false;
     }, 'image/jpeg', 0.92);
   }, [zoom, selectedMedia.length]);
 
@@ -131,6 +134,7 @@ export default function MediaCapture({ onNext, onClose }: MediaCaptureProps) {
 
   const handleCaptureEnd = useCallback(() => {
     clearTimeout(captureTimerRef.current);
+    if (isTakingPhotoRef.current) return;
     if (isRecording) stopRecording();
     else takePhoto();
     setIsCapturing(false);
@@ -302,7 +306,6 @@ export default function MediaCapture({ onNext, onClose }: MediaCaptureProps) {
           {/* Capture button */}
           <button
             onMouseDown={handleCaptureStart}
-            onMouseUp={handleCaptureEnd}
             onMouseLeave={() => { if (isCapturing) handleCaptureEnd(); }}
             onTouchStart={(e) => { handleCaptureStart(); handleTouchStart(e); }}
             onTouchMove={handleTouchMove}
