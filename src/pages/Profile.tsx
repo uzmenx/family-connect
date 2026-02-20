@@ -5,7 +5,7 @@ import { useLanguage } from '@/contexts/LanguageContext';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Settings, Edit, Grid3X3, Bookmark, Bell, AtSign, Users, ChevronDown } from 'lucide-react';
+import { Settings, Edit, Grid3X3, Bookmark, Bell, AtSign, Users, ChevronDown, ChevronUp } from 'lucide-react';
 import { SocialLinksList } from '@/components/profile';
 import { useUserPosts } from '@/hooks/useUserPosts';
 import { useSavedPosts } from '@/hooks/useSavedPosts';
@@ -189,16 +189,18 @@ const Profile = () => {
           </div>
 
           {/* ROW 3: Kuzatilmoqda — centered */}
-          <div className="flex justify-center mb-3">
-            <div className="flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-8 py-3 shadow-lg">
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
-                {t('following')}
-              </span>
-              <span className="text-xl font-extrabold text-foreground leading-none">
-                {formatCount(followingCount)}
-              </span>
+          {showPostsStats && (
+            <div className="flex justify-center mb-3">
+              <div className="flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-8 py-3 shadow-lg">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
+                  {t('following')}
+                </span>
+                <span className="text-xl font-extrabold text-foreground leading-none">
+                  {formatCount(followingCount)}
+                </span>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Bio */}
           {profile?.bio && (
@@ -207,7 +209,7 @@ const Profile = () => {
                 <div className="relative">
                   <div 
                     ref={bioRef}
-                    className={`text-sm text-muted-foreground leading-relaxed transition-all duration-300 ${
+                    className={`text-sm text-muted-foreground leading-relaxed transition-all duration-300 cursor-pointer ${
                       !bioExpanded && needsMoreButton ? 'line-clamp-3' : ''
                     }`}
                     style={{
@@ -216,25 +218,27 @@ const Profile = () => {
                       WebkitBoxOrient: 'vertical',
                       WebkitLineClamp: bioExpanded ? 'unset' : '3'
                     }}
+                    onClick={() => needsMoreButton && setBioExpanded(!bioExpanded)}
                   >
                     {profile.bio}
                     {!bioExpanded && needsMoreButton && (
-                      <span 
-                        onClick={() => setBioExpanded(true)}
-                        className="text-blue-500 hover:underline cursor-pointer ml-1 transition-colors duration-200"
-                      >
-                        Ko'proq
+                      <span className="inline-flex items-center gap-1 ml-1">
+                        <span className="text-blue-500 hover:underline">...</span>
+                        <ChevronDown 
+                          className="h-4 w-4"
+                          style={{ color: 'rgba(255,255,255,0.6)', transition: 'transform 0.2s' }}
+                        />
+                      </span>
+                    )}
+                    {bioExpanded && (
+                      <span className="inline-flex items-center gap-1 ml-1">
+                        <ChevronUp 
+                          className="h-4 w-4"
+                          style={{ color: 'rgba(255,255,255,0.6)', transition: 'transform 0.2s' }}
+                        />
                       </span>
                     )}
                   </div>
-                  {bioExpanded && (
-                    <button
-                      onClick={() => setBioExpanded(false)}
-                      className="text-blue-500 hover:underline cursor-pointer text-sm font-medium mt-2 transition-colors duration-200"
-                    >
-                      Kamroq
-                    </button>
-                  )}
                 </div>
               </div>
             </div>

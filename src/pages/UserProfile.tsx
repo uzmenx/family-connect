@@ -1,10 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Grid3X3, Bookmark, Users, AtSign } from 'lucide-react';
+import { ArrowLeft, Grid3X3, Bookmark, Users, AtSign, ChevronDown, ChevronUp } from 'lucide-react';
 import { SocialLinksList } from '@/components/profile';
 import { SocialLink } from '@/components/profile/SocialLinksEditor';
 import { useStoryHighlights } from '@/hooks/useStoryHighlights';
@@ -50,6 +50,12 @@ const UserProfilePage = () => {
   const [activeTab, setActiveTab] = useState<'posts' | 'saved' | 'mentions'>('posts');
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
+  const [showPostsStats, setShowPostsStats] = useState(false);
+  
+  // Bio expand/collapse states
+  const [bioExpanded, setBioExpanded] = useState(false);
+  const [needsMoreButton, setNeedsMoreButton] = useState(false);
+  const bioRef = useRef<HTMLDivElement>(null);
   
   const { highlights } = useStoryHighlights(userId);
   const { collections, selectedCollectionId, setSelectedCollectionId, collectionPosts } = usePostCollections(userId);
@@ -66,6 +72,16 @@ const UserProfilePage = () => {
       navigate('/profile', { replace: true });
     }
   }, [currentUser?.id, userId, navigate]);
+
+  // Bio overflow detection
+  useEffect(() => {
+    if (bioRef.current && profile?.bio) {
+      // Check if bio text overflows 3 lines
+      const lineHeight = parseInt(window.getComputedStyle(bioRef.current).lineHeight) || 20;
+      const maxHeight = lineHeight * 3;
+      setNeedsMoreButton(bioRef.current.scrollHeight > maxHeight);
+    }
+  }, [profile?.bio]);
 
   const fetchProfile = useCallback(async () => {
     if (!userId) return;
@@ -184,13 +200,20 @@ const UserProfilePage = () => {
             </div>
 
             {/* RIGHT: Postlar */}
-            <div className="flex-1 flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-3 py-3 shadow-lg min-w-0">
+            <div className="flex-1 flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-3 py-3 shadow-lg min-w-0 relative">
               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
                 Postlar
               </span>
               <span className="text-xl font-extrabold text-foreground leading-none">
                 {formatCount(postsCount)}
               </span>
+              <button
+                onClick={() => setShowPostsStats(!showPostsStats)}
+                className="absolute -bottom-2 right-2 h-5 w-5 bg-muted rounded-full flex items-center justify-center hover:bg-muted-foreground/20 transition-all"
+                style={{ transform: showPostsStats ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.3s' }}
+              >
+                <ChevronDown className="h-3 w-3 text-foreground" />
+              </button>
             </div>
           </div>
 
@@ -205,22 +228,59 @@ const UserProfilePage = () => {
           </div>
 
           {/* ROW 3: Kuzatilmoqda — centered */}
-          <div className="flex justify-center mb-3">
-            <div className="flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-8 py-3 shadow-lg">
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
-                Kuzatilmoqda
-              </span>
-              <span className="text-xl font-extrabold text-foreground leading-none">
-                {formatCount(followingCount)}
-              </span>
+          {showPostsStats && (
+            <div className="flex justify-center mb-3">
+              <div className="flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-8 py-3 shadow-lg">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
+                  Kuzatilmoqda
+                </span>
+                <span className="text-xl font-extrabold text-foreground leading-none">
+                  {formatCount(followingCount)}
+                </span>
+              </div>
             </div>
-          </div>
+          )}
 
           {/* Bio */}
           {profile.bio && (
-            <p className="text-center text-sm text-muted-foreground mb-3 max-w-xs mx-auto leading-relaxed">
-              {profile.bio}
-            </p>
+            <div className="mb-4 px-4">
+              <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl p-4 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+                <div className="relative">
+                  <div 
+                    ref={bioRef}
+                    className={`text-sm text-muted-foreground leading-relaxed transition-all duration-300 cursor-pointer ${
+                      !bioExpanded && needsMoreButton ? 'line-clamp-3' : ''
+                    }`}
+                    style={{
+                      overflow: 'hidden',
+                      display: '-webkit-box',
+                      WebkitBoxOrient: 'vertical',
+                      WebkitLineClamp: bioExpanded ? 'unset' : '3'
+                    }}
+                    onClick={() => needsMoreButton && setBioExpanded(!bioExpanded)}
+                  >
+                    {profile.bio}
+                    {!bioExpanded && needsMoreButton && (
+                      <span className="inline-flex items-center gap-1 ml-1">
+                        <span className="text-blue-500 hover:underline">...</span>
+                        <ChevronDown 
+                          className="h-4 w-4"
+                          style={{ color: 'rgba(255,255,255,0.6)', transition: 'transform 0.2s' }}
+                        />
+                      </span>
+                    )}
+                    {bioExpanded && (
+                      <span className="inline-flex items-center gap-1 ml-1">
+                        <ChevronUp 
+                          className="h-4 w-4"
+                          style={{ color: 'rgba(255,255,255,0.6)', transition: 'transform 0.2s' }}
+                        />
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
           )}
 
           {/* Action Buttons */}
