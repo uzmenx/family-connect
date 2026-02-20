@@ -177,10 +177,10 @@ const UserProfilePage = () => {
         {/* Profile Info */}
         <div className="px-4 -mt-10 relative z-10">
           {/* ROW 1: Followers | Avatar | Postlar */}
-          <div className="flex items-end justify-between gap-3 mb-3">
+          <div className="flex items-end justify-between gap-1 mb-2">
 
             {/* LEFT: Followers */}
-            <div className="flex-1 flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-3 py-3 shadow-lg min-w-0">
+            <div className="flex-1 flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-2 py-2 shadow-lg min-w-0">
               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
                 Kuzatuvchilar
               </span>
@@ -191,7 +191,7 @@ const UserProfilePage = () => {
 
             {/* CENTER: Avatar */}
             <div className="flex-shrink-0 flex flex-col items-center">
-              <Avatar className="h-24 w-24 border-4 border-background shadow-2xl ring-2 ring-primary/30">
+              <Avatar className="h-20 w-20 border-4 border-background shadow-2xl ring-2 ring-primary/30">
                 <AvatarImage src={profile.avatar_url || undefined} />
                 <AvatarFallback className="text-2xl bg-gradient-to-br from-primary to-accent text-white font-bold">
                   {getInitials(profile.name)}
@@ -200,7 +200,7 @@ const UserProfilePage = () => {
             </div>
 
             {/* RIGHT: Postlar */}
-            <div className="flex-1 flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-3 py-3 shadow-lg min-w-0 relative">
+            <div className="flex-1 flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-2 py-2 shadow-lg min-w-0 relative">
               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
                 Postlar
               </span>
@@ -218,19 +218,19 @@ const UserProfilePage = () => {
           </div>
 
           {/* ROW 2: Name & Username */}
-          <div className="text-center mb-3">
+          <div className="text-center mb-2">
             <h1 className="text-xl font-extrabold text-foreground leading-tight">
               {profile.name || 'Foydalanuvchi'}
             </h1>
-            <p className="text-sm text-muted-foreground mt-0.5">
+            <p className="text-sm text-muted-foreground mt-1">
               @{profile.username || 'username'}
             </p>
           </div>
 
           {/* ROW 3: Kuzatilmoqda — centered */}
           {showPostsStats && (
-            <div className="flex justify-center mb-3">
-              <div className="flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-8 py-3 shadow-lg">
+            <div className="flex justify-center mb-2">
+              <div className="flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-6 py-2 shadow-lg">
                 <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
                   Kuzatilmoqda
                 </span>
@@ -243,8 +243,8 @@ const UserProfilePage = () => {
 
           {/* Bio */}
           {profile.bio && (
-            <div className="mb-4 px-4">
-              <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl p-4 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+            <div className="mb-2 px-4">
+              <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl p-2 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
                 <div className="relative">
                   <div 
                     ref={bioRef}
@@ -283,6 +283,13 @@ const UserProfilePage = () => {
             </div>
           )}
 
+          {/* Social Links */}
+          {profile.social_links && (
+            <div className="flex justify-center mb-2">
+              <SocialLinksList links={profile.social_links} className="justify-center" />
+            </div>
+          )}
+
           {/* Action Buttons */}
           {userId && (
             <div className="flex justify-center gap-2 mb-4">
@@ -315,25 +322,23 @@ const UserProfilePage = () => {
 
         {/* Collections filter */}
         {collections.length > 0 && activeTab === 'posts' && (
-          <div className="flex justify-center">
-            <CollectionsFilter
-              collections={collections}
-              selectedId={selectedCollectionId}
-              onSelect={setSelectedCollectionId}
-              isOwner={false}
-            />
-          </div>
+          <CollectionsFilter
+            collections={collections}
+            selectedId={selectedCollectionId}
+            onSelect={setSelectedCollectionId}
+            isOwner={false}
+          />
         )}
 
         {/* ═══════════════════════════════════════
             TABS
         ═══════════════════════════════════════ */}
         <div className="px-4">
-          <div className="flex border-b border-border mb-4">
+          <div className="flex border-b border-border mb-2">
             <button
               onClick={() => setActiveTab('posts')}
               className={cn(
-                'flex-1 py-3 flex items-center justify-center border-b-2 transition-colors',
+                'flex-1 py-2 flex items-center justify-center border-b-2 transition-colors',
                 activeTab === 'posts'
                   ? 'border-primary text-primary'
                   : 'border-transparent text-muted-foreground'
@@ -344,7 +349,7 @@ const UserProfilePage = () => {
             <button
               onClick={() => setActiveTab('saved')}
               className={cn(
-                'flex-1 py-3 flex items-center justify-center border-b-2 transition-colors',
+                'flex-1 py-2 flex items-center justify-center border-b-2 transition-colors',
                 activeTab === 'saved'
                   ? 'border-primary text-primary'
                   : 'border-transparent text-muted-foreground'
@@ -355,7 +360,7 @@ const UserProfilePage = () => {
             <button
               onClick={() => setActiveTab('mentions')}
               className={cn(
-                'flex-1 py-3 flex items-center justify-center border-b-2 transition-colors',
+                'flex-1 py-2 flex items-center justify-center border-b-2 transition-colors',
                 activeTab === 'mentions'
                   ? 'border-primary text-primary'
                   : 'border-transparent text-muted-foreground'
