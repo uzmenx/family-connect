@@ -71,6 +71,7 @@ export const FamilyTreeV2 = () => {
   const [modal, setModal] = useState<ModalState>({ type: 'none' });
   const [showGenderSelect, setShowGenderSelect] = useState(false);
   const [processingInvitation, setProcessingInvitation] = useState<string | null>(null);
+  const [isSelectingGender, setIsSelectingGender] = useState(false);
 
   // Build positions map from members
   const positions = Object.fromEntries(
@@ -93,14 +94,15 @@ export const FamilyTreeV2 = () => {
   }, [isLoading, user?.id, profile?.gender, Object.keys(members).length]);
 
   const handleGenderSelect = async (gender: 'male' | 'female') => {
-    if (!user?.id) return;
+    if (!user?.id || isSelectingGender) return;
+    setIsSelectingGender(true);
 
     try {
       // Update profile with gender
-      await supabase.
-      from('profiles').
-      update({ gender }).
-      eq('id', user.id);
+      await supabase
+        .from('profiles')
+        .update({ gender })
+        .eq('id', user.id);
 
       // Refresh profile
       await refreshProfile();
@@ -111,6 +113,8 @@ export const FamilyTreeV2 = () => {
       setShowGenderSelect(false);
     } catch (error) {
       console.error('Error setting gender:', error);
+    } finally {
+      setIsSelectingGender(false);
     }
   };
 
@@ -210,7 +214,8 @@ export const FamilyTreeV2 = () => {
       {/* Gender Selection Modal */}
       <GenderSelectionModal
         isOpen={showGenderSelect}
-        onSelect={handleGenderSelect} />
+        onSelect={handleGenderSelect}
+        disabled={isSelectingGender} />
 
  
        {/* Merge Selection Overlay */}

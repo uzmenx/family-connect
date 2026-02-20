@@ -595,24 +595,44 @@ export const useLocalFamilyTree = () => {
     }
   }, [user?.id, members]);
 
-  // Create self node
+  // Create self node - with DB-level duplicate check
+  const creatingSelfRef = useRef(false);
   const createSelfNode = useCallback(async (gender: 'male' | 'female') => {
     if (!user?.id) return null;
 
-    const existingMembers = Object.values(members);
-    const selfExists = existingMembers.some(m => m.linkedUserId === user.id);
-    if (selfExists) return null;
-
-    const { data: profile } = await supabase
-      .from('profiles')
-      .select('name, username, avatar_url')
-      .eq('id', user.id)
-      .single();
-
-    const selfId = generateId();
-    const memberName = profile?.name || profile?.username || "Men";
+    // Prevent concurrent calls (double-click / race condition)
+    if (creatingSelfRef.current) return null;
+    creatingSelfRef.current = true;
 
     try {
+      // Check local state
+      const existingMembers = Object.values(members);
+      const selfExists = existingMembers.some(m => m.linkedUserId === user.id);
+      if (selfExists) return null;
+
+      // DB-level check: does a self node already exist for this user?
+      const { data: existing } = await supabase
+        .from('family_tree_members')
+        .select('id')
+        .eq('owner_id', user.id)
+        .eq('linked_user_id', user.id)
+        .limit(1);
+
+      if (existing && existing.length > 0) {
+        // Already exists in DB, just reload
+        await loadData();
+        return existing[0].id;
+      }
+
+      const { data: profileData } = await supabase
+        .from('profiles')
+        .select('name, username, avatar_url')
+        .eq('id', user.id)
+        .single();
+
+      const selfId = generateId();
+      const memberName = profileData?.name || profileData?.username || "Men";
+
       await supabase.from('family_tree_members').insert({
         id: selfId,
         owner_id: user.id,
@@ -621,7 +641,7 @@ export const useLocalFamilyTree = () => {
         relation_type: 'self',
         is_placeholder: false,
         linked_user_id: user.id,
-        avatar_url: profile?.avatar_url,
+        avatar_url: profileData?.avatar_url,
       });
 
       await supabase.from('node_positions').insert({
@@ -638,7 +658,7 @@ export const useLocalFamilyTree = () => {
           id: selfId,
           name: memberName,
           gender: gender,
-          photoUrl: profile?.avatar_url || undefined,
+          photoUrl: profileData?.avatar_url || undefined,
           position: { x: 0, y: 0 },
           childrenIds: [],
           linkedUserId: user.id,
@@ -650,8 +670,10 @@ export const useLocalFamilyTree = () => {
     } catch (error) {
       console.error('Error creating self node:', error);
       return null;
+    } finally {
+      creatingSelfRef.current = false;
     }
-  }, [user?.id, members]);
+  }, [user?.id, members, loadData]);
 
   return {
     members,

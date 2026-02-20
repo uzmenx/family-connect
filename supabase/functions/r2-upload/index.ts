@@ -95,9 +95,10 @@ serve(async (req) => {
       { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   } catch (error) {
-    console.error("R2 upload error:", error.message);
+    const errMsg = error instanceof Error ? error.message : "Upload failed";
+    console.error("R2 upload error:", errMsg);
     return new Response(
-      JSON.stringify({ error: error.message || "Upload failed" }),
+      JSON.stringify({ error: errMsg }),
       { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );
   }
