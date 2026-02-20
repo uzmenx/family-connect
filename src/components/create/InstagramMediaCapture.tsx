@@ -398,6 +398,7 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
   const showCaptureUi = !isFocused && !trayOpen;
   const canAddMore = items.length < maxItems;
   const lastThree = useMemo(() => items.slice(-3), [items]);
+  const trayPeekHeight = '5.25rem';
 
   const handleSelectFromStrip = useCallback((idx: number) => {
     const it = items[idx];
@@ -469,22 +470,14 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
         />
         <canvas ref={canvasRef} className="hidden" />
 
-        {/* Gallery button */}
-        {showCaptureUi && (
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            disabled={!canAddMore}
-            className="absolute bottom-[max(5.25rem,calc(env(safe-area-inset-bottom)+4.25rem))] left-4 z-20 w-12 h-12 rounded-xl bg-white/10 backdrop-blur-sm flex items-center justify-center disabled:opacity-30 active:scale-90 transition-transform"
-          >
-            <ImageIcon className="w-5 h-5 text-white" />
-          </button>
-        )}
-
         {/* Flip camera */}
         {showCaptureUi && (
           <>
             {/* Zoom pills (center, above shutter) */}
-            <div className="absolute bottom-[max(7.5rem,calc(env(safe-area-inset-bottom)+6.5rem))] left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1">
+            <div
+              className="absolute left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1"
+              style={{ bottom: `calc(${trayPeekHeight} + max(2.25rem, env(safe-area-inset-bottom)) + 4.5rem)` }}
+            >
               <div className="flex gap-0.5 p-0.5 rounded-full bg-white/10 backdrop-blur-sm">
                 {[1, 2, 5].map((zl) => (
                   <button
@@ -506,8 +499,9 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
             <button
               type="button"
               onClick={() => setTrayOpen(true)}
-              className="absolute bottom-[max(1.75rem,calc(env(safe-area-inset-bottom)+0.75rem))] left-5 z-20 w-12 h-12 rounded-full bg-black/35 backdrop-blur-xl border border-white/15 flex items-center justify-center active:scale-90 transition-transform"
+              className="absolute left-5 z-20 w-12 h-12 rounded-full bg-black/35 backdrop-blur-xl border border-white/15 flex items-center justify-center active:scale-90 transition-transform"
               aria-label="Music"
+              style={{ bottom: `calc(${trayPeekHeight} + max(0.75rem, env(safe-area-inset-bottom)))` }}
             >
               <Music className="w-6 h-6 text-white" />
             </button>
@@ -515,8 +509,9 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
             {/* Flip camera (bottom-right) */}
             <button
               onClick={() => setFacingMode(f => (f === 'environment' ? 'user' : 'environment'))}
-              className="absolute bottom-[max(1.75rem,calc(env(safe-area-inset-bottom)+0.75rem))] right-5 z-20 w-12 h-12 rounded-full bg-black/35 backdrop-blur-xl border border-white/15 flex items-center justify-center active:scale-90 transition-transform"
+              className="absolute right-5 z-20 w-12 h-12 rounded-full bg-black/35 backdrop-blur-xl border border-white/15 flex items-center justify-center active:scale-90 transition-transform"
               aria-label="Switch camera"
+              style={{ bottom: `calc(${trayPeekHeight} + max(0.75rem, env(safe-area-inset-bottom)))` }}
             >
               <SwitchCamera className="w-6 h-6 text-white" />
             </button>
@@ -525,7 +520,10 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
 
         {/* Capture button */}
         {showCaptureUi && (
-          <div className="absolute bottom-[max(1.25rem,env(safe-area-inset-bottom))] left-0 right-0 z-20 flex items-center justify-center pb-3">
+          <div
+            className="absolute left-0 right-0 z-20 flex items-center justify-center"
+            style={{ bottom: `calc(${trayPeekHeight} + max(0.75rem, env(safe-area-inset-bottom)))` }}
+          >
             <button
               onMouseDown={handleCaptureStart}
               onMouseUp={handleCaptureEnd}
@@ -770,25 +768,24 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
             {/* Collapsed row: last 3 previews + gallery */}
             {!trayOpen && (
               <div className="px-4 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    {lastThree.map((it, i) => {
-                      const idx = items.length - lastThree.length + i;
-                      return (
-                        <button
-                          key={it.media.id}
-                          onClick={() => handleSelectFromStrip(idx)}
-                          className={cn(
-                            'w-12 h-12 rounded-xl overflow-hidden border-2',
-                            idx === activeIndex ? 'border-primary' : 'border-white/15'
-                          )}
-                        >
-                          <img src={it.media.thumbnail || it.media.url} alt="" className="w-full h-full object-cover" />
-                        </button>
-                      );
-                    })}
-                  </div>
-
+                <div className="grid grid-cols-4 gap-2 items-center">
+                  {Array.from({ length: 3 }).map((_, i) => {
+                    const it = lastThree[i];
+                    if (!it) return <div key={`empty-${i}`} className="w-12 h-12" />;
+                    const idx = items.length - lastThree.length + i;
+                    return (
+                      <button
+                        key={it.media.id}
+                        onClick={() => handleSelectFromStrip(idx)}
+                        className={cn(
+                          'w-12 h-12 rounded-xl overflow-hidden border-2',
+                          idx === activeIndex ? 'border-primary' : 'border-white/15'
+                        )}
+                      >
+                        <img src={it.media.thumbnail || it.media.url} alt="" className="w-full h-full object-cover" />
+                      </button>
+                    );
+                  })}
                   <button
                     onClick={() => fileInputRef.current?.click()}
                     disabled={!canAddMore}
