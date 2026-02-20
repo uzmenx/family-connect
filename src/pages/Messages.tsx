@@ -10,7 +10,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
-import { Search, MessageCircle, Users, Megaphone, Bell, Sparkles, Edit2, Trash2, X, CheckSquare, Music } from "lucide-react";
+import { Search, MessageCircle, Users, Megaphone, Bell, Sparkles, Edit2, Trash2, X, CheckSquare, Music, ChevronDown } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { formatDistanceToNow } from "date-fns";
@@ -131,19 +131,19 @@ const Messages = () => {
   };
 
   // Filter functions
-  const filteredConversations = conversations.filter((conv) => {
+  const filteredConversations = (conversations ?? []).filter((conv) => {
     if (!searchQuery) return true;
     const name = conv.otherUser.name?.toLowerCase() || "";
     const username = conv.otherUser.username?.toLowerCase() || "";
     return name.includes(searchQuery.toLowerCase()) || username.includes(searchQuery.toLowerCase());
   });
 
-  const filteredGroups = groups.filter((g) => {
+  const filteredGroups = (groups ?? []).filter((g) => {
     if (!searchQuery) return true;
     return g.name.toLowerCase().includes(searchQuery.toLowerCase());
   });
 
-  const filteredChannels = channels.filter((c) => {
+  const filteredChannels = (channels ?? []).filter((c) => {
     if (!searchQuery) return true;
     return c.name.toLowerCase().includes(searchQuery.toLowerCase());
   });
@@ -249,7 +249,7 @@ const Messages = () => {
   const tabBtnClass = (isActive: boolean) => cn(
     'flex-1 h-10 rounded-xl border text-sm font-semibold transition-colors',
     isActive ?
-    'bg-emerald-500/90 border-emerald-400/60 text-black shadow-sm' :
+    'bg-gradient-to-r from-indigo-500/90 via-violet-500/90 to-fuchsia-500/90 border-white/20 text-white shadow-[0_14px_34px_-16px_rgba(99,102,241,0.9)]' :
     'bg-black/25 border-white/15 text-foreground hover:bg-black/35'
   );
 
@@ -334,44 +334,51 @@ const Messages = () => {
           <div className="px-4 pb-2 space-y-2">
              <div className="flex-row flex items-start justify-start gap-[3px]">
               <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    className={cn(
-                      'flex-1 h-10 rounded-full border overflow-hidden p-0 justify-start gap-0',
-                      isAllGroupActive ?
-                      'bg-emerald-500/90 border-emerald-400/60 text-black shadow-sm' :
-                      'bg-black/25 border-white/15 text-foreground hover:bg-black/35'
-                    )}
-                    aria-label="All options">
-
-                    <span
+                <div
+                  className={cn(
+                    "flex-1 h-10 rounded-full border overflow-hidden flex",
+                    isAllGroupActive
+                      ? "bg-gradient-to-r from-indigo-500/90 via-violet-500/90 to-fuchsia-500/90 border-white/20 text-white shadow-[0_14px_34px_-16px_rgba(99,102,241,0.9)]"
+                      : "bg-black/25 border-white/15 text-foreground hover:bg-black/35"
+                  )}
+                  aria-label="All options"
+                >
+                  <DropdownMenuTrigger asChild>
+                    <button
+                      type="button"
                       className={cn(
-                        'h-full w-11 flex items-center justify-center flex-shrink-0',
-                        isAllGroupActive ? 'bg-emerald-600/90' : 'bg-white/10'
-                      )}>
+                        "h-full w-[30%] flex items-center justify-center transition-colors",
+                        isAllGroupActive ? "bg-black/10" : "bg-white/10",
+                        "active:scale-[0.99]"
+                      )}
+                    >
+                      <span className="inline-flex items-center gap-1">
+                        <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+                          <path
+                            d="M4 4h16L12 20 4 4z"
+                            className={cn(isAllGroupActive ? "fill-black/40" : "fill-white/50")}
+                          />
+                        </svg>
+                        <ChevronDown className="h-4 w-4 opacity-80" />
+                      </span>
+                    </button>
+                  </DropdownMenuTrigger>
 
-                      
-
-
-
-
-
-                    </span>
-                    <span className={cn('h-6 w-px', isAllGroupActive ? 'bg-emerald-200/60' : 'bg-white/15')} />
-                    <span className="flex-1 text-center font-semibold">
-                      {allGroupLabel}
-                    </span>
-                    <span className={cn('h-full w-11 flex items-center justify-center flex-shrink-0', isAllGroupActive ? 'bg-emerald-600/50' : 'bg-white/5')}>
-                      
-                    </span>
-                  </Button>
-                </DropdownMenuTrigger>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab("all")}
+                    className={cn(
+                      "h-full flex-1 font-semibold flex items-center justify-center transition-colors",
+                      "active:scale-[0.99]"
+                    )}
+                  >
+                    {t("allChats")}
+                  </button>
+                </div>
                 <DropdownMenuContent align="start" className="min-w-44">
-                  <DropdownMenuItem onClick={() => setActiveTab('all')}>{t('allChats')}</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setActiveTab('followers')}>{t('followersTab')}</DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setActiveTab('following')}>{t('followingTab')}</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setActiveTab("all")}>{t("allChats")}</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setActiveTab("followers")}>{t("followersTab")}</DropdownMenuItem>
+                  <DropdownMenuItem onClick={() => setActiveTab("following")}>{t("followingTab")}</DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
               <Button variant="outline" size="sm" onClick={() => setActiveTab("groups")} className={tabBtnClass(activeTab === "groups")}>
