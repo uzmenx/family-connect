@@ -210,18 +210,20 @@ export const StoryViewer = ({
         {/* Header — safe-area */}
         <div className="absolute top-[max(24px,calc(8px+env(safe-area-inset-top)))] left-0 right-0 px-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="relative w-10 h-10 rounded-full overflow-hidden border-2 border-white">
-              {author.avatar_url ? (
-                <img
-                  src={author.avatar_url}
-                  alt={author.name || 'User'}
-                  className="w-full h-full object-cover"
-                />
-              ) : (
-                <div className="w-full h-full bg-muted flex items-center justify-center text-white font-medium">
-                  {(author.name || author.username || 'U').charAt(0).toUpperCase()}
-                </div>
-              )}
+            <div className="relative w-10 h-10 overflow-visible">
+              <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-white">
+                {author.avatar_url ? (
+                  <img
+                    src={author.avatar_url}
+                    alt={author.name || 'User'}
+                    className="w-full h-full object-cover"
+                  />
+                ) : (
+                  <div className="w-full h-full bg-muted flex items-center justify-center text-white font-medium">
+                    {(author.name || author.username || 'U').charAt(0).toUpperCase()}
+                  </div>
+                )}
+              </div>
 
               {isOwnStory && (
                 <button

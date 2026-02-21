@@ -135,11 +135,27 @@ export const StoriesRow = ({ onStoryClick }: StoriesRowProps) => {
         <div className="flex flex-col items-center gap-1 flex-shrink-0">
           <motion.button
             onClick={() => navigate("/create-story")}
-            className="w-[68px] h-[68px] rounded-full bg-muted/50 flex items-center justify-center border-2 border-dashed border-muted-foreground/20 hover:border-primary/40 transition-colors"
+            className="relative w-[68px] h-[68px] rounded-full overflow-visible border-2 border-dashed border-muted-foreground/20 hover:border-primary/40 transition-colors"
             whileHover={{ scale: 1.08 }}
             whileTap={{ scale: 0.95 }}
           >
-            <Plus className="h-6 w-6 text-muted-foreground" />
+            <span className="absolute inset-0 rounded-full bg-muted/50" aria-hidden />
+
+            {profile?.avatar_url ? (
+              <span className="absolute inset-[6px] rounded-full overflow-hidden">
+                <img
+                  src={profile.avatar_url}
+                  alt="You"
+                  className="w-full h-full object-cover opacity-70"
+                />
+              </span>
+            ) : (
+              <span className="absolute inset-[6px] rounded-full bg-muted/70" aria-hidden />
+            )}
+
+            <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-white/85 flex items-center justify-center border-2 border-white/60 shadow-md">
+              <Plus className="h-3.5 w-3.5 text-black/80" />
+            </span>
           </motion.button>
           <span className="text-xs text-muted-foreground truncate w-16 text-center">Yangi</span>
         </div>
