@@ -87,14 +87,14 @@ export const StoryViewer = ({
       setProgress((progressRef.current / storyDuration) * 100);
 
       if (progressRef.current >= storyDuration) {
-        goToNext();
+        goToNextRef.current();
       }
     }, interval);
 
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [currentStory, isPaused, storyDuration, goToNext]);
+  }, [currentStory, isPaused, storyDuration]);
 
   const goToNext = useCallback(() => {
     if (currentStoryIndex < currentGroup.stories.length - 1) {
@@ -106,6 +106,9 @@ export const StoryViewer = ({
       onClose();
     }
   }, [currentStoryIndex, currentGroup, currentGroupIndex, storyGroups.length, onClose]);
+
+  const goToNextRef = useRef(goToNext);
+  useEffect(() => { goToNextRef.current = goToNext; }, [goToNext]);
 
   const goToPrev = useCallback(() => {
     if (currentStoryIndex > 0) {
@@ -141,15 +144,15 @@ export const StoryViewer = ({
     ? formatDistanceToNow(new Date(currentStory.created_at), { addSuffix: true })
     : '';
 
+  const handleVideoEnded = useCallback(() => {
+    goToNext();
+  }, [goToNext]);
+
   if (!currentGroup || !currentStory) {
     return null;
   }
 
   const author = currentStory.author || currentGroup.user;
-
-  const handleVideoEnded = useCallback(() => {
-    goToNext();
-  }, [goToNext]);
 
   return (
     <div className="fullscreen-story-view flex flex-col">

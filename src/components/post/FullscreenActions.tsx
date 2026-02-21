@@ -29,6 +29,7 @@ export const FullscreenActions = ({
 }: FullscreenActionsProps) => {
   const { isLiked, likesCount, likedUsers, toggleLike, fetchLikedUsers, isLoading } = usePostLikes(postId);
   const { viewsCount, trackView } = usePostViews(postId, initialViewsCount);
+  const { isPostSaved, toggleSavePost } = useSavedPosts();
   const [showLikers, setShowLikers] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [showShare, setShowShare] = useState(false);
