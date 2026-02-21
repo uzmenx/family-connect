@@ -499,21 +499,21 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
             <button
               type="button"
               onClick={() => setTrayOpen(true)}
-              className="absolute left-5 z-20 w-12 h-12 rounded-full bg-black/35 backdrop-blur-xl border border-white/15 flex items-center justify-center active:scale-90 transition-transform"
+              className="absolute left-8 z-20 w-12 h-12 rounded-full glass-button flex items-center justify-center active:scale-90 transition-transform group"
               aria-label="Music"
               style={{ bottom: `calc(${trayPeekHeight} + max(0.75rem, env(safe-area-inset-bottom)))` }}
             >
-              <Music className="w-6 h-6 text-white" />
+              <Music className="w-6 h-6 text-white animate-pulse group-hover:animate-bounce transition-all duration-300" />
             </button>
 
             {/* Flip camera (bottom-right) */}
             <button
               onClick={() => setFacingMode(f => (f === 'environment' ? 'user' : 'environment'))}
-              className="absolute right-5 z-20 w-12 h-12 rounded-full bg-black/35 backdrop-blur-xl border border-white/15 flex items-center justify-center active:scale-90 transition-transform"
+              className="absolute right-8 z-20 w-12 h-12 rounded-full glass-button flex items-center justify-center active:scale-90 transition-transform group"
               aria-label="Switch camera"
               style={{ bottom: `calc(${trayPeekHeight} + max(0.75rem, env(safe-area-inset-bottom)))` }}
             >
-              <SwitchCamera className="w-6 h-6 text-white" />
+              <SwitchCamera className="w-6 h-6 text-white animate-spin-slow group-hover:animate-spin transition-all duration-300" />
             </button>
           </>
         )}
