@@ -35,27 +35,26 @@ const Signup = () => {
 
     setIsLoading(true);
     try {
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          emailRedirectTo: `${window.location.origin}/`,
-          data: { username, name: username },
-        },
+      const response = await supabase.functions.invoke('send-otp', {
+        body: { email }
       });
-      if (error) throw error;
-      if (data.user) {
-        await supabase
-          .from("profiles")
-          .update({
-            username,
-            name: username,
-            gender: gender || null,
-          })
-          .eq("id", data.user.id);
-        toast({ title: t("success"), description: t("registeredMsg") });
-        navigate("/");
+
+      if (response.error) {
+        throw new Error(response.error.message);
       }
+      if ((response.data as any)?.error) {
+        throw new Error((response.data as any).error);
+      }
+
+      toast({ title: t("success"), description: "Kod emailingizga yuborildi" });
+      navigate('/verify-otp', {
+        state: {
+          email,
+          password,
+          username,
+          gender,
+        }
+      });
     } catch (error: any) {
       toast({ title: t("error"), description: error.message || t("signupError"), variant: "destructive" });
     } finally {
