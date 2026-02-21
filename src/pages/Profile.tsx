@@ -79,7 +79,12 @@ const Profile = () => {
 
   return (
     <AppLayout>
-      <div className="min-h-screen pb-20 bg-background">
+      <div className="min-h-screen pb-20 bg-background relative">
+        {/* Animated Background - Behind all content */}
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 via-pink-900/20 to-orange-900/20 animate-gradient-shift pointer-events-none" />
+        
+        {/* Content Container - Above background */}
+        <div className="relative z-10">
 
         {/* ═══════════════════════════════════════
             COVER IMAGE
@@ -463,6 +468,7 @@ const Profile = () => {
           requests={pendingCollabs}
           onRespond={respondToCollab}
         />
+        </div>
       </div>
     </AppLayout>
   );
