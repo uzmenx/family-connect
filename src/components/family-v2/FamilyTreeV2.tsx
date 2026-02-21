@@ -384,7 +384,7 @@ avlodlarimiz uchun xotiralar qoldiraylik</p>
         member={modal.member || null}
       />
 
-      {/* Birlashtirish dialogi */
+      {/* Birlashtirish dialogi */}
       {mergeData !== null && (
         <UnifiedMergeDialog
           isOpen={showMergeDialog}
