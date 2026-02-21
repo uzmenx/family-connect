@@ -249,7 +249,7 @@ const Messages = () => {
   const tabBtnClass = (isActive: boolean) => cn(
     'flex-1 h-10 rounded-xl border text-sm font-semibold transition-colors',
     isActive ?
-    'bg-gradient-to-r from-indigo-500/45 via-violet-500/45 to-fuchsia-500/45 border-white/10 text-white shadow-[0_14px_34px_-16px_rgba(99,102,241,0.45)]' :
+    'bg-gradient-to-r from-indigo-500/90 via-violet-500/90 to-fuchsia-500/90 border-white/20 text-white shadow-[0_14px_34px_-16px_rgba(99,102,241,0.9)]' :
     'bg-black/25 border-white/15 text-foreground hover:bg-black/35'
   );
 
@@ -338,7 +338,7 @@ const Messages = () => {
                   className={cn(
                     "flex-1 h-10 rounded-full border overflow-hidden flex",
                     isAllGroupActive ?
-                    "bg-gradient-to-r from-indigo-500/45 via-violet-500/45 to-fuchsia-500/45 border-white/10 text-white shadow-[0_14px_34px_-16px_rgba(99,102,241,0.45)]" :
+                    "bg-gradient-to-r from-indigo-500/90 via-violet-500/90 to-fuchsia-500/90 border-white/20 text-white shadow-[0_14px_34px_-16px_rgba(99,102,241,0.9)]" :
                     "bg-black/25 border-white/15 text-foreground hover:bg-black/35"
                   )}
                   aria-label="All options">
@@ -348,7 +348,7 @@ const Messages = () => {
                       type="button"
                       className={cn(
                         "h-full w-[30%] flex items-center justify-center transition-colors",
-                        isAllGroupActive ? "bg-black/10" : "bg-black/10",
+                        isAllGroupActive ? "bg-black/10" : "bg-white/10",
                         "active:scale-[0.99]"
                       )}>
 

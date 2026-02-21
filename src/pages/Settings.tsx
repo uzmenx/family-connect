@@ -37,10 +37,10 @@ const themeModes: { key: ThemeMode; icon: typeof Sun }[] = [
 ];
 
 const bgOptions: { key: BackgroundTheme; preview: string }[] = [
-  { key: 'ocean', preview: 'bg-ocean' },
+  { key: 'none', preview: 'bg-card' },
   { key: 'aurora', preview: 'bg-aurora' },
   { key: 'sunset', preview: 'bg-sunset' },
-  { key: 'none', preview: 'bg-card' },
+  { key: 'ocean', preview: 'bg-ocean' },
 ];
 
 const bgLabelMap: Record<BackgroundTheme, keyof typeof themeTranslations> = {

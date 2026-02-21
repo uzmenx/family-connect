@@ -15,7 +15,7 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [mode, setMode] = useLocalStorage<ThemeMode>('theme-mode', 'system');
-  const [bgTheme, setBgTheme] = useLocalStorage<BackgroundTheme>('bg-theme', 'ocean');
+  const [bgTheme, setBgTheme] = useLocalStorage<BackgroundTheme>('bg-theme', 'none');
 
   useEffect(() => {
     const root = document.documentElement;
