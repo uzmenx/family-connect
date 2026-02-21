@@ -15,9 +15,10 @@ import { useStories } from "@/hooks/useStories";
 import { usePostsCache } from "@/hooks/usePostsCache";
 import { useSmoothScroll } from "@/hooks/useSmoothScroll";
 import { useNotifications } from "@/hooks/useNotifications";
-import { Grid2X2, LayoutList, Bell } from "lucide-react";
+import { Grid2X2, LayoutList, Bell, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
 import { Post } from "@/types";
 
 type GridLayout = 1 | 2;
@@ -126,6 +127,16 @@ const Home = () => {
 
         {/* Stories */}
         <StoriesRow onStoryClick={openStoryViewer} />
+
+        <div className="mx-3 mt-2 mb-1">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              placeholder="Qidirish..."
+              className="h-10 rounded-full pl-9 pr-4 bg-background/30 border-white/10 backdrop-blur-xl focus-visible:ring-1 focus-visible:ring-primary/40"
+            />
+          </div>
+        </div>
 
         {/* YouTube Shorts - compact */}
         <YouTubeShortsSection onShortClick={openShortsViewer} />
