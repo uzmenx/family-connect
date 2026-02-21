@@ -213,7 +213,7 @@ export function YouTubeShortsSection({ onShortClick }: YouTubeShortsProps) {
             </div>
 
             <div className="absolute bottom-0 left-0 right-0 p-1.5 z-10">
-              <p className="text-[10px] text-primary-foreground font-medium leading-tight line-clamp-2 drop-shadow-lg">
+              <p className="text-[10px] font-medium leading-tight line-clamp-2 drop-shadow-lg bg-inherit text-gray-300">
                 {short.title}
               </p>
               <p className="text-[9px] text-primary-foreground/60 mt-0.5 drop-shadow-lg">
