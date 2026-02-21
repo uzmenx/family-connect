@@ -200,8 +200,8 @@ export function YouTubeShortsSection({ onShortClick }: YouTubeShortsProps) {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
               placeholder="Qidirish..."
-              className="h-7 rounded-full pl-8 pr-3 bg-background/30 border-white/10 backdrop-blur-xl text-xs focus-visible:ring-1 focus-visible:ring-primary/40"
-            />
+              className="h-7 rounded-full pl-8 pr-3 bg-background/30 border-white/10 backdrop-blur-xl text-xs focus-visible:ring-1 focus-visible:ring-primary/40" />
+
           </div>
         </div>
         <div className="flex gap-0.5 flex-shrink-0">
@@ -225,7 +225,7 @@ export function YouTubeShortsSection({ onShortClick }: YouTubeShortsProps) {
       <style>{`.shorts-carousel::-webkit-scrollbar{display:none}`}</style>
       <div
         ref={scrollRef}
-        className="shorts-carousel flex gap-2 overflow-x-auto px-3 snap-x snap-mandatory"
+        className="shorts-carousel flex gap-2 overflow-x-auto px-3 snap-x snap-mandatory shadow-md"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}>
 
         {shorts.map((short, index) =>
