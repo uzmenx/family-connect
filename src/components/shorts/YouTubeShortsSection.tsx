@@ -50,15 +50,15 @@ function saveCache(shorts: Short[], nextPageToken: string | null) {
 
 // Rotating search queries for variety — Uzbekistan + world trends
 const SEARCH_QUERIES = [
-  'uzbekistan shorts trending',
-  'uzbek viral shorts',
-  'trending shorts worldwide',
-  'shorts viral funny trending',
-  'toshkent shorts',
-  'world trending shorts 2025',
-  'uzbekistan funny shorts',
-  'shorts comedy viral',
-];
+'uzbekistan shorts trending',
+'uzbek viral shorts',
+'trending shorts worldwide',
+'shorts viral funny trending',
+'toshkent shorts',
+'world trending shorts 2025',
+'uzbekistan funny shorts',
+'shorts comedy viral'];
+
 
 function getRandomQuery(): string {
   return SEARCH_QUERIES[Math.floor(Math.random() * SEARCH_QUERIES.length)];
@@ -188,7 +188,7 @@ export function YouTubeShortsSection({ onShortClick }: YouTubeShortsProps) {
   return (
     <div className="pt-1 pb-0">
       {/* Header */}
-      <div className="flex items-center justify-between mb-1.5 py-[3px] px-[12px]">
+      <div className="items-center justify-between mb-1.5 px-[12px] flex flex-row py-0">
         <div className="flex items-center gap-1.5">
           <Flame className="w-3.5 h-3.5 text-destructive" />
           <span className="font-semibold text-xs text-foreground">Shorts</span>
