@@ -21,7 +21,7 @@ export interface MergeCandidate {
   targetName: string;
   sourcePhotoUrl?: string;
   targetPhotoUrl?: string;
-  relationship: 'parent' | 'grandparent';
+  relationship: 'self' | 'parent' | 'grandparent';
 }
 
 export interface ChildProfile {
@@ -72,20 +72,89 @@ interface TreeMember {
 
 // ============= HELPER FUNCTIONS =============
 
+export const normalizePersonName = (name: string): string => {
+  if (!name) return '';
+
+  const trimmed = name
+    .toLowerCase()
+    .trim()
+    .replace(/[’ʻ`]/g, "'")
+    .replace(/\s+/g, ' ');
+
+  const cyrToLat: Record<string, string> = {
+    а: 'a', б: 'b', в: 'v', г: 'g', д: 'd', е: 'e', ё: 'yo', ж: 'j', з: 'z', и: 'i', й: 'y',
+    к: 'k', л: 'l', м: 'm', н: 'n', о: 'o', п: 'p', р: 'r', с: 's', т: 't', у: 'u', ф: 'f',
+    х: 'x', ц: 'ts', ч: 'ch', ш: 'sh', щ: 'sh', ъ: '', ы: 'i', ь: '', э: 'e', ю: 'yu', я: 'ya',
+    қ: 'q', ғ: "g'", ў: "o'", ҳ: 'h',
+    ә: 'a', ө: 'o', ү: 'u',
+  };
+
+  const transliterated = trimmed
+    .split('')
+    .map((ch) => cyrToLat[ch] ?? ch)
+    .join('');
+
+  return transliterated
+    .replace(/[^a-z0-9\s']/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+};
+
+const levenshteinDistance = (a: string, b: string): number => {
+  if (a === b) return 0;
+  if (!a) return b.length;
+  if (!b) return a.length;
+
+  const m = a.length;
+  const n = b.length;
+  const dp = new Array<number>(n + 1);
+
+  for (let j = 0; j <= n; j++) dp[j] = j;
+
+  for (let i = 1; i <= m; i++) {
+    let prev = dp[0];
+    dp[0] = i;
+    for (let j = 1; j <= n; j++) {
+      const temp = dp[j];
+      const cost = a[i - 1] === b[j - 1] ? 0 : 1;
+      dp[j] = Math.min(dp[j] + 1, dp[j - 1] + 1, prev + cost);
+      prev = temp;
+    }
+  }
+
+  return dp[n];
+};
+
+const tokenOverlapScore = (a: string, b: string): number => {
+  if (!a || !b) return 0;
+  const ta = a.split(' ').filter(Boolean);
+  const tb = b.split(' ').filter(Boolean);
+  if (ta.length === 0 || tb.length === 0) return 0;
+  const setB = new Set(tb);
+  let common = 0;
+  for (const t of ta) if (setB.has(t)) common++;
+  const denom = Math.max(ta.length, tb.length);
+  return Math.round((common / denom) * 100);
+};
+
 /** Ism o'xshashligi 0–100 */
 export const calculateSimilarity = (name1: string, name2: string): number => {
-  if (!name1 || !name2) return 0;
-  const n1 = name1.toLowerCase().trim();
-  const n2 = name2.toLowerCase().trim();
+  const n1 = normalizePersonName(name1);
+  const n2 = normalizePersonName(name2);
+  if (!n1 || !n2) return 0;
   if (n1 === n2) return 100;
-  if (n1.includes(n2) || n2.includes(n1)) return 80;
-  if (n1.length >= 3 && n2.length >= 3 && n1.slice(0, 3) === n2.slice(0, 3)) return 60;
-  const maxLen = Math.max(n1.length, n2.length);
-  let matches = 0;
-  for (let i = 0; i < Math.min(n1.length, n2.length); i++) {
-    if (n1[i] === n2[i]) matches++;
+
+  if (n1.includes(n2) || n2.includes(n1)) {
+    const ratio = Math.min(n1.length, n2.length) / Math.max(n1.length, n2.length);
+    return Math.round(80 + Math.min(20, ratio * 20));
   }
-  return Math.round((matches / maxLen) * 100);
+
+  const dist = levenshteinDistance(n1, n2);
+  const maxLen = Math.max(n1.length, n2.length);
+  const levScore = Math.round((1 - dist / maxLen) * 100);
+  const overlap = tokenOverlapScore(n1, n2);
+
+  return Math.max(0, Math.min(100, Math.round(levScore * 0.7 + overlap * 0.3)));
 };
 
 /** Tug'ilgan yil mosligi 0–100 (30% vazn) */
@@ -100,17 +169,19 @@ export const birthYearScore = (y1?: number, y2?: number): number => {
 };
 
 /**
- * Birlashtirish balli: 40% ism, 30% tug'ilgan yil, 30% ota-ona munosabati (95% aniqlik).
+ * Birlashtirish balli: 40% ism, 30% tug'ilgan yil, 20% ota-ona, 10% farzand.
  */
 export const computeMatchScore = (
   nameSimilarity: number,
   birthYearSim: number,
-  sameParentGroup: boolean
+  parentsSim: number,
+  childrenSim: number
 ): number => {
   const namePart = (nameSimilarity / 100) * 40;
   const birthPart = (birthYearSim / 100) * 30;
-  const parentPart = sameParentGroup ? 30 : 0;
-  return Math.round(namePart + birthPart + parentPart);
+  const parentPart = (parentsSim / 100) * 20;
+  const childrenPart = (childrenSim / 100) * 10;
+  return Math.round(namePart + birthPart + parentPart + childrenPart);
 };
 
 /** Minimal ball: 1% ham bo‘lsa tavsiya qilamiz — katta daraxtda hech kim chetda qolmasin */
@@ -133,7 +204,8 @@ const computeChildSuggestions = (
       if (target.gender !== sourceChild.gender) continue;
       const nameSim = calculateSimilarity(sourceChild.name, target.name);
       const birthSim = birthYearScore(sourceChild.birthYear, target.birthYear);
-      const score = computeMatchScore(nameSim, birthSim, sameParentGroup);
+      const parentsSim = sameParentGroup ? 100 : 0;
+      const score = computeMatchScore(nameSim, birthSim, parentsSim, 0);
       if (score >= MERGE_SCORE_THRESHOLD) {
         allPairs.push({ source: sourceChild, target, score });
       }
@@ -228,6 +300,59 @@ const findChildren = (member: TreeMember, allMembers: TreeMember[]): TreeMember[
   return Array.from(childrenMap.values());
 };
 
+const computeParentsSimilarity = (
+  a: TreeMember,
+  b: TreeMember,
+  aAll: TreeMember[],
+  bAll: TreeMember[]
+): number => {
+  const aParents = findParents(a, aAll);
+  const bParents = findParents(b, bAll);
+  if (aParents.length === 0 || bParents.length === 0) return 0;
+
+  const bestMatches: number[] = [];
+  for (const ap of aParents) {
+    const candidates = bParents.filter(bp => !ap.gender || !bp.gender || ap.gender === bp.gender);
+    if (candidates.length === 0) continue;
+    let best = 0;
+    for (const bp of candidates) {
+      best = Math.max(best, calculateSimilarity(ap.member_name || '', bp.member_name || ''));
+    }
+    bestMatches.push(best);
+  }
+
+  if (bestMatches.length === 0) return 0;
+  const avg = bestMatches.reduce((s, v) => s + v, 0) / bestMatches.length;
+  return Math.round(avg);
+};
+
+const computeChildrenSimilarity = (
+  a: TreeMember,
+  b: TreeMember,
+  aAll: TreeMember[],
+  bAll: TreeMember[]
+): number => {
+  const aChildren = findChildren(a, aAll);
+  const bChildren = findChildren(b, bAll);
+  const aNames = aChildren.map(c => c.member_name || '').filter(Boolean);
+  const bNames = bChildren.map(c => c.member_name || '').filter(Boolean);
+  if (aNames.length === 0 || bNames.length === 0) return 0;
+
+  const small = aNames.length <= bNames.length ? aNames : bNames;
+  const big = aNames.length <= bNames.length ? bNames : aNames;
+
+  let matches = 0;
+  for (const s of small) {
+    let best = 0;
+    for (const t of big) {
+      best = Math.max(best, calculateSimilarity(s, t));
+    }
+    if (best >= 80) matches++;
+  }
+
+  return Math.round((matches / Math.max(aNames.length, bNames.length)) * 100);
+};
+
 /**
  * Ikki ota-onaning barcha farzandlarini topish (combined, unique)
  */
@@ -261,11 +386,11 @@ const toChildProfile = (m: TreeMember): ChildProfile => ({
 const createMergeEntry = (
   sp: TreeMember,
   rp: TreeMember,
-  rel: 'parent' | 'grandparent'
+  rel: 'self' | 'parent' | 'grandparent'
 ): MergeCandidate => {
   const sDate = new Date(sp.created_at);
   const rDate = new Date(rp.created_at);
-  const [source, target] = sDate <= rDate ? [sp, rp] : [rp, sp];
+  const [source, target] = rel === 'self' ? [sp, rp] : (sDate <= rDate ? [sp, rp] : [rp, sp]);
   return {
     sourceId: source.id,
     targetId: target.id,
@@ -320,6 +445,17 @@ export const useTreeMerging = () => {
       const receiverSelf = receiverMembers.find(m => m.linked_user_id === receiverId);
       
       if (!linkedMember || !receiverSelf) return result;
+
+      {
+        const nameSim = calculateSimilarity(linkedMember.member_name || '', receiverSelf.member_name || '');
+        const birthSim = birthYearScore(linkedMember.birth_year ?? undefined, receiverSelf.birth_year ?? undefined);
+        const parentsSim = computeParentsSimilarity(linkedMember, receiverSelf, senderMembers, receiverMembers);
+        const childrenSim = computeChildrenSimilarity(linkedMember, receiverSelf, senderMembers, receiverMembers);
+        const score = computeMatchScore(nameSim, birthSim, parentsSim, childrenSim);
+        if (score >= 90) {
+          result.parentMerges.push(createMergeEntry(linkedMember, receiverSelf, 'self'));
+        }
+      }
       
       // === OTA-ONALAR ===
       const senderParents = findParents(linkedMember, senderMembers);

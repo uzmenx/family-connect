@@ -160,7 +160,7 @@ export const useMergeMode = (members: Record<string, FamilyMember>) => {
           if (t.gender !== sc.gender) continue;
           const nameSim = calculateSimilarity(sc.name, t.name);
           const birthSim = birthYearScore(sc.birthYear, t.birthYear);
-          const score = computeMatchScore(nameSim, birthSim, true);
+          const score = computeMatchScore(nameSim, birthSim, 100, 0);
           if (score >= MERGE_THRESHOLD) {
             allPairs.push({ source: sc, target: t, score });
           }

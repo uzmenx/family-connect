@@ -29,6 +29,8 @@ interface UnifiedMergeDialogProps {
   isProcessing: boolean;
 }
 
+const AUTO_MERGE_THRESHOLD = 90;
+
 /**
  * Build child merge items for a couple group
  */
@@ -40,7 +42,7 @@ const buildChildItems = (group: CoupleGroup): ChildMergeItem[] => {
     items.push({
       sourceChild: suggestion.sourceChild,
       targetChild: suggestion.targetChild,
-      shouldMerge: true,
+      shouldMerge: suggestion.similarity >= AUTO_MERGE_THRESHOLD,
       similarity: suggestion.similarity,
     });
     usedTargetIds.add(suggestion.targetChild.id);
@@ -83,7 +85,7 @@ const buildFlatChildItems = (data: MergeDialogData): ChildMergeItem[] => {
     items.push({
       sourceChild: suggestion.sourceChild,
       targetChild: suggestion.targetChild,
-      shouldMerge: true,
+      shouldMerge: suggestion.similarity >= AUTO_MERGE_THRESHOLD,
       similarity: suggestion.similarity,
     });
     usedTargetIds.add(suggestion.targetChild.id);

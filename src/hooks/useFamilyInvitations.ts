@@ -164,6 +164,20 @@ export const useFamilyInvitations = () => {
         invitation.member_id
       );
 
+      // Auto-merge (self + parent/grandparent) immediately so the tree doesn't show duplicates
+      if (result.parentMerges.length > 0) {
+        const autoMerges = result.parentMerges.filter(m => m.relationship === 'self' || m.relationship === 'parent' || m.relationship === 'grandparent');
+        if (autoMerges.length > 0) {
+          await executeParentMerge(autoMerges);
+          result.parentMerges = result.parentMerges.filter(m => !autoMerges.some(am => am.sourceId === m.sourceId && am.targetId === m.targetId));
+          // Also drop executed merges from coupleGroups parent badges
+          result.coupleGroups = result.coupleGroups.map(g => ({
+            ...g,
+            parentMerges: g.parentMerges.filter(pm => !autoMerges.some(am => am.sourceId === pm.sourceId && am.targetId === pm.targetId))
+          }));
+        }
+      }
+
       const hasParentMerges = result.parentMerges.length > 0;
       const hasCoupleGroups = result.coupleGroups.length > 0;
       const hasChildren = result.allSourceChildren.length > 0 || result.allTargetChildren.length > 0;
@@ -184,6 +198,8 @@ export const useFamilyInvitations = () => {
           title: "Qabul qilindi!",
           description: "Siz oila daraxtiga muvaffaqiyatli qo'shildingiz.",
         });
+
+        window.dispatchEvent(new CustomEvent('family-tree-reload'));
       }
 
       setPendingInvitations(prev => prev.filter(inv => inv.id !== invitation.id));
