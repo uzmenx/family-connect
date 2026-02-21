@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, ChevronLeft, ChevronRight, Flame, Loader2 } from 'lucide-react';
+import { Play, ChevronLeft, ChevronRight, Flame, Loader2, Search } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 
 export interface Short {
   id: string;
@@ -189,12 +190,21 @@ export function YouTubeShortsSection({ onShortClick }: YouTubeShortsProps) {
     <div className="pt-1 pb-0">
       {/* Header */}
       <div className="items-center justify-between mb-1.5 px-[12px] flex flex-row py-[3px]">
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 flex-shrink-0">
           <Flame className="w-3.5 h-3.5 text-destructive" />
           <span className="font-semibold text-xs text-foreground">Shorts</span>
           
         </div>
-        <div className="flex gap-0.5">
+        <div className="flex-1 px-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              placeholder="Qidirish..."
+              className="h-7 rounded-full pl-8 pr-3 bg-background/30 border-white/10 backdrop-blur-xl text-xs focus-visible:ring-1 focus-visible:ring-primary/40"
+            />
+          </div>
+        </div>
+        <div className="flex gap-0.5 flex-shrink-0">
           <button
             onClick={() => scroll('left')}
             className="w-6 h-6 rounded-full bg-background/60 backdrop-blur-sm flex items-center justify-center border border-border/20">
