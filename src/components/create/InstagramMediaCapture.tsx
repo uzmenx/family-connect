@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronRight, Image as ImageIcon, Music, Play, Pause, Smile, SwitchCamera, Type, Volume2, VolumeX, X } from 'lucide-react';
+import { ChevronRight, Image as ImageIcon, Music2, Play, Pause, Smile, SwitchCamera, Type, Volume2, VolumeX, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EMOJIS, MEDIA_FILTERS } from './filters';
 import FilterStrip from './FilterStrip';
@@ -503,7 +503,7 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
               aria-label="Music"
               style={{ bottom: `calc(${trayPeekHeight} + max(0.75rem, env(safe-area-inset-bottom)))` }}
             >
-              <Music className="w-6 h-6 text-white animate-pulse group-hover:animate-bounce transition-all duration-300" />
+              <Music2 className="w-6 h-6 text-white animate-pulse-slow group-hover:animate-bounce-slow transition-all duration-500" />
             </button>
 
             {/* Flip camera (bottom-right) */}

@@ -469,8 +469,26 @@ All colors MUST be HSL.
   to { transform: rotate(360deg); }
 }
 
+@keyframes pulse-slow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+
+@keyframes bounce-slow {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-8px); }
+}
+
 .animate-spin-slow {
   animation: spin-slow 3s linear infinite;
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 3s ease-in-out infinite;
+}
+
+.animate-bounce-slow {
+  animation: bounce-slow 2s ease-in-out infinite;
 }
 
 /* Glass morphism effect */
