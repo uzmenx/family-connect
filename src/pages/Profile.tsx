@@ -23,6 +23,7 @@ import { HighlightsRow } from '@/components/profile/HighlightsRow';
 import { HighlightEditor } from '@/components/profile/HighlightEditor';
 import { CollectionsFilter } from '@/components/profile/CollectionsFilter';
 import { CollabRequestsSheet } from '@/components/post/CollabRequestsSheet';
+import { NotificationsSheet } from '@/components/notifications/NotificationsSheet';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { formatCount } from '@/lib/formatCount';
@@ -47,6 +48,7 @@ const Profile = () => {
   const [showPostsStats, setShowPostsStats] = useState(false);
   const [bioExpanded, setBioExpanded] = useState(false);
   const [needsMoreButton, setNeedsMoreButton] = useState(false);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const bioRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -100,7 +102,7 @@ const Profile = () => {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => navigate('/notifications')}
+              onClick={() => setNotificationsOpen(true)}
               className="relative h-9 w-9 bg-black/30 backdrop-blur-md border border-white/20 hover:bg-black/50 text-white rounded-xl"
             >
               <Bell className="h-4 w-4" />
@@ -335,6 +337,8 @@ const Profile = () => {
             )}
           </div>
         </div>
+
+        <NotificationsSheet open={notificationsOpen} onOpenChange={setNotificationsOpen} />
 
         {/* ═══════════════════════════════════════
             POSTS TAB

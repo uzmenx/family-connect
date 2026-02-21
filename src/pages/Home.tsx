@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PostCard } from "@/components/feed/PostCard";
 import { PullToRefresh } from "@/components/feed/PullToRefresh";
@@ -9,6 +8,7 @@ import { StoriesRow } from "@/components/stories/StoriesRow";
 import { YouTubeShortsSection, type Short } from "@/components/shorts/YouTubeShortsSection";
 import { StoryViewer } from "@/components/stories/StoryViewer";
 import { UnifiedFullScreenViewer } from "@/components/feed/UnifiedFullScreenViewer";
+import { NotificationsSheet } from "@/components/notifications/NotificationsSheet";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useStories } from "@/hooks/useStories";
@@ -25,11 +25,11 @@ type GridLayout = 1 | 2;
 const Home = () => {
   const { user } = useAuth();
   const { t } = useLanguage();
-  const navigate = useNavigate();
   const { storyGroups, refetch: refetchStories } = useStories();
   const { posts, isLoading, isRefreshing, isLoadingMore, hasMore, fetchPosts, loadMore } = usePostsCache();
   const { unreadCount } = useNotifications();
   const [gridLayout, setGridLayout] = useState<GridLayout>(1);
+  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const loadMoreSentinelRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useSmoothScroll(true, true); // Enable snap and swipe gestures
 
@@ -105,7 +105,7 @@ const Home = () => {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => navigate('/notifications')}
+              onClick={() => setNotificationsOpen(true)}
               className="relative h-9 w-9 rounded-xl"
             >
               <Bell className="h-5 w-5" />
@@ -201,9 +201,11 @@ const Home = () => {
           onClose={() => setStoryViewerOpen(false)} />
 
         }
-      </div>
-    </AppLayout>);
 
+        <NotificationsSheet open={notificationsOpen} onOpenChange={setNotificationsOpen} />
+      </div>
+    </AppLayout>
+  );
 };
 
 const MasonryItem = ({ post }: {post: Post;}) => {
