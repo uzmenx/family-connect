@@ -27,6 +27,7 @@ export const AppLayout = ({ children, showNav = true }: AppLayoutProps) => {
 
   return (
     <div className={cn('min-h-screen', bgClass || 'bg-background')}>
+      <div className="top-animated-strip" />
       <main className={showNav ? "pb-20" : ""}>
         {children}
       </main>

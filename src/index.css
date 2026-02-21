@@ -154,9 +154,33 @@ All colors MUST be HSL.
     @apply border-border;
   }
 
+  html {
+    @apply bg-background text-foreground;
+  }
+
   body {
     @apply bg-background text-foreground;
   }
+}
+
+.top-animated-strip {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: env(safe-area-inset-top, 8px);
+  min-height: 8px;
+  z-index: 60;
+  pointer-events: none;
+  background: linear-gradient(
+    90deg,
+    hsl(158 64% 51% / 0.35),
+    hsl(270 60% 65% / 0.35),
+    hsl(350 90% 55% / 0.35),
+    hsl(158 64% 51% / 0.35)
+  );
+  background-size: 300% 100%;
+  animation: gradient-shift 10s ease infinite;
 }
 
 /* Neon glow animations for family tree */
