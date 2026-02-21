@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronRight, Image as ImageIcon, Music2, Play, Pause, Smile, SwitchCamera, Type, Volume2, VolumeX, X } from 'lucide-react';
+import { ChevronRight, Image as ImageIcon, Music2, Play, Pause, RefreshCw, Smile, Type, Volume2, VolumeX, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EMOJIS, MEDIA_FILTERS } from './filters';
 import FilterStrip from './FilterStrip';
@@ -442,7 +442,7 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
       <div className="absolute top-0 left-0 right-0 z-30 flex items-center justify-between px-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
         <button
           onClick={onClose}
-          className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-xl border border-white/15 flex items-center justify-center active:scale-90 transition-transform"
+          className="w-10 h-10 rounded-full glass-button flex items-center justify-center active:scale-90 transition-transform"
         >
           <X className="w-5 h-5 text-white" />
         </button>
@@ -513,7 +513,7 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
               aria-label="Switch camera"
               style={{ bottom: `calc(${trayPeekHeight} + max(0.75rem, env(safe-area-inset-bottom)))` }}
             >
-              <SwitchCamera className="w-6 h-6 text-white animate-spin-slow group-hover:animate-spin transition-all duration-300" />
+              <RefreshCw className="w-6 h-6 text-white animate-spin-very-slow group-hover:animate-spin transition-all duration-500" />
             </button>
           </>
         )}
