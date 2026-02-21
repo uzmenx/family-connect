@@ -87,8 +87,8 @@ const Profile = () => {
         <div className="relative z-10">
 
         {/* ═══════════════════════════════════════
-               COVER IMAGE
-            ═══════════════════════════════════════ */}
+                  COVER IMAGE
+               ═══════════════════════════════════════ */}
         <div className="relative h-36 overflow-hidden">
           {(profile as any)?.cover_url ?
             <img
@@ -140,8 +140,8 @@ const Profile = () => {
         </div>
 
         {/* ═══════════════════════════════════════
-               PROFILE HEADER BLOCK
-            ═══════════════════════════════════════ */}
+                  PROFILE HEADER BLOCK
+               ═══════════════════════════════════════ */}
         <div className="px-4 -mt-10 relative z-10">
 
           {/* ROW 1: Followers | Avatar | Postlar */}
@@ -177,7 +177,7 @@ const Profile = () => {
               </span>
               <button
                   onClick={() => setShowPostsStats(!showPostsStats)}
-                  className="absolute -bottom-2 right-2 h-5 w-5 bg-muted rounded-full flex items-center justify-center hover:bg-muted-foreground/20 transition-all opacity-85"
+                  className="absolute -bottom-2 right-2 h-5 w-5 bg-muted rounded-full flex items-center justify-center hover:bg-muted-foreground/20 transition-all opacity-65"
                   style={{ transform: showPostsStats ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 0.3s' }}>
 
                 <ChevronDown className="h-3 w-3 text-foreground" />
@@ -260,8 +260,8 @@ const Profile = () => {
         </div>
 
         {/* ═══════════════════════════════════════
-               STORY HIGHLIGHTS
-            ═══════════════════════════════════════ */}
+                  STORY HIGHLIGHTS
+               ═══════════════════════════════════════ */}
         {!hideHighlights &&
           <div className="flex justify-center">
             <HighlightsRow
@@ -274,8 +274,8 @@ const Profile = () => {
           }
 
         {/* ═══════════════════════════════════════
-               COLLECTIONS FILTER
-            ═══════════════════════════════════════ */}
+                  COLLECTIONS FILTER
+               ═══════════════════════════════════════ */}
         {!hideCollections && activeTab === 'posts' &&
           <div className="flex justify-center">
             <CollectionsFilter
@@ -289,8 +289,8 @@ const Profile = () => {
           }
 
         {/* ═══════════════════════════════════════
-               TABS
-            ═══════════════════════════════════════ */}
+                  TABS
+               ═══════════════════════════════════════ */}
         <div className="px-4">
           <div className="flex border-b border-border mb-2">
             <button
@@ -346,8 +346,8 @@ const Profile = () => {
         <NotificationsSheet open={notificationsOpen} onOpenChange={setNotificationsOpen} />
 
         {/* ═══════════════════════════════════════
-               POSTS TAB
-            ═══════════════════════════════════════ */}
+                  POSTS TAB
+               ═══════════════════════════════════════ */}
         {activeTab === 'posts' &&
           <PullToRefresh onRefresh={refetch}>
             {isLoading ?
@@ -382,8 +382,8 @@ const Profile = () => {
           }
 
         {/* ═══════════════════════════════════════
-               SAVED TAB
-            ═══════════════════════════════════════ */}
+                  SAVED TAB
+               ═══════════════════════════════════════ */}
         {activeTab === 'saved' &&
           <PullToRefresh onRefresh={fetchSavedPosts}>
             {savedLoading ?
@@ -414,8 +414,8 @@ const Profile = () => {
           }
 
         {/* ═══════════════════════════════════════
-               MENTIONS TAB
-            ═══════════════════════════════════════ */}
+                  MENTIONS TAB
+               ═══════════════════════════════════════ */}
         {activeTab === 'mentions' &&
           <div>
             {mentionedPosts.length === 0 && collabPosts.length === 0 ?
@@ -444,8 +444,8 @@ const Profile = () => {
           }
 
         {/* ═══════════════════════════════════════
-               MODALS
-            ═══════════════════════════════════════ */}
+                  MODALS
+               ═══════════════════════════════════════ */}
         {viewerOpen && viewerPosts.length > 0 &&
           <FullScreenViewer
             posts={viewerPosts}
