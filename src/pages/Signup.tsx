@@ -103,8 +103,8 @@ const Signup = () => {
         {/* Glass Card */}
         <div className="w-full max-w-md backdrop-blur-xl bg-white/8 border border-white/20 rounded-3xl shadow-2xl p-8 space-y-6">
           <div className="text-center mb-8">
-            <h1 className="text-3xl font-bold text-white mb-2">Salom!</h1>
-            <p className="text-white/70">Yangi akkaunt yarating</p>
+            <h1 className="text-3xl font-bold text-white mb-2">{t('welcome')}</h1>
+            <p className="text-white/70">{t('createAccount')}</p>
           </div>
 
           <form onSubmit={handleSignup} className="space-y-5">
@@ -117,7 +117,7 @@ const Signup = () => {
                 <Input
                   id="username"
                   type="text"
-                  placeholder="Username"
+                  placeholder={t('username')}
                   value={username}
                   onChange={(e) => setUsername(e.target.value)}
                   className="pl-12 h-14 bg-[rgba(255,255,255,0.08)] border-[rgba(255,255,255,0.15)] rounded-2xl text-white placeholder-[rgba(255,255,255,0.4)] focus:border-[rgba(255,255,255,0.3)] focus:bg-[rgba(255,255,255,0.12)] transition-all duration-300 backdrop-blur-sm"
@@ -135,7 +135,7 @@ const Signup = () => {
                 <Input
                   id="email"
                   type="email"
-                  placeholder="Email"
+                  placeholder={t('email')}
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="pl-12 h-14 bg-[rgba(255,255,255,0.08)] border-[rgba(255,255,255,0.15)] rounded-2xl text-white placeholder-[rgba(255,255,255,0.4)] focus:border-[rgba(255,255,255,0.3)] focus:bg-[rgba(255,255,255,0.12)] transition-all duration-300 backdrop-blur-sm"
@@ -153,7 +153,7 @@ const Signup = () => {
                 <Input
                   id="password"
                   type={showPassword ? "text" : "password"}
-                  placeholder="••••••"
+                  placeholder="•••••••"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="pl-12 pr-12 h-14 bg-[rgba(255,255,255,0.08)] border-[rgba(255,255,255,0.15)] rounded-2xl text-white placeholder-[rgba(255,255,255,0.4)] focus:border-[rgba(255,255,255,0.3)] focus:bg-[rgba(255,255,255,0.12)] transition-all duration-300 backdrop-blur-sm"
@@ -172,7 +172,7 @@ const Signup = () => {
 
             {/* Gender Toggle */}
             <div className="space-y-3 py-2 text-center">
-              <Label className="text-[rgba(255,255,255,0.7)] text-sm">Jins</Label>
+              <Label className="text-[rgba(255,255,255,0.7)] text-sm">{t('gender')}</Label>
               <div className="flex justify-center gap-3">
                 <button
                   type="button"
@@ -183,7 +183,7 @@ const Signup = () => {
                       : "bg-[rgba(255,255,255,0.06)] border-[rgba(255,255,255,0.15)] text-[rgba(255,255,255,0.5)]"
                   }`}
                 >
-                  Erkak
+                  {t('male')}
                 </button>
                 <button
                   type="button"
@@ -194,7 +194,7 @@ const Signup = () => {
                       : "bg-[rgba(255,255,255,0.06)] border-[rgba(255,255,255,0.15)] text-[rgba(255,255,255,0.5)]"
                   }`}
                 >
-                  Ayol
+                  {t('female')}
                 </button>
               </div>
             </div>
@@ -207,10 +207,10 @@ const Signup = () => {
               {isLoading ? (
                 <>
                   <Loader2 className="mr-2 h-5 w-5 animate-spin" />
-                  Yuklanmoqda...
+                  {t('signingUp')}
                 </>
               ) : (
-                "RO'YXATDAN O'TISH"
+                "{t('signup')}"
               )}
             </Button>
           </form>
@@ -220,7 +220,7 @@ const Signup = () => {
               <span className="w-full border-t border-[rgba(255,255,255,0.15)]" />
             </div>
             <div className="relative flex justify-center text-sm">
-              <span className="bg-transparent px-4 text-[rgba(255,255,255,0.5)]">Yoki</span>
+              <span className="bg-transparent px-4 text-[rgba(255,255,255,0.5)]">{t('or')}</span>
             </div>
           </div>
 
@@ -254,7 +254,7 @@ const Signup = () => {
                     fill="#EA4335"
                   />
                 </svg>
-                <span className="text-white font-medium">Google bilan ro'yxatdan o'tish</span>
+                <span className="text-white font-medium">{t('socialSignup')}</span>
               </div>
             )}
           </Button>
@@ -263,9 +263,9 @@ const Signup = () => {
         {/* Footer */}
         <div className="mt-8 text-center">
           <span className="text-sm text-[rgba(255,255,255,0.6)]">
-            Akkauntingiz bormi?{" "}
+            {t('noAccount')}{" "}
             <Link to="/auth" className="text-[#22c55e] font-bold hover:text-[#16a34a] transition-colors">
-              Kirish
+              {t('signIn')}
             </Link>
           </span>
         </div>
