@@ -134,7 +134,7 @@ export const StoriesRow = ({ onStoryClick }: StoriesRowProps) => {
         {/* Quick add story button */}
         <div className="flex flex-col items-center gap-1 flex-shrink-0">
           <motion.button
-            onClick={() => navigate("/create")}
+            onClick={() => navigate("/create-story")}
             className="w-[68px] h-[68px] rounded-full bg-muted/50 flex items-center justify-center border-2 border-dashed border-muted-foreground/20 hover:border-primary/40 transition-colors"
             whileHover={{ scale: 1.08 }}
             whileTap={{ scale: 0.95 }}
