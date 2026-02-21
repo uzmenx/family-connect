@@ -246,7 +246,7 @@ export const UnifiedMergeDialog = ({
                   <div className="flex items-center gap-2">
                     <Users className="h-4 w-4 text-primary" />
                     <h3 className="text-sm font-medium">
-                      {group.label} — farzandlar
+                      {group.label} - farzandlar
                     </h3>
                   </div>
                   
@@ -270,7 +270,7 @@ export const UnifiedMergeDialog = ({
                     ✓ belgilanganlari birlashadi, ✗ belgilanmagan alohida qoladi
                   </p>
 
-                  {/* Juftlik (birlashish tavsiyasi) — birinchi; keyin alohida farzandlar */}
+                  {/* Juftlik (birlashish tavsiyasi) birinchi, keyin alohida farzandlar */}
                   {(() => {
                     const withIndex = groupItems.map((item, itemIdx) => ({ item, itemIdx }));
                     const coupled = withIndex.filter(({ item }) => item.targetChild != null);
