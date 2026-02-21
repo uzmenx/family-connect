@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
+import { useNavigate } from "react-router-dom";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { PostCard } from "@/components/feed/PostCard";
 import { PullToRefresh } from "@/components/feed/PullToRefresh";
@@ -13,8 +14,10 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useStories } from "@/hooks/useStories";
 import { usePostsCache } from "@/hooks/usePostsCache";
 import { useSmoothScroll } from "@/hooks/useSmoothScroll";
-import { Grid2X2, LayoutList } from "lucide-react";
+import { useNotifications } from "@/hooks/useNotifications";
+import { Grid2X2, LayoutList, Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Post } from "@/types";
 
 type GridLayout = 1 | 2;
@@ -22,8 +25,10 @@ type GridLayout = 1 | 2;
 const Home = () => {
   const { user } = useAuth();
   const { t } = useLanguage();
+  const navigate = useNavigate();
   const { storyGroups, refetch: refetchStories } = useStories();
   const { posts, isLoading, isRefreshing, isLoadingMore, hasMore, fetchPosts, loadMore } = usePostsCache();
+  const { unreadCount } = useNotifications();
   const [gridLayout, setGridLayout] = useState<GridLayout>(1);
   const loadMoreSentinelRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useSmoothScroll(true, true); // Enable snap and swipe gestures
@@ -96,9 +101,27 @@ const Home = () => {
           className="sticky top-0 z-40 px-4 flex items-center justify-between rounded-2xl mx-3 mt-2 mb-0 border border-white/10 bg-background/40 backdrop-blur-xl shadow-lg my-[6px] py-0">
 
           <h1 className="text-xl font-bold tracking-tight">{t('feed')}</h1>
-          <Button variant="ghost" size="icon" onClick={toggleGridLayout} className="h-9 w-9 rounded-xl">
-            {gridLayout === 1 ? <LayoutList className="h-5 w-5" /> : <Grid2X2 className="h-5 w-5" />}
-          </Button>
+          <div className="flex items-center gap-1">
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => navigate('/notifications')}
+              className="relative h-9 w-9 rounded-xl"
+            >
+              <Bell className="h-5 w-5" />
+              {unreadCount > 0 && (
+                <Badge
+                  variant="destructive"
+                  className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-[10px]"
+                >
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </Badge>
+              )}
+            </Button>
+            <Button variant="ghost" size="icon" onClick={toggleGridLayout} className="h-9 w-9 rounded-xl">
+              {gridLayout === 1 ? <LayoutList className="h-5 w-5" /> : <Grid2X2 className="h-5 w-5" />}
+            </Button>
+          </div>
         </motion.header>
 
         {/* Stories */}

@@ -100,7 +100,7 @@ const Profile = () => {
             <Button
               variant="ghost"
               size="icon"
-              onClick={() => navigate('/messages?tab=notifications')}
+              onClick={() => navigate('/notifications')}
               className="relative h-9 w-9 bg-black/30 backdrop-blur-md border border-white/20 hover:bg-black/50 text-white rounded-xl"
             >
               <Bell className="h-4 w-4" />
