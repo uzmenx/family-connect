@@ -229,9 +229,9 @@ export const StoryViewer = ({
                     e.stopPropagation();
                     navigate('/create-story');
                   }}
-                  className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-primary flex items-center justify-center border-2 border-black/40"
+                  className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-white/85 flex items-center justify-center border-2 border-white/60 shadow-md"
                 >
-                  <Plus className="h-3 w-3 text-primary-foreground" />
+                  <Plus className="h-3 w-3 text-black/80" />
                 </button>
               )}
             </div>
