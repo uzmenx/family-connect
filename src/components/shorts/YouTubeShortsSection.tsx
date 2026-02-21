@@ -188,7 +188,7 @@ export function YouTubeShortsSection({ onShortClick }: YouTubeShortsProps) {
   return (
     <div className="pt-1 pb-0">
       {/* Header */}
-      <div className="items-center justify-between mb-1.5 px-[12px] flex flex-row py-0">
+      <div className="items-center justify-between mb-1.5 px-[12px] flex flex-row py-[3px]">
         <div className="flex items-center gap-1.5">
           <Flame className="w-3.5 h-3.5 text-destructive" />
           <span className="font-semibold text-xs text-foreground">Shorts</span>
