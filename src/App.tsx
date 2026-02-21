@@ -28,6 +28,7 @@ import Chat from "./pages/Chat";
 import AIChat from "./pages/AIChat";
 import GroupChat from "./pages/GroupChat";
 import NotFound from "./pages/NotFound";
+import AuthCallback from "./pages/AuthCallback";
 
 const queryClient = new QueryClient();
 
@@ -84,6 +85,7 @@ const App = () => (
               <Route path="/signup" element={<PublicRoute><Signup /></PublicRoute>} />
               <Route path="/verify-otp" element={<PublicRoute><VerifyOtp /></PublicRoute>} />
               <Route path="/phone-auth" element={<PublicRoute><PhoneAuth /></PublicRoute>} />
+              <Route path="/auth/callback" element={<AuthCallback />} />
               <Route path="/" element={<ProtectedRoute><Home /></ProtectedRoute>} />
               <Route path="/profile" element={<ProtectedRoute><Profile /></ProtectedRoute>} />
               <Route path="/edit-profile" element={<ProtectedRoute><EditProfile /></ProtectedRoute>} />
