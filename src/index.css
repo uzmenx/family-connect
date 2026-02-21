@@ -5,6 +5,53 @@
 @tailwind components;
 @tailwind utilities;
 
+@keyframes shutterNeonRotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.shutter-neon-rotate {
+  animation: shutterNeonRotate 4.8s linear infinite;
+  will-change: transform;
+}
+
+@keyframes shutterSpark {
+  0%,
+  58% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.85);
+  }
+  64% {
+    opacity: 0.85;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  72% {
+    opacity: 0.15;
+    transform: translate(-50%, -50%) scale(0.9);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.85);
+  }
+}
+
+.shutter-spark {
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  border-radius: 9999px;
+  background: radial-gradient(circle at 30% 30%, rgba(255, 255, 255, 0.95), rgba(255, 255, 255, 0.0) 65%);
+  filter: blur(0.25px) drop-shadow(0 0 6px rgba(0, 245, 255, 0.18)) drop-shadow(0 0 8px rgba(255, 43, 214, 0.10));
+  animation: shutterSpark 2.8s ease-in-out infinite;
+  pointer-events: none;
+  transform: translate(-50%, -50%);
+  opacity: 0;
+}
+
 /* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
 All colors MUST be HSL.
 */

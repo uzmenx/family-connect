@@ -532,19 +532,50 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
               onTouchMove={handleTouchMove}
               onTouchEnd={() => { handleCaptureEnd(); handleTouchEnd(); }}
               disabled={!cameraReady || !canAddMore}
-              className="relative w-[72px] h-[72px] rounded-full flex items-center justify-center disabled:opacity-30"
+              className={cn(
+                'relative w-[78px] h-[78px] rounded-full flex items-center justify-center disabled:opacity-30',
+                isCapturing ? 'scale-[0.98]' : 'scale-100'
+              )}
             >
-              <div className="absolute inset-0 rounded-full border-[3px] border-white/40" />
+              <div
+                className={cn(
+                  'absolute inset-0 rounded-full p-[3px] shutter-neon-rotate',
+                  "bg-[conic-gradient(from_180deg_at_50%_50%,#00F5FF_0deg,#7C3AED_90deg,#FF2BD6_180deg,#00F5FF_360deg)]",
+                  'shadow-[0_0_14px_rgba(0,245,255,0.22),0_0_16px_rgba(255,43,214,0.12)]'
+                )}
+              >
+                <div className="relative w-full h-full rounded-full bg-black/30 backdrop-blur-sm border border-white/20 overflow-hidden">
+                  <div
+                    className={cn(
+                      'absolute inset-0 rounded-full opacity-55 mix-blend-screen',
+                      "bg-[repeating-conic-gradient(from_200deg,rgba(255,255,255,0.0)_0deg,rgba(255,255,255,0.0)_10deg,rgba(255,255,255,0.35)_14deg,rgba(255,255,255,0.0)_18deg)]"
+                    )}
+                    style={{
+                      WebkitMaskImage: 'radial-gradient(circle at 50% 50%, transparent 0 52%, #000 56% 100%)',
+                      maskImage: 'radial-gradient(circle at 50% 50%, transparent 0 52%, #000 56% 100%)',
+                    }}
+                  />
+
+                  <span className="shutter-spark" style={{ top: '10%', left: '72%', animationDelay: '0ms' }} />
+                  <span className="shutter-spark" style={{ top: '72%', left: '16%', animationDelay: '650ms' }} />
+                  <span className="shutter-spark" style={{ top: '38%', left: '8%', animationDelay: '1100ms' }} />
+                </div>
+              </div>
+
+              <div className="absolute inset-[9px] rounded-full bg-black/25 border border-white/10" />
+
               <div
                 className={cn(
                   'relative transition-all duration-200',
-                  isCapturing ? 'scale-[0.85]' : 'scale-100',
+                  isCapturing ? 'scale-[0.84]' : 'scale-100',
                   isRecording ? 'w-8 h-8 rounded-lg bg-red-500' : 'w-[58px] h-[58px] rounded-full bg-white'
                 )}
               >
                 {isRecording && <div className="absolute inset-0 rounded-lg animate-pulse bg-red-400" />}
               </div>
-              {isRecording && <div className="absolute inset-0 rounded-full border-[3px] border-red-400 animate-ping" />}
+              {isRecording && (
+                <div className="absolute inset-0 rounded-full border-[3px] border-red-400/80 shadow-[0_0_18px_rgba(239,68,68,0.35)] animate-ping" />
+              )}
             </button>
           </div>
         )}
