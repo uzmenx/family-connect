@@ -127,7 +127,8 @@ export const useLocalFamilyTree = () => {
         };
       });
 
-      // Helper to resolve merged IDs to their source
+      // Helper to resolve merged IDs to their source (munosabatlar saqlanadi)
+      // Har bir bola o'z ota-onasi bilan qoladi; yetim faqat ikki tomonda ham ota-ona yo'q bo'lsa.
       const resolveId = (id: string): string => {
         return mergedMap.get(id) || id;
       };

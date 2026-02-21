@@ -1,8 +1,9 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Heart, MessageCircle, Share2, Bookmark, Film } from 'lucide-react';
+import { Heart, MessageCircle, Share2, Bookmark, Film, Eye } from 'lucide-react';
 import { usePostLikes } from '@/hooks/usePostLikes';
 import { useSavedPosts } from '@/hooks/useSavedPosts';
+import { usePostViews } from '@/hooks/usePostViews';
 import { LikersDialog } from './LikersDialog';
 import { CommentsSheet } from './CommentsSheet';
 import { ShareDialog } from './ShareDialog';
@@ -13,6 +14,8 @@ interface PostActionsProps {
   postId: string;
   initialLikesCount?: number;
   initialCommentsCount?: number;
+  initialViewsCount?: number;
+  viewsCount?: number;
   videoUrl?: string;
   onOpenVideoPlayer?: (url: string) => void;
 }
@@ -21,10 +24,14 @@ export const PostActions = ({
   postId,
   initialLikesCount = 0,
   initialCommentsCount = 0,
+  initialViewsCount = 0,
+  viewsCount: viewsCountProp,
   videoUrl,
   onOpenVideoPlayer
 }: PostActionsProps) => {
   const { isLiked, likesCount, likedUsers, toggleLike, fetchLikedUsers, isLoading } = usePostLikes(postId);
+  const { viewsCount: viewsFromHook } = usePostViews(postId, initialViewsCount);
+  const viewsCount = viewsCountProp ?? viewsFromHook;
   const { isPostSaved, toggleSavePost } = useSavedPosts();
   const [showLikers, setShowLikers] = useState(false);
   const [showComments, setShowComments] = useState(false);
@@ -119,9 +126,14 @@ export const PostActions = ({
           <button
             className="text-white/90 hover:text-white transition-colors"
             onClick={handleShareClick}>
-
             <Share2 className="h-5 w-5" />
           </button>
+
+          {/* View count */}
+          <span className="flex items-center gap-2 text-white/90 text-sm font-bold">
+            <Eye className="h-5 w-5" />
+            {formatCount(viewsCount)}
+          </span>
         </div>
         
         {/* Right side: Bookmark */}

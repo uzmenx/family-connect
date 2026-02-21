@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 
 import { createPortal } from 'react-dom';
 
@@ -26,6 +26,8 @@ import { FollowButton } from '@/components/user/FollowButton';
 
 import { SamsungUltraVideoPlayer } from '@/components/video/SamsungUltraVideoPlayer';
 
+import { usePostViews, useIntersectionObserver } from '@/hooks/usePostViews';
+
 import { supabase } from '@/integrations/supabase/client';
 
 
@@ -45,6 +47,12 @@ interface PostCardProps {
 
 
 export const PostCard = ({ post, onDelete, onMediaClick, index = 0 }: PostCardProps) => {
+
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  const { viewsCount, trackView } = usePostViews(post.id, post.views_count ?? 0);
+
+  useIntersectionObserver(cardRef, trackView, { threshold: 0.3 });
 
   const [showVideoPlayer, setShowVideoPlayer] = useState(false);
 
@@ -218,6 +226,10 @@ export const PostCard = ({ post, onDelete, onMediaClick, index = 0 }: PostCardPr
 
           initialCommentsCount={post.comments_count}
 
+          initialViewsCount={post.views_count ?? 0}
+
+          viewsCount={viewsCount}
+
           videoUrl={firstVideoUrl}
 
           onOpenVideoPlayer={(url) => {
@@ -295,6 +307,8 @@ export const PostCard = ({ post, onDelete, onMediaClick, index = 0 }: PostCardPr
     <>
 
       <motion.div
+
+        ref={cardRef}
 
         initial={{ opacity: 0, y: 20 }}
 

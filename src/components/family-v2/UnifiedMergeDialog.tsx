@@ -17,6 +17,8 @@ interface ChildMergeItem {
   sourceChild: ChildProfile;
   targetChild: ChildProfile | null;
   shouldMerge: boolean;
+  /** Birlashish balli (tavsiya qatorlari uchun) */
+  similarity?: number;
 }
 
 interface UnifiedMergeDialogProps {
@@ -39,17 +41,18 @@ const buildChildItems = (group: CoupleGroup): ChildMergeItem[] => {
       sourceChild: suggestion.sourceChild,
       targetChild: suggestion.targetChild,
       shouldMerge: true,
+      similarity: suggestion.similarity,
     });
     usedTargetIds.add(suggestion.targetChild.id);
   }
-  
+
   for (const source of group.sourceChildren) {
     if (items.find(i => i.sourceChild.id === source.id)) continue;
-    
+
     const availableTarget = group.targetChildren.find(
       t => t.gender === source.gender && !usedTargetIds.has(t.id)
     );
-    
+
     if (availableTarget) {
       items.push({
         sourceChild: source,
@@ -65,7 +68,7 @@ const buildChildItems = (group: CoupleGroup): ChildMergeItem[] => {
       });
     }
   }
-  
+
   return items;
 };
 
@@ -81,6 +84,7 @@ const buildFlatChildItems = (data: MergeDialogData): ChildMergeItem[] => {
       sourceChild: suggestion.sourceChild,
       targetChild: suggestion.targetChild,
       shouldMerge: true,
+      similarity: suggestion.similarity,
     });
     usedTargetIds.add(suggestion.targetChild.id);
   }
@@ -186,7 +190,7 @@ export const UnifiedMergeDialog = ({
   
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
-      <DialogContent className="max-w-md max-h-[90vh]">
+      <DialogContent className="max-w-md max-h-[90vh] bg-white border border-gray-200 shadow-xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <GitMerge className="h-5 w-5 text-primary" />
@@ -265,16 +269,45 @@ export const UnifiedMergeDialog = ({
                   <p className="text-xs text-muted-foreground">
                     ✓ belgilanganlari birlashadi, ✗ belgilanmagan alohida qoladi
                   </p>
-                  
-                  <div className="space-y-2">
-                    {groupItems.map((item, itemIdx) => (
-                      <ChildMergeRow
-                        key={itemIdx}
-                        item={item}
-                        onToggle={() => toggleMerge(groupIdx, itemIdx)}
-                      />
-                    ))}
-                  </div>
+
+                  {/* Juftlik (birlashish tavsiyasi) — birinchi; keyin alohida farzandlar */}
+                  {(() => {
+                    const withIndex = groupItems.map((item, itemIdx) => ({ item, itemIdx }));
+                    const coupled = withIndex.filter(({ item }) => item.targetChild != null);
+                    const single = withIndex.filter(({ item }) => item.targetChild == null);
+                    return (
+                      <>
+                        {coupled.length > 0 && (
+                          <div className="space-y-2">
+                            <h4 className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                              Birlashish tavsiyasi ({coupled.length})
+                            </h4>
+                            {coupled.map(({ item, itemIdx }) => (
+                              <ChildMergeRow
+                                key={itemIdx}
+                                item={item}
+                                onToggle={() => toggleMerge(groupIdx, itemIdx)}
+                              />
+                            ))}
+                          </div>
+                        )}
+                        {single.length > 0 && (
+                          <div className="space-y-2">
+                            <h4 className="text-xs font-semibold text-gray-600 uppercase tracking-wide">
+                              Alohida farzandlar ({single.length})
+                            </h4>
+                            {single.map(({ item, itemIdx }) => (
+                              <ChildMergeRow
+                                key={itemIdx}
+                                item={item}
+                                onToggle={() => toggleMerge(groupIdx, itemIdx)}
+                              />
+                            ))}
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               );
             })}
@@ -396,7 +429,12 @@ const ChildMergeRow = ({
       {/* Source Name */}
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium truncate">{sourceChild.name}</p>
-        <p className="text-[10px] text-muted-foreground">Yangi</p>
+        <p className="text-[10px] text-muted-foreground">
+          Yangi
+          {item.similarity != null && (
+            <span className="ml-1 text-emerald-600 font-medium">({item.similarity}% mos)</span>
+          )}
+        </p>
       </div>
       
       {/* Connection */}

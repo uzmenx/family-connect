@@ -1,9 +1,10 @@
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Heart, MessageCircle, Send, Bookmark, Film } from 'lucide-react';
+import { Heart, MessageCircle, Send, Bookmark, Film, Eye } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { usePostLikes } from '@/hooks/usePostLikes';
 import { useSavedPosts } from '@/hooks/useSavedPosts';
+import { usePostViews } from '@/hooks/usePostViews';
 import { LikersDialog } from './LikersDialog';
 import { CommentsSheet } from './CommentsSheet';
 import { ShareDialog } from './ShareDialog';
@@ -13,6 +14,7 @@ interface FullscreenActionsProps {
   postId: string;
   initialLikesCount?: number;
   initialCommentsCount?: number;
+  initialViewsCount?: number;
   videoUrl?: string;
   onOpenVideoPlayer?: (url: string) => void;
 }
@@ -21,17 +23,23 @@ export const FullscreenActions = ({
   postId,
   initialLikesCount = 0,
   initialCommentsCount = 0,
+  initialViewsCount = 0,
   videoUrl,
   onOpenVideoPlayer
 }: FullscreenActionsProps) => {
   const { isLiked, likesCount, likedUsers, toggleLike, fetchLikedUsers, isLoading } = usePostLikes(postId);
-  const { isPostSaved, toggleSavePost } = useSavedPosts();
+  const { viewsCount, trackView } = usePostViews(postId, initialViewsCount);
   const [showLikers, setShowLikers] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
   const [isSaved, setIsSaved] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    trackView();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- track view once when fullscreen opens for this post
+  }, [postId]);
 
   useEffect(() => {
     setIsSaved(isPostSaved(postId));
@@ -157,6 +165,13 @@ export const FullscreenActions = ({
           count={initialCommentsCount}
           onClick={handleCommentsClick} />
 
+        {/* View count */}
+        <div className="flex flex-col items-center gap-1">
+          <div className="p-2 rounded-full bg-black/20 backdrop-blur-sm">
+            <Eye className="h-6 w-6 text-white" />
+          </div>
+          <span className="text-xs text-white font-medium">{formatCount(viewsCount)}</span>
+        </div>
         
         {/* Bookmark */}
         <ActionButton

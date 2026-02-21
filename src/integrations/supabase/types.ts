@@ -704,6 +704,7 @@ export type Database = {
           media_urls: string[] | null
           updated_at: string
           user_id: string
+          views_count: number | null
         }
         Insert: {
           comments_count?: number | null
@@ -714,6 +715,7 @@ export type Database = {
           media_urls?: string[] | null
           updated_at?: string
           user_id: string
+          views_count?: number | null
         }
         Update: {
           comments_count?: number | null
@@ -724,6 +726,7 @@ export type Database = {
           media_urls?: string[] | null
           updated_at?: string
           user_id?: string
+          views_count?: number | null
         }
         Relationships: []
       }

@@ -179,18 +179,18 @@ const StoryAvatar = ({ group, onClick, isOwn }: StoryAvatarProps) => {
         {group.has_unviewed ? (
           <>
             <span
-              className="absolute inset-0 rounded-full p-[3px]"
+              className="absolute inset-0 rounded-full p-[3px] ring-2 ring-white/20 dark:ring-black/20 shadow-sm"
               style={{ background: ringGradient }}
               aria-hidden
             >
               <span className="block w-full h-full rounded-full bg-background" />
             </span>
-            <span className="relative z-10 w-[58px] h-[58px] rounded-full overflow-hidden bg-background">
+            <span className="relative z-10 w-[58px] h-[58px] rounded-full overflow-hidden bg-background ring-1 ring-black/5">
               {avatarEl}
             </span>
           </>
         ) : (
-          <span className="w-full h-full rounded-full bg-muted-foreground/30 p-[3px] block">
+          <span className="w-full h-full rounded-full bg-muted-foreground/30 p-[3px] block ring-2 ring-white/10 dark:ring-black/10">
             <span className="w-full h-full rounded-full bg-background overflow-hidden block">
               {avatarEl}
             </span>

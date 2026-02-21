@@ -12,7 +12,6 @@ import { useLocalFamilyTree } from '@/hooks/useLocalFamilyTree';
 import { useFamilyInvitations, MergeDialogData } from '@/hooks/useFamilyInvitations';
 import { useMergeMode } from '@/hooks/useMergeMode';
 import { useSpouseLock } from '@/hooks/useSpouseLock';
-import { useTreeMerging } from '@/hooks/useTreeMerging';
 import { FamilyMember, AddMemberData } from '@/types/family';
 import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
@@ -47,13 +46,14 @@ export const FamilyTreeV2 = () => {
     acceptInvitation,
     rejectInvitation,
     showMergeDialog,
+    setShowMergeDialog,
     mergeData,
+    setMergeData,
     executeMerge: executeTreeMerge,
     closeMergeDialog,
-    isMerging
+    isMerging,
   } = useFamilyInvitations();
 
-  // Merge mode hook
   const {
     isActive: isMergeMode,
     selectedIds: mergeSelectedIds,
@@ -65,9 +65,6 @@ export const FamilyTreeV2 = () => {
     computeMergeData,
   } = useMergeMode(members);
 
-  // Tree merging for manual merge execution
-  const { executeParentMerge, executeChildMerge } = useTreeMerging();
-
   // Spouse lock hook
   const { isPairLocked, toggleLock } = useSpouseLock();
 
@@ -76,10 +73,6 @@ export const FamilyTreeV2 = () => {
   const [processingInvitation, setProcessingInvitation] = useState<string | null>(null);
   const [isSelectingGender, setIsSelectingGender] = useState(false);
 
-  // Manual merge dialog state (for long-press flow)
-  const [manualMergeData, setManualMergeData] = useState<MergeDialogData | null>(null);
-  const [showManualMergeDialog, setShowManualMergeDialog] = useState(false);
-  const [isManualMerging, setIsManualMerging] = useState(false);
 
   // Build positions map from members
   const positions = Object.fromEntries(
@@ -187,51 +180,14 @@ export const FamilyTreeV2 = () => {
     toggleMergeSelection(memberId);
   }, [toggleMergeSelection]);
 
-  // Open UnifiedMergeDialog for manual (long-press) merge
+  // Birlashtirish va taklif bir xil dialog: manual merge ham shu dialogdan
   const handleOpenManualMergeDialog = useCallback(() => {
     const data = computeMergeData();
     if (data) {
-      setManualMergeData(data);
-      setShowManualMergeDialog(true);
+      setMergeData(data);
+      setShowMergeDialog(true);
     }
-  }, [computeMergeData]);
-
-  // Execute manual merge via UnifiedMergeDialog
-  const handleManualMergeConfirm = useCallback(async (
-    childMerges: { sourceId: string; targetId: string }[]
-  ) => {
-    if (!manualMergeData) return;
-    
-    setIsManualMerging(true);
-    try {
-      // Execute parent merges (auto)
-      if (manualMergeData.parentMerges.length > 0) {
-        await executeParentMerge(manualMergeData.parentMerges);
-      }
-      
-      // Execute child merges (user-selected)
-      for (const merge of childMerges) {
-        await executeChildMerge(merge.sourceId, merge.targetId);
-      }
-      
-      toast.success('Profillar muvaffaqiyatli birlashtirildi');
-      setShowManualMergeDialog(false);
-      setManualMergeData(null);
-      cancelMerge();
-      
-      window.location.reload();
-    } catch (error) {
-      console.error('Manual merge error:', error);
-      toast.error('Birlashtirishda xatolik');
-    } finally {
-      setIsManualMerging(false);
-    }
-  }, [manualMergeData, executeParentMerge, executeChildMerge, cancelMerge]);
-
-  const handleCloseManualMergeDialog = useCallback(() => {
-    setShowManualMergeDialog(false);
-    setManualMergeData(null);
-  }, []);
+  }, [computeMergeData, setMergeData, setShowMergeDialog]);
 
   const handleAcceptInvitation = async (invitation: any) => {
     setProcessingInvitation(invitation.id);
@@ -428,7 +384,7 @@ avlodlarimiz uchun xotiralar qoldiraylik</p>
         member={modal.member || null}
       />
 
-      {/* Tree Merge Dialog (invitation flow) */}
+      {/* Birlashtirish dialogi — taklif va qo'lda birlashtirish uchun bitta */
       {mergeData && (
         <UnifiedMergeDialog
           isOpen={showMergeDialog}
@@ -436,17 +392,6 @@ avlodlarimiz uchun xotiralar qoldiraylik</p>
           data={mergeData}
           onConfirm={executeTreeMerge}
           isProcessing={isMerging}
-        />
-      )}
-
-      {/* Manual Merge Dialog (long-press flow) */}
-      {manualMergeData && (
-        <UnifiedMergeDialog
-          isOpen={showManualMergeDialog}
-          onClose={handleCloseManualMergeDialog}
-          data={manualMergeData}
-          onConfirm={handleManualMergeConfirm}
-          isProcessing={isManualMerging}
         />
       )}
     </section>

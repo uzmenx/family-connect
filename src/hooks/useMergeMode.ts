@@ -8,7 +8,9 @@ import {
   ChildProfile, 
   ChildMergeSuggestion, 
   CoupleGroup, 
-  calculateSimilarity 
+  calculateSimilarity,
+  computeMatchScore,
+  birthYearScore,
 } from './useTreeMerging';
 import { MergeDialogData } from './useFamilyInvitations';
 
@@ -127,7 +129,7 @@ export const useMergeMode = (members: Record<string, FamilyMember>) => {
         }
       }
       
-      // Farzandlarni topish
+      // Farzandlarni topish (birthYear 30% ball uchun)
       const getChildren = (memberId: string): ChildProfile[] => {
         const m = members[memberId];
         if (!m) return [];
@@ -142,33 +144,38 @@ export const useMergeMode = (members: Record<string, FamilyMember>) => {
             name: members[id].name,
             photoUrl: members[id].photoUrl,
             gender: members[id].gender,
+            birthYear: members[id].birthYear,
           }));
       };
-      
+
       const sourceChildren = getChildren(primaryId);
       const targetChildren = getChildren(otherId);
-      
-      // Tavsiyalar
-      const childSuggestions: ChildMergeSuggestion[] = [];
-      const usedTargetIds = new Set<string>();
-      
+
+      // Tavsiyalar: ball bo‘yicha eng yaxshi juftliklar birinchi (keraklisi keraklisi bilan)
+      const allPairs: { source: ChildProfile; target: ChildProfile; score: number }[] = [];
+      const MERGE_THRESHOLD = 1;
+
       for (const sc of sourceChildren) {
-        const available = targetChildren.filter(t => t.gender === sc.gender && !usedTargetIds.has(t.id));
-        if (available.length === 0) continue;
-        
-        let bestMatch = available[0];
-        let bestSim = 0;
-        for (const t of available) {
-          const sim = calculateSimilarity(sc.name, t.name);
-          if (sim > bestSim) {
-            bestSim = sim;
-            bestMatch = t;
+        for (const t of targetChildren) {
+          if (t.gender !== sc.gender) continue;
+          const nameSim = calculateSimilarity(sc.name, t.name);
+          const birthSim = birthYearScore(sc.birthYear, t.birthYear);
+          const score = computeMatchScore(nameSim, birthSim, true);
+          if (score >= MERGE_THRESHOLD) {
+            allPairs.push({ source: sc, target: t, score });
           }
         }
-        if (bestSim >= 30) {
-          childSuggestions.push({ sourceChild: sc, targetChild: bestMatch, similarity: bestSim });
-          usedTargetIds.add(bestMatch.id);
-        }
+      }
+      allPairs.sort((a, b) => b.score - a.score);
+
+      const childSuggestions: ChildMergeSuggestion[] = [];
+      const usedSourceIds = new Set<string>();
+      const usedTargetIds = new Set<string>();
+      for (const { source, target, score } of allPairs) {
+        if (usedSourceIds.has(source.id) || usedTargetIds.has(target.id)) continue;
+        childSuggestions.push({ sourceChild: source, targetChild: target, similarity: score });
+        usedSourceIds.add(source.id);
+        usedTargetIds.add(target.id);
       }
       
       if (sourceChildren.length > 0 || targetChildren.length > 0) {

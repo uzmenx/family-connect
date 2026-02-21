@@ -94,7 +94,7 @@ export const StoryViewer = ({
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [currentStory, isPaused, storyDuration]);
+  }, [currentStory, isPaused, storyDuration, goToNext]);
 
   const goToNext = useCallback(() => {
     if (currentStoryIndex < currentGroup.stories.length - 1) {
@@ -147,36 +147,41 @@ export const StoryViewer = ({
 
   const author = currentStory.author || currentGroup.user;
 
+  const handleVideoEnded = useCallback(() => {
+    goToNext();
+  }, [goToNext]);
+
   return (
-    <div className="fixed inset-0 z-50 bg-black">
+    <div className="fullscreen-story-view flex flex-col">
       {/* Story content */}
-      <div 
-        className="relative w-full h-full flex items-center justify-center"
+      <div
+        className="relative flex-1 w-full min-h-0 flex items-center justify-center touch-none"
         onClick={handleTap}
       >
         {currentStory.media_type === 'video' ? (
           <video
             ref={videoRef}
             src={currentStory.media_url}
-            className="max-w-full max-h-full object-contain"
+            className="max-w-full max-h-full w-full h-full object-contain"
             autoPlay
             muted={isMuted}
             playsInline
             loop={false}
+            onEnded={handleVideoEnded}
           />
         ) : (
           <img
             src={currentStory.media_url}
             alt="Story"
-            className="max-w-full max-h-full object-contain"
+            className="max-w-full max-h-full w-full h-full object-contain"
           />
         )}
 
         {/* Overlay gradient */}
         <div className="absolute inset-0 bg-gradient-to-b from-black/50 via-transparent to-black/50 pointer-events-none" />
 
-        {/* Progress bars */}
-        <div className="absolute top-2 left-2 right-2 flex gap-1">
+        {/* Progress bars — safe-area ichida */}
+        <div className="absolute top-0 left-0 right-0 flex gap-1 pt-[max(8px,env(safe-area-inset-top))] px-2">
           {currentGroup.stories.map((_, index) => (
             <div
               key={index}
@@ -197,8 +202,8 @@ export const StoryViewer = ({
           ))}
         </div>
 
-        {/* Header */}
-        <div className="absolute top-6 left-0 right-0 px-4 flex items-center justify-between">
+        {/* Header — safe-area */}
+        <div className="absolute top-[max(24px,calc(8px+env(safe-area-inset-top)))] left-0 right-0 px-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-full overflow-hidden border-2 border-white">
               {author.avatar_url ? (
@@ -260,15 +265,15 @@ export const StoryViewer = ({
 
         {/* Caption */}
         {currentStory.caption && (
-          <div className="absolute bottom-24 left-4 right-4">
+          <div className="absolute bottom-[max(80px,calc(64px+env(safe-area-inset-bottom)))] left-4 right-4">
             <p className="text-white text-center text-sm bg-black/40 px-3 py-2 rounded-lg">
               {currentStory.caption}
             </p>
           </div>
         )}
 
-        {/* Footer actions */}
-        <div className="absolute bottom-4 left-4 right-4">
+        {/* Footer actions — safe-area */}
+        <div className="absolute bottom-[max(16px,env(safe-area-inset-bottom))] left-4 right-4">
           {isOwnStory ? (
             // Own story: show viewers
             <Button

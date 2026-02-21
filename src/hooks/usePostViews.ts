@@ -1,21 +1,49 @@
 import { useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
-export const usePostViews = (postId: string) => {
-  const [viewsCount, setViewsCount] = useState<number>(0);
+export const usePostViews = (postId: string, initialCount?: number) => {
+  const [viewsCount, setViewsCount] = useState<number>(initialCount ?? 0);
   const [isTracking, setIsTracking] = useState(false);
   const hasTrackedRef = useRef(false);
 
-  // Increment view count when post becomes visible
+  useEffect(() => {
+    if (initialCount !== undefined) setViewsCount(initialCount);
+  }, [initialCount]);
+
+  const fetchViewsCount = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('posts')
+        .select('views_count')
+        .eq('id', postId)
+        .single();
+      if (!error && data?.views_count != null) {
+        setViewsCount(data.views_count);
+      }
+    } catch {
+      // ignore
+    }
+  };
+
+  useEffect(() => {
+    fetchViewsCount();
+  }, [postId]);
+
+  useEffect(() => {
+    hasTrackedRef.current = false;
+  }, [postId]);
+
   const trackView = async () => {
-    if (isTracking || hasTrackedRef.current) return;
-    
+    if (!postId || isTracking || hasTrackedRef.current) return;
     setIsTracking(true);
     hasTrackedRef.current = true;
-
     try {
-      // Views tracking is a no-op until the DB function and column exist
-      console.log('View tracking skipped - not yet configured');
+      const { data, error } = await supabase.rpc('increment_post_views', {
+        post_id: postId,
+      });
+      if (!error && typeof data === 'number') {
+        setViewsCount(data);
+      }
     } catch (error) {
       console.error('Error tracking view:', error);
     } finally {
@@ -23,19 +51,12 @@ export const usePostViews = (postId: string) => {
     }
   };
 
-  // Fetch current views count
-  const fetchViewsCount = async () => {
-    // views_count column doesn't exist yet, skip
-  };
-
-  useEffect(() => {
-    fetchViewsCount();
-  }, [postId]);
-
   return {
     viewsCount,
+    setViewsCount,
     trackView,
-    isTracking
+    isTracking,
+    fetchViewsCount,
   };
 };
 

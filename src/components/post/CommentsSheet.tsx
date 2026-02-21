@@ -127,14 +127,14 @@ export const CommentsSheet = ({ open, onOpenChange, postId }: CommentsSheetProps
 
   return (
     <Drawer open={open} onOpenChange={handleOpenChange}>
-      <DrawerContent className="h-[85vh] max-h-[85vh] flex flex-col">
+      <DrawerContent className="h-[85vh] max-h-[85vh] flex flex-col screen-comments">
         {/* Drag handle */}
         <div className="mx-auto w-12 h-1.5 flex-shrink-0 rounded-full bg-muted my-3 opacity-50 shadow-2xs" />
         
         <DrawerHeader className="flex-shrink-0 px-6 pb-3 pt-0">
           <DrawerTitle className="flex items-center gap-2 text-center justify-center">
             Izohlar
-            <span className="bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full">
+            <span className="comments-bg-soft comments-accent text-xs font-semibold px-2 py-0.5 rounded-full">
               {commentsCount}
             </span>
           </DrawerTitle>

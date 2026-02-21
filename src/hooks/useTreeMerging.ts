@@ -29,11 +29,14 @@ export interface ChildProfile {
   name: string;
   photoUrl?: string;
   gender: 'male' | 'female';
+  /** Tug'ilgan yili (match scoring 30% uchun) */
+  birthYear?: number;
 }
 
 export interface ChildMergeSuggestion {
   sourceChild: ChildProfile;
   targetChild: ChildProfile;
+  /** 0–100: 40% ism, 30% tug'ilgan yil, 30% ota-ona munosabati */
   similarity: number;
 }
 
@@ -64,66 +67,96 @@ interface TreeMember {
   avatar_url: string | null;
   created_at: string;
   merged_into: string | null;
+  birth_year?: number | null;
 }
 
 // ============= HELPER FUNCTIONS =============
 
-/**
- * Ism o'xshashligini hisoblash (0-100)
- */
+/** Ism o'xshashligi 0–100 */
 export const calculateSimilarity = (name1: string, name2: string): number => {
   if (!name1 || !name2) return 0;
-  
   const n1 = name1.toLowerCase().trim();
   const n2 = name2.toLowerCase().trim();
-  
   if (n1 === n2) return 100;
   if (n1.includes(n2) || n2.includes(n1)) return 80;
   if (n1.length >= 3 && n2.length >= 3 && n1.slice(0, 3) === n2.slice(0, 3)) return 60;
-  
   const maxLen = Math.max(n1.length, n2.length);
   let matches = 0;
   for (let i = 0; i < Math.min(n1.length, n2.length); i++) {
     if (n1[i] === n2[i]) matches++;
   }
-  
   return Math.round((matches / maxLen) * 100);
 };
 
+/** Tug'ilgan yil mosligi 0–100 (30% vazn) */
+export const birthYearScore = (y1?: number, y2?: number): number => {
+  if (y1 == null || y2 == null) return 0;
+  const diff = Math.abs(y1 - y2);
+  if (diff === 0) return 100;
+  if (diff <= 1) return 90;
+  if (diff <= 2) return 75;
+  if (diff <= 5) return 50;
+  return Math.max(0, 40 - diff);
+};
+
 /**
- * Farzandlar uchun tavsiyalarni hisoblash
+ * Birlashtirish balli: 40% ism, 30% tug'ilgan yil, 30% ota-ona munosabati (95% aniqlik).
+ */
+export const computeMatchScore = (
+  nameSimilarity: number,
+  birthYearSim: number,
+  sameParentGroup: boolean
+): number => {
+  const namePart = (nameSimilarity / 100) * 40;
+  const birthPart = (birthYearSim / 100) * 30;
+  const parentPart = sameParentGroup ? 30 : 0;
+  return Math.round(namePart + birthPart + parentPart);
+};
+
+/** Minimal ball: 1% ham bo‘lsa tavsiya qilamiz — katta daraxtda hech kim chetda qolmasin */
+const MERGE_SCORE_THRESHOLD = 1;
+
+/**
+ * Farzandlar uchun tavsiyalarni hisoblash (40% ism, 30% yil, 30% ota-ona).
+ * Qoida: bitta target faqat bitta source bilan juftlanadi (10 kishi 1 profilga tushib qolmasin).
+ * Juftliklar eng yuqori ball bo‘yicha tanlanadi — keraklisi keraklisi bilan birlashadi.
  */
 const computeChildSuggestions = (
   sourceChildren: ChildProfile[],
-  targetChildren: ChildProfile[]
+  targetChildren: ChildProfile[],
+  sameParentGroup: boolean = true
 ): ChildMergeSuggestion[] => {
-  const suggestions: ChildMergeSuggestion[] = [];
-  const usedTargetIds = new Set<string>();
-  
+  const allPairs: { source: ChildProfile; target: ChildProfile; score: number }[] = [];
+
   for (const sourceChild of sourceChildren) {
-    const availableTargets = targetChildren.filter(
-      t => t.gender === sourceChild.gender && !usedTargetIds.has(t.id)
-    );
-    
-    if (availableTargets.length === 0) continue;
-    
-    const scored = availableTargets.map(target => ({
-      target,
-      similarity: calculateSimilarity(sourceChild.name, target.name),
-    }));
-    scored.sort((a, b) => b.similarity - a.similarity);
-    
-    const best = scored[0];
-    if (best && best.similarity >= 30) {
-      suggestions.push({
-        sourceChild,
-        targetChild: best.target,
-        similarity: best.similarity,
-      });
-      usedTargetIds.add(best.target.id);
+    for (const target of targetChildren) {
+      if (target.gender !== sourceChild.gender) continue;
+      const nameSim = calculateSimilarity(sourceChild.name, target.name);
+      const birthSim = birthYearScore(sourceChild.birthYear, target.birthYear);
+      const score = computeMatchScore(nameSim, birthSim, sameParentGroup);
+      if (score >= MERGE_SCORE_THRESHOLD) {
+        allPairs.push({ source: sourceChild, target, score });
+      }
     }
   }
-  
+
+  allPairs.sort((a, b) => b.score - a.score);
+
+  const suggestions: ChildMergeSuggestion[] = [];
+  const usedSourceIds = new Set<string>();
+  const usedTargetIds = new Set<string>();
+
+  for (const { source, target, score } of allPairs) {
+    if (usedSourceIds.has(source.id) || usedTargetIds.has(target.id)) continue;
+    suggestions.push({
+      sourceChild: source,
+      targetChild: target,
+      similarity: score,
+    });
+    usedSourceIds.add(source.id);
+    usedTargetIds.add(target.id);
+  }
+
   return suggestions;
 };
 
@@ -222,6 +255,7 @@ const toChildProfile = (m: TreeMember): ChildProfile => ({
   name: m.member_name || 'Ism kiritilmagan',
   photoUrl: m.avatar_url || undefined,
   gender: (m.gender as 'male' | 'female') || 'male',
+  birthYear: m.birth_year ?? undefined,
 });
 
 const createMergeEntry = (

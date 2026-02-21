@@ -374,6 +374,7 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose }: FullScreenVie
             postId={currentPost.id}
             initialLikesCount={currentPost.likes_count}
             initialCommentsCount={currentPost.comments_count}
+            initialViewsCount={currentPost.views_count ?? 0}
             videoUrl={isVideo(currentMediaUrl) ? currentMediaUrl : undefined}
             onOpenVideoPlayer={(url) => {
               setVideoPlayerSrc(url);

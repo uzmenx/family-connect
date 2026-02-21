@@ -19,11 +19,11 @@ interface LikersDialogProps {
 export const LikersDialog = ({ open, onOpenChange, users, likesCount }: LikersDialogProps) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="max-w-sm screen-likes">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             Yoqtirishlar
-            <span className="bg-primary text-primary-foreground text-xs px-2 py-0.5 rounded-full">
+            <span className="likes-bg-soft likes-accent text-xs font-semibold px-2 py-0.5 rounded-full">
               {likesCount}
             </span>
           </DialogTitle>
@@ -40,7 +40,7 @@ export const LikersDialog = ({ open, onOpenChange, users, likesCount }: LikersDi
                 <div key={user.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
                   <Avatar className="h-10 w-10">
                     <AvatarImage src={user.avatar_url || undefined} />
-                    <AvatarFallback className="bg-primary/10 text-primary">
+                    <AvatarFallback className="likes-bg-soft likes-accent">
                       {user.name?.charAt(0) || 'U'}
                     </AvatarFallback>
                   </Avatar>
