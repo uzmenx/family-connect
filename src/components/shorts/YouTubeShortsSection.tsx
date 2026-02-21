@@ -48,6 +48,22 @@ function saveCache(shorts: Short[], nextPageToken: string | null) {
   } catch {}
 }
 
+// Rotating search queries for variety — Uzbekistan + world trends
+const SEARCH_QUERIES = [
+  'uzbekistan shorts trending',
+  'uzbek viral shorts',
+  'trending shorts worldwide',
+  'shorts viral funny trending',
+  'toshkent shorts',
+  'world trending shorts 2025',
+  'uzbekistan funny shorts',
+  'shorts comedy viral',
+];
+
+function getRandomQuery(): string {
+  return SEARCH_QUERIES[Math.floor(Math.random() * SEARCH_QUERIES.length)];
+}
+
 export function YouTubeShortsSection({ onShortClick }: YouTubeShortsProps) {
   const [shorts, setShorts] = useState<Short[]>([]);
   const [nextToken, setNextToken] = useState<string | null>(null);
@@ -56,20 +72,26 @@ export function YouTubeShortsSection({ onShortClick }: YouTubeShortsProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const loaderRef = useRef<HTMLDivElement>(null);
   const fetchingRef = useRef(false);
+  const currentQueryRef = useRef(getRandomQuery());
 
   const fetchShorts = useCallback(async (pageToken?: string) => {
     if (fetchingRef.current) return;
     fetchingRef.current = true;
 
     const isFirstLoad = !pageToken;
-    if (isFirstLoad) setIsLoading(true);else
-    setIsLoadingMore(true);
+    if (isFirstLoad) {
+      setIsLoading(true);
+      // Pick a new random query on each fresh load
+      currentQueryRef.current = getRandomQuery();
+    } else {
+      setIsLoadingMore(true);
+    }
 
     try {
       const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
       const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       const params = new URLSearchParams({
-        q: 'shorts trending viral funny',
+        q: currentQueryRef.current,
         maxResults: '20'
       });
       if (pageToken) params.set('pageToken', pageToken);
@@ -105,16 +127,20 @@ export function YouTubeShortsSection({ onShortClick }: YouTubeShortsProps) {
     }
   }, []);
 
-  // Load from cache or fetch on mount
+  // Always fetch fresh shorts on mount (no cache on initial load)
   useEffect(() => {
-    const cached = loadCache();
-    if (cached && cached.shorts.length > 0) {
-      setShorts(cached.shorts);
-      setNextToken(cached.nextPageToken);
-      setIsLoading(false);
-    } else {
+    fetchShorts();
+  }, [fetchShorts]);
+
+  // Expose a refresh method via a custom event so parent can trigger refresh
+  useEffect(() => {
+    const handler = () => {
+      setShorts([]);
+      setNextToken(null);
       fetchShorts();
-    }
+    };
+    window.addEventListener('refresh-shorts', handler);
+    return () => window.removeEventListener('refresh-shorts', handler);
   }, [fetchShorts]);
 
   // IntersectionObserver for infinite scroll
