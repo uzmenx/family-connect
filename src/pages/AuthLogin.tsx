@@ -4,7 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { useToast } from '@/hooks/use-toast';
-import { Loader2, Mail, Lock, ArrowLeft, Eye, EyeOff } from 'lucide-react';
+import { Loader2, Mail, Lock, Eye, EyeOff } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { LangSwitcher } from '@/components/LangSwitcher';
@@ -66,12 +66,9 @@ const AuthLogin = () => {
         <div className="absolute bottom-20 right-20 w-52 h-52 bg-teal-400/15 rounded-full blur-2xl animate-pulse delay-1500" />
       </div>
 
-      {/* Header */}
-      <div className="relative z-10 p-4 flex items-center justify-between">
-        <button onClick={() => navigate(-1)} className="p-2 hover:bg-white/10 rounded-full transition-all duration-300 backdrop-blur-sm">
-          <ArrowLeft className="h-5 w-5 text-white" />
-        </button>
-        <LangSwitcher />
+      {/* Header: login sahifasida ortga tugmasi koʻrinmasin, faqat til tugmasi */}
+      <div className="relative z-10 p-4 flex items-center justify-end">
+        <LangSwitcher glow />
       </div>
 
       {/* Content */}

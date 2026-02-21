@@ -82,12 +82,12 @@ const Signup = () => {
         <div className="absolute bottom-20 right-20 w-52 h-52 bg-teal-400/15 rounded-full blur-2xl animate-pulse delay-1500" />
       </div>
 
-      {/* Header */}
+      {/* Header: registratsiyada ortga tugmasi, til tugmasi nur bilan */}
       <div className="relative z-10 p-4 flex items-center justify-between">
         <button onClick={() => navigate(-1)} className="p-2 hover:bg-white/10 rounded-full transition-all duration-300 backdrop-blur-sm">
           <ArrowLeft className="h-5 w-5 text-white" />
         </button>
-        <LangSwitcher />
+        <LangSwitcher glow />
       </div>
 
       {/* Content */}
