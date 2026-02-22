@@ -721,6 +721,35 @@ export type Database = {
           },
         ]
       }
+      post_views: {
+        Row: {
+          created_at: string
+          id: string
+          post_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          post_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          post_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "post_views_post_id_fkey"
+            columns: ["post_id"]
+            isOneToOne: false
+            referencedRelation: "posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       posts: {
         Row: {
           comments_count: number | null
@@ -731,6 +760,7 @@ export type Database = {
           media_urls: string[] | null
           updated_at: string
           user_id: string
+          views_count: number | null
         }
         Insert: {
           comments_count?: number | null
@@ -741,6 +771,7 @@ export type Database = {
           media_urls?: string[] | null
           updated_at?: string
           user_id: string
+          views_count?: number | null
         }
         Update: {
           comments_count?: number | null
@@ -751,6 +782,7 @@ export type Database = {
           media_urls?: string[] | null
           updated_at?: string
           user_id?: string
+          views_count?: number | null
         }
         Relationships: []
       }

@@ -210,7 +210,7 @@ const Signup = () => {
                   {t('signingUp')}
                 </>
               ) : (
-                "{t('signup')}"
+                t('signup')
               )}
             </Button>
           </form>
