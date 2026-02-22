@@ -45,7 +45,12 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
   const swipeStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
   const [focusedMediaId, setFocusedMediaId] = useState<string | null>(null);
-  const [trayOpen, setTrayOpen] = useState(false);
+  const [trayOpen, setTrayOpen] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    const coarse = window.matchMedia?.('(pointer: coarse)')?.matches;
+    const small = window.matchMedia?.('(max-width: 768px)')?.matches;
+    return !!(coarse || small);
+  });
   const trayStartYRef = useRef<number | null>(null);
 
   const [items, setItems] = useState<EditableItem[]>([]);
