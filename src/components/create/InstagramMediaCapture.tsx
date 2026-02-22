@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronRight, Image as ImageIcon, Music2, Play, Pause, RefreshCw, Smile, Type, Volume2, VolumeX, X, Disc } from 'lucide-react';
+import { ChevronRight, Image as ImageIcon, Music, Play, Pause, Smile, SwitchCamera, Type, Volume2, VolumeX, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EMOJIS, MEDIA_FILTERS } from './filters';
 import FilterStrip from './FilterStrip';
@@ -34,9 +34,6 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
   const streamRef = useRef<MediaStream | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
-  const audioContextRef = useRef<AudioContext | null>(null);
-  const musicAudioRef = useRef<HTMLAudioElement | null>(null);
-  const sourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const recordTimerRef = useRef<number>();
@@ -62,10 +59,7 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
 
   const [showTextInput, setShowTextInput] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
-  const [showMusicList, setShowMusicList] = useState(false);
   const [textValue, setTextValue] = useState('');
-  const [selectedMusic, setSelectedMusic] = useState<{ file: File; name: string; url: string } | null>(null);
-  const [isMusicPlaying, setIsMusicPlaying] = useState(false);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
@@ -207,23 +201,16 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
     }, 'image/jpeg', 0.92);
   }, [addMediaItem, items.length, maxItems, zoom]);
 
-  const startRecording = useCallback(async () => {
+  const startRecording = useCallback(() => {
     if (!streamRef.current) return;
     if (items.length >= maxItems) return;
-
-    // Setup audio mixing if music is selected
-    let streamToUse = streamRef.current;
-    if (selectedMusic) {
-      const mixedStream = await setupAudioMixing();
-      if (mixedStream) streamToUse = mixedStream;
-    }
 
     recordedChunksRef.current = [];
     const mimeType = MediaRecorder.isTypeSupported('video/webm;codecs=vp9')
       ? 'video/webm;codecs=vp9'
       : 'video/webm';
 
-    const recorder = new MediaRecorder(streamToUse, { mimeType });
+    const recorder = new MediaRecorder(streamRef.current, { mimeType });
     recorder.ondataavailable = (e) => {
       if (e.data.size > 0) recordedChunksRef.current.push(e.data);
     };
@@ -250,27 +237,15 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
     setIsRecording(true);
     setRecordingTime(0);
     recordTimerRef.current = window.setInterval(() => setRecordingTime(t => t + 1), 1000);
-    
-    // Start playing music if selected
-    if (selectedMusic && musicAudioRef.current) {
-      musicAudioRef.current.play();
-      setIsMusicPlaying(true);
-    }
-  }, [addMediaItem, items.length, maxItems, selectedMusic]);
+  }, [addMediaItem, items.length, maxItems]);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && isRecording) {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
       clearInterval(recordTimerRef.current);
-      
-      // Stop music when recording stops
-      if (musicAudioRef.current && isMusicPlaying) {
-        musicAudioRef.current.pause();
-        setIsMusicPlaying(false);
-      }
     }
-  }, [isRecording, isMusicPlaying]);
+  }, [isRecording]);
 
   const handleCaptureStart = useCallback(() => {
     setIsCapturing(true);
@@ -417,61 +392,6 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
     onNext(items.map(it => ({ file: it.media.file, filter: it.filter })));
   }, [items, onNext]);
 
-  const handleMusicSelect = useCallback((file: File) => {
-    const url = URL.createObjectURL(file);
-    setSelectedMusic({ file, name: file.name, url });
-    setIsMusicPlaying(false);
-  }, []);
-
-  const toggleMusicPlayback = useCallback(() => {
-    if (!musicAudioRef.current || !selectedMusic) return;
-    
-    if (isMusicPlaying) {
-      musicAudioRef.current.pause();
-      setIsMusicPlaying(false);
-    } else {
-      musicAudioRef.current.play();
-      setIsMusicPlaying(true);
-    }
-  }, [isMusicPlaying, selectedMusic]);
-
-  const setupAudioMixing = useCallback(async () => {
-    if (!selectedMusic || !streamRef.current) return null;
-    
-    try {
-      // Create audio context
-      audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const audioContext = audioContextRef.current;
-      
-      // Create music audio element
-      const musicAudio = new Audio(selectedMusic.url);
-      musicAudio.loop = true;
-      musicAudio.volume = 0.3; // 30% volume
-      musicAudioRef.current = musicAudio;
-      
-      // Create destination for mixed audio
-      const destination = audioContext.createMediaStreamDestination();
-      
-      // Add camera audio to destination
-      if (streamRef.current.getAudioTracks().length > 0) {
-        const source = audioContext.createMediaStreamSource(streamRef.current);
-        source.connect(destination);
-      }
-      
-      // Add music to destination
-      const musicSource = audioContext.createMediaElementSource(musicAudio);
-      const gainNode = audioContext.createGain();
-      gainNode.gain.value = 0.3;
-      musicSource.connect(gainNode);
-      gainNode.connect(destination);
-      
-      return destination.stream;
-    } catch (error) {
-      console.error('Error setting up audio mixing:', error);
-      return null;
-    }
-  }, [selectedMusic]);
-
   const showTopStrip = items.length > 0;
   const isVideo = active?.media.type === 'video';
   const isFocused = !!focusedMediaId && active?.media.id === focusedMediaId;
@@ -522,7 +442,7 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
       <div className="absolute top-0 left-0 right-0 z-30 flex items-center justify-between px-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
         <button
           onClick={onClose}
-          className="w-10 h-10 rounded-full glass-button flex items-center justify-center active:scale-90 transition-transform"
+          className="w-10 h-10 rounded-full bg-black/40 backdrop-blur-xl border border-white/15 flex items-center justify-center active:scale-90 transition-transform"
         >
           <X className="w-5 h-5 text-white" />
         </button>
@@ -575,25 +495,25 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
               <span className="text-white/50 text-[10px] font-medium">{items.length}/{maxItems}</span>
             </div>
 
-            {/* Music button */}
+            {/* Music button (UI only for now) */}
             <button
               type="button"
-              onClick={() => setShowMusicList(true)}
-              className="absolute left-8 z-20 w-12 h-12 rounded-full glass-button flex items-center justify-center active:scale-90 transition-transform group"
+              onClick={() => setTrayOpen(true)}
+              className="absolute left-5 z-20 w-12 h-12 rounded-full bg-black/35 backdrop-blur-xl border border-white/15 flex items-center justify-center active:scale-90 transition-transform"
               aria-label="Music"
               style={{ bottom: `calc(${trayPeekHeight} + max(0.75rem, env(safe-area-inset-bottom)))` }}
             >
-              <Music2 className="w-6 h-6 text-white animate-pulse-slow group-hover:animate-bounce-slow transition-all duration-500" />
+              <Music className="w-6 h-6 text-white" />
             </button>
 
             {/* Flip camera (bottom-right) */}
             <button
               onClick={() => setFacingMode(f => (f === 'environment' ? 'user' : 'environment'))}
-              className="absolute right-8 z-20 w-12 h-12 rounded-full glass-button flex items-center justify-center active:scale-90 transition-transform group"
+              className="absolute right-5 z-20 w-12 h-12 rounded-full bg-black/35 backdrop-blur-xl border border-white/15 flex items-center justify-center active:scale-90 transition-transform"
               aria-label="Switch camera"
               style={{ bottom: `calc(${trayPeekHeight} + max(0.75rem, env(safe-area-inset-bottom)))` }}
             >
-              <RefreshCw className="w-6 h-6 text-white animate-spin-very-slow group-hover:animate-spin transition-all duration-500" />
+              <SwitchCamera className="w-6 h-6 text-white" />
             </button>
           </>
         )}
@@ -612,80 +532,29 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
               onTouchMove={handleTouchMove}
               onTouchEnd={() => { handleCaptureEnd(); handleTouchEnd(); }}
               disabled={!cameraReady || !canAddMore}
-              className={cn(
-                'relative w-[78px] h-[78px] rounded-full flex items-center justify-center disabled:opacity-30',
-                isCapturing ? 'scale-[0.98]' : 'scale-100'
-              )}
+              className="relative w-[72px] h-[72px] rounded-full flex items-center justify-center disabled:opacity-30"
             >
-              <div
-                className={cn(
-                  'absolute inset-0 rounded-full p-[3px] shutter-neon-rotate',
-                  "bg-[conic-gradient(from_180deg_at_50%_50%,#00F5FF_0deg,#7C3AED_90deg,#FF2BD6_180deg,#00F5FF_360deg)]",
-                  'shadow-[0_0_14px_rgba(0,245,255,0.22),0_0_16px_rgba(255,43,214,0.12)]'
-                )}
-              >
-                <div className="relative w-full h-full rounded-full bg-black/30 backdrop-blur-sm border border-white/20 overflow-hidden">
-                  <div
-                    className={cn(
-                      'absolute inset-0 rounded-full opacity-55 mix-blend-screen',
-                      "bg-[repeating-conic-gradient(from_200deg,rgba(255,255,255,0.0)_0deg,rgba(255,255,255,0.0)_10deg,rgba(255,255,255,0.35)_14deg,rgba(255,255,255,0.0)_18deg)]"
-                    )}
-                    style={{
-                      WebkitMaskImage: 'radial-gradient(circle at 50% 50%, transparent 0 52%, #000 56% 100%)',
-                      maskImage: 'radial-gradient(circle at 50% 50%, transparent 0 52%, #000 56% 100%)',
-                    }}
-                  />
-
-                  <span className="shutter-spark" style={{ top: '10%', left: '72%', animationDelay: '0ms' }} />
-                  <span className="shutter-spark" style={{ top: '72%', left: '16%', animationDelay: '650ms' }} />
-                  <span className="shutter-spark" style={{ top: '38%', left: '8%', animationDelay: '1100ms' }} />
-                </div>
-              </div>
-
-              <div className="absolute inset-[9px] rounded-full bg-black/25 border border-white/10" />
-
+              <div className="absolute inset-0 rounded-full border-[3px] border-white/40" />
               <div
                 className={cn(
                   'relative transition-all duration-200',
-                  isCapturing ? 'scale-[0.84]' : 'scale-100',
+                  isCapturing ? 'scale-[0.85]' : 'scale-100',
                   isRecording ? 'w-8 h-8 rounded-lg bg-red-500' : 'w-[58px] h-[58px] rounded-full bg-white'
                 )}
               >
                 {isRecording && <div className="absolute inset-0 rounded-lg animate-pulse bg-red-400" />}
               </div>
-              {isRecording && (
-                <div className="absolute inset-0 rounded-full border-[3px] border-red-400/80 shadow-[0_0_18px_rgba(239,68,68,0.35)] animate-ping" />
-              )}
+              {isRecording && <div className="absolute inset-0 rounded-full border-[3px] border-red-400 animate-ping" />}
             </button>
           </div>
         )}
 
-        {/* Recording badge with music info */}
+        {/* Recording badge */}
         {showCaptureUi && isRecording && (
-          <>
-            <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/90 backdrop-blur-sm">
-              <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
-              <span className="text-white text-[11px] font-medium">{Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}</span>
-            </div>
-            
-            {/* Music info overlay */}
-            {selectedMusic && (
-              <div className="absolute bottom-20 left-1/2 -translate-x-1/2 z-30 flex items-center gap-2 px-3 py-2 rounded-full bg-black/70 backdrop-blur-xl border border-white/20">
-                <Disc className="w-4 h-4 text-primary" />
-                <span className="text-white text-xs font-medium truncate max-w-[120px]">{selectedMusic.name}</span>
-                <button
-                  onClick={toggleMusicPlayback}
-                  className="w-6 h-6 rounded-full glass-button flex items-center justify-center active:scale-90 transition-transform"
-                >
-                  {isMusicPlaying ? (
-                    <Pause className="w-3 h-3 text-white" />
-                  ) : (
-                    <Play className="w-3 h-3 text-white" />
-                  )}
-                </button>
-              </div>
-            )}
-          </>
+          <div className="absolute top-3 left-1/2 -translate-x-1/2 z-30 flex items-center gap-1.5 px-3 py-1 rounded-full bg-red-500/90 backdrop-blur-sm">
+            <div className="w-2 h-2 rounded-full bg-white animate-pulse" />
+            <span className="text-white text-[11px] font-medium">{Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}</span>
+          </div>
         )}
 
         {/* Selected strip (top) */}
@@ -878,114 +747,6 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
                 </div>
               </div>
             )}
-          </div>
-        )}
-
-        {/* Music List Modal */}
-        {showMusicList && (
-          <div className="absolute inset-0 z-50 bg-black/80 backdrop-blur-xl flex items-end">
-            <div className="w-full bg-black/90 backdrop-blur-2xl border-t border-white/20 rounded-t-3xl max-h-[70vh] overflow-hidden">
-              {/* Header */}
-              <div className="flex items-center justify-between p-4 border-b border-white/10">
-                <div className="flex items-center gap-3">
-                  <Disc className="w-6 h-6 text-primary" />
-                  <h2 className="text-white font-semibold text-lg">Musiqa</h2>
-                </div>
-                <button
-                  onClick={() => setShowMusicList(false)}
-                  className="w-10 h-10 rounded-full glass-button flex items-center justify-center active:scale-90 transition-transform"
-                >
-                  <X className="w-5 h-5 text-white" />
-                </button>
-              </div>
-
-              {/* Music List */}
-              <div className="overflow-y-auto max-h-[50vh]">
-                {/* File Upload Section */}
-                <div className="p-4 border-b border-white/10">
-                  <label className="block">
-                    <div className="w-full p-3 border-2 border-dashed border-white/30 rounded-xl text-center cursor-pointer hover:border-white/50 transition-colors">
-                      <Disc className="w-6 h-6 mx-auto mb-2 text-primary" />
-                      <p className="text-white text-sm font-medium">Musiqa yuklash</p>
-                      <p className="text-white/50 text-xs mt-1">MP3, WAV, M4A</p>
-                      <input
-                        type="file"
-                        accept="audio/*"
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) handleMusicSelect(file);
-                        }}
-                        className="hidden"
-                      />
-                    </div>
-                  </label>
-                </div>
-
-                {/* Selected Music Display */}
-                {selectedMusic && (
-                  <div className="p-4 border-b border-white/10 bg-primary/10">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center">
-                          <Disc className="w-5 h-5 text-primary" />
-                        </div>
-                        <div>
-                          <h4 className="text-white font-medium text-sm">{selectedMusic.name}</h4>
-                          <p className="text-white/60 text-xs">Tanlangan musiqa</p>
-                        </div>
-                      </div>
-                      <button
-                        onClick={toggleMusicPlayback}
-                        className="w-10 h-10 rounded-full glass-button flex items-center justify-center active:scale-90 transition-transform"
-                      >
-                        {isMusicPlaying ? (
-                          <Pause className="w-4 h-4 text-white" />
-                        ) : (
-                          <Play className="w-4 h-4 text-white" />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* Demo Tracks */}
-                <div className="p-4">
-                  <h3 className="text-white/70 text-xs font-semibold mb-3">Tavsiya etilgan</h3>
-                  {[
-                    { id: 1, title: 'Summer Vibes', artist: 'DJ Sunset', duration: '3:24', cover: '🌅' },
-                    { id: 2, title: 'Night Drive', artist: 'Luna Wave', duration: '4:15', cover: '🌙' },
-                    { id: 3, title: 'Ocean Breeze', artist: 'Coastal Beats', duration: '2:58', cover: '🌊' },
-                    { id: 4, title: 'City Lights', artist: 'Urban Flow', duration: '3:42', cover: '🌃' },
-                    { id: 5, title: 'Mountain High', artist: 'Alpine Sound', duration: '4:03', cover: '🏔️' },
-                    { id: 6, title: 'Desert Wind', artist: 'Sahara Vibes', duration: '3:36', cover: '🏜️' },
-                  ].map((track) => (
-                    <button
-                      key={track.id}
-                      className="w-full flex items-center gap-3 p-3 hover:bg-white/5 transition-colors border-b border-white/5"
-                    >
-                      {/* Cover */}
-                      <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary/20 to-purple-500/20 flex items-center justify-center text-2xl">
-                        {track.cover}
-                      </div>
-                      
-                      {/* Info */}
-                      <div className="flex-1 text-left">
-                        <h3 className="text-white font-medium text-sm">{track.title}</h3>
-                        <p className="text-white/60 text-xs">{track.artist}</p>
-                      </div>
-                      
-                      {/* Duration & Play */}
-                      <div className="flex items-center gap-2">
-                        <span className="text-white/40 text-xs">{track.duration}</span>
-                        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
-                          <Play className="w-4 h-4 text-primary" />
-                        </div>
-                      </div>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </div>
           </div>
         )}
 

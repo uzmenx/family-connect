@@ -84,7 +84,7 @@ const Settings = () => {
           <h1 className="text-xl font-bold">{t('settings')}</h1>
         </div>
 
-        <div className="space-y-3">
+        <div className="space-y-4">
           {/* Language */}
           <Card>
             <CardHeader className="pb-3">
@@ -94,7 +94,7 @@ const Settings = () => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="flex gap-1.5">
+              <div className="flex gap-2">
                 {(Object.keys(langLabels) as Language[]).map((l) => (
                   <Button
                     key={l}
@@ -118,10 +118,10 @@ const Settings = () => {
                 {t('appearance')}
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-4">
               <div>
                 <Label className="text-xs text-muted-foreground mb-2 block">{tt('themeMode')}</Label>
-                <div className="flex gap-1.5">
+                <div className="flex gap-2">
                   {themeModes.map(({ key, icon: Icon }) => (
                     <Button
                       key={key}
@@ -140,7 +140,7 @@ const Settings = () => {
               {/* Background themes */}
               <div>
                 <Label className="text-xs text-muted-foreground mb-2 block">{tt('background')}</Label>
-                <div className="grid grid-cols-4 gap-1">
+                <div className="grid grid-cols-4 gap-2">
                   {bgOptions.map(({ key, preview }) => (
                     <button
                       key={key}
@@ -202,7 +202,7 @@ const Settings = () => {
                 Maxfiylik
               </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-3">
+            <CardContent className="space-y-4">
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium">Hikoya lentani yashirish</p>

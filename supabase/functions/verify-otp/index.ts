@@ -10,17 +10,6 @@ const corsHeaders = {
 interface VerifyRequest {
   email: string;
   otp: string;
-  password?: string;
-  username?: string;
-  gender?: string;
-}
-
-async function hashOTP(otp: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const data = encoder.encode(otp);
-  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 const handler = async (req: Request): Promise<Response> => {
@@ -29,11 +18,9 @@ const handler = async (req: Request): Promise<Response> => {
   }
 
   try {
-    const { email, otp, password, username, gender }: VerifyRequest = await req.json();
+    const { email, otp }: VerifyRequest = await req.json();
 
-    const normalizedEmail = (email || "").toLowerCase().trim();
-
-    if (!normalizedEmail || !otp) {
+    if (!email || !otp) {
       return new Response(
         JSON.stringify({ error: "Email and OTP are required" }),
         {
@@ -54,120 +41,93 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    if (!password || password.length < 6) {
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    
+    const supabase = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false,
+      },
+    });
+
+    // Generate a random password for the user (they'll use OTP/magic link to login)
+    const tempPassword = crypto.randomUUID();
+
+    // Check if user exists
+    const { data: existingUsers } = await supabase.auth.admin.listUsers();
+    const userExists = existingUsers?.users?.some(u => u.email === email.toLowerCase());
+
+    if (!userExists) {
+      // Create user if doesn't exist
+      const { error: signUpError } = await supabase.auth.admin.createUser({
+        email: email.toLowerCase(),
+        password: tempPassword,
+        email_confirm: true,
+      });
+
+      if (signUpError) {
+        console.error("Signup error:", signUpError);
+        return new Response(
+          JSON.stringify({ error: signUpError.message }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          }
+        );
+      }
+    }
+
+    // Sign in user with OTP (using signInWithOtp for passwordless flow)
+    // Since we can't directly create session, we'll use magic link tokens
+    const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
+      email: email.toLowerCase(),
+      password: tempPassword,
+    });
+
+    // If password sign-in fails (existing user), generate new password and update
+    if (signInError) {
+      await supabase.auth.admin.updateUserById(
+        (await supabase.auth.admin.listUsers()).data.users.find(u => u.email === email.toLowerCase())?.id || '',
+        { password: tempPassword }
+      );
+      
+      const { data: retryData, error: retryError } = await supabase.auth.signInWithPassword({
+        email: email.toLowerCase(),
+        password: tempPassword,
+      });
+
+      if (retryError) {
+        console.error("Sign in retry error:", retryError);
+        return new Response(
+          JSON.stringify({ error: "Authentication failed" }),
+          {
+            status: 400,
+            headers: { "Content-Type": "application/json", ...corsHeaders },
+          }
+        );
+      }
+
       return new Response(
-        JSON.stringify({ error: "Password is required" }),
+        JSON.stringify({ 
+          success: true,
+          access_token: retryData.session?.access_token,
+          refresh_token: retryData.session?.refresh_token,
+          user: retryData.user
+        }),
         {
-          status: 400,
+          status: 200,
           headers: { "Content-Type": "application/json", ...corsHeaders },
         }
       );
     }
 
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
-    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
-
-    const admin = createClient(supabaseUrl, supabaseServiceKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
-
-    const { data: storedOtp, error: fetchError } = await admin
-      .from("email_otp_codes")
-      .select("*")
-      .eq("email", normalizedEmail)
-      .eq("verified", false)
-      .single();
-
-    if (fetchError || !storedOtp) {
-      return new Response(
-        JSON.stringify({ error: "Kod topilmadi. Qaytadan urinib ko'ring" }),
-        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
-    }
-
-    if (new Date(storedOtp.expires_at) < new Date()) {
-      await admin.from("email_otp_codes").delete().eq("id", storedOtp.id);
-      return new Response(
-        JSON.stringify({ error: "Kod muddati tugagan. Yangi kod oling" }),
-        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
-    }
-
-    const inputHash = await hashOTP(otp);
-    if (inputHash !== storedOtp.otp_hash) {
-      return new Response(
-        JSON.stringify({ error: "Noto'g'ri kod" }),
-        { status: 400, headers: { "Content-Type": "application/json", ...corsHeaders } }
-      );
-    }
-
-    await admin.from("email_otp_codes").update({ verified: true }).eq("id", storedOtp.id);
-
-    // Ensure user exists with confirmed email
-    const { data: listData, error: listErr } = await admin.auth.admin.listUsers();
-    if (listErr) throw listErr;
-    const existing = listData.users.find((u: { email?: string; user_metadata?: Record<string, unknown>; id: string }) =>
-      (u.email || "").toLowerCase() === normalizedEmail
-    );
-
-    let userId: string;
-
-    if (existing) {
-      const { error: updateErr } = await admin.auth.admin.updateUserById(existing.id, {
-        password,
-        user_metadata: {
-          ...(existing.user_metadata || {}),
-          username: username || existing.user_metadata?.username,
-        },
-      });
-      if (updateErr) throw updateErr;
-      userId = existing.id;
-    } else {
-      const { data: created, error: createErr } = await admin.auth.admin.createUser({
-        email: normalizedEmail,
-        password,
-        email_confirm: true,
-        user_metadata: {
-          username: username || normalizedEmail,
-          name: username || normalizedEmail,
-        },
-      });
-      if (createErr) throw createErr;
-      userId = created.user.id;
-
-      const { error: profileError } = await admin
-        .from("profiles")
-        .update({
-          username: username || normalizedEmail,
-          name: username || normalizedEmail,
-          gender: gender || null,
-        })
-        .eq("id", userId);
-      if (profileError) {
-        console.error("Profile update error:", profileError);
-      }
-    }
-
-    // Now sign-in using anon key client so we can get real session tokens
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!;
-    const client = createClient(supabaseUrl, anonKey, {
-      auth: { autoRefreshToken: false, persistSession: false },
-    });
-
-    const { data: signInData, error: signInError } = await client.auth.signInWithPassword({
-      email: normalizedEmail,
-      password,
-    });
-    if (signInError) throw signInError;
-
-    await admin.from("email_otp_codes").delete().eq("email", normalizedEmail);
-
     return new Response(
-      JSON.stringify({
+      JSON.stringify({ 
         success: true,
         access_token: signInData.session?.access_token,
         refresh_token: signInData.session?.refresh_token,
-        user: { id: userId, email: normalizedEmail },
+        user: signInData.user
       }),
       {
         status: 200,

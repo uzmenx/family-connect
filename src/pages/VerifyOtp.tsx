@@ -16,16 +16,13 @@ const VerifyOtp = () => {
   const { toast } = useToast();
   
   const email = location.state?.email;
-  const password = location.state?.password;
-  const username = location.state?.username;
-  const gender = location.state?.gender;
 
   useEffect(() => {
-    if (!email || !password) {
+    if (!email) {
       navigate('/auth');
       return;
     }
-  }, [email, password, navigate]);
+  }, [email, navigate]);
 
   useEffect(() => {
     if (resendTimer > 0) {
@@ -41,7 +38,7 @@ const VerifyOtp = () => {
 
     try {
       const response = await supabase.functions.invoke('verify-otp', {
-        body: { email, otp, password, username, gender }
+        body: { email, otp }
       });
 
       if (response.error) {

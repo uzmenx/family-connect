@@ -8,8 +8,7 @@ import { Progress } from '@/components/ui/progress';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { uploadMedia } from '@/lib/r2Upload';
-import { Check, AtSign, Users, ChevronRight, X, ChevronLeft, Video, Music } from 'lucide-react';
-import { AudioPicker } from '@/components/create/AudioPicker';
+import { Check, AtSign, Users, ChevronRight, X, ChevronLeft, Video } from 'lucide-react';
 import InstagramMediaCapture from '@/components/create/InstagramMediaCapture';
 import { STORY_RINGS, type StoryRingId } from '@/components/stories/storyRings';
 import { StoryRingPreview } from '@/components/stories/StoryRingPreview';
@@ -38,8 +37,6 @@ const CreateContent = () => {
   const [showCollabPicker, setShowCollabPicker] = useState(false);
   const [mentionProfiles, setMentionProfiles] = useState<any[]>([]);
   const [collabProfiles, setCollabProfiles] = useState<any[]>([]);
-  const [selectedAudio, setSelectedAudio] = useState<File | null>(null);
-  const [showAudioPicker, setShowAudioPicker] = useState(false);
   const { addMentions, addCollabs } = useMentionsCollabs();
 
   useEffect(() => {
@@ -232,32 +229,6 @@ const CreateContent = () => {
             </button>
           </div>
 
-          {/* Audio/Music picker */}
-          <div className="rounded-xl border border-border/50 overflow-hidden">
-            <button
-              onClick={() => setShowAudioPicker(true)}
-              className="w-full flex items-center gap-2.5 px-3 py-2.5 bg-background hover:bg-muted/30 transition-colors"
-            >
-              <Music className="h-4 w-4 text-muted-foreground" />
-              <span className="flex-1 text-left text-xs font-medium">Musiqa qo'shish</span>
-              {selectedAudio && (
-                <span className="text-[10px] text-primary font-semibold bg-primary/10 px-1.5 py-0.5 rounded-full truncate max-w-[120px]">
-                  {selectedAudio.name}
-                </span>
-              )}
-              <ChevronRight className="h-3.5 w-3.5 text-muted-foreground/50" />
-            </button>
-          </div>
-          {selectedAudio && (
-            <AudioPicker
-              open={false}
-              onOpenChange={() => {}}
-              onSelect={setSelectedAudio}
-              selectedAudio={selectedAudio}
-              onRemove={() => setSelectedAudio(null)}
-            />
-          )}
-
           {/* Selected chips */}
           {(mentionProfiles.length > 0 || collabProfiles.length > 0) && (
             <div className="flex flex-wrap gap-1.5">
@@ -363,13 +334,6 @@ const CreateContent = () => {
           maxSelection={5}
         />
       )}
-      <AudioPicker
-        open={showAudioPicker}
-        onOpenChange={setShowAudioPicker}
-        onSelect={setSelectedAudio}
-        selectedAudio={selectedAudio}
-        onRemove={() => setSelectedAudio(null)}
-      />
     </div>
   );
 };

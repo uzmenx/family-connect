@@ -349,12 +349,12 @@ export const UnifiedFullScreenViewer = ({
 
         {/* Top bar with tabs */}
         <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between px-3 pt-[env(safe-area-inset-top,10px)] pb-2 bg-gradient-to-b from-black/50 to-transparent">
-          <button onClick={onClose} className="p-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/10 my-0">
+          <button onClick={onClose} className="p-1.5 rounded-full bg-white/10 backdrop-blur-md border border-white/10">
             <X className="w-4 h-4 text-white" />
           </button>
 
           {/* Tabs */}
-          <div className="flex gap-0.5 bg-white/10 backdrop-blur-md rounded-full p-0.5 border border-white/10 py-[2px] my-[10px]">
+          <div className="flex gap-0.5 bg-white/10 backdrop-blur-md rounded-full p-0.5 border border-white/10">
             <button
               onClick={() => handleTabSwitch('shorts')}
               className={cn(

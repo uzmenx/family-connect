@@ -8,17 +8,13 @@ import { StoriesRow } from "@/components/stories/StoriesRow";
 import { YouTubeShortsSection, type Short } from "@/components/shorts/YouTubeShortsSection";
 import { StoryViewer } from "@/components/stories/StoryViewer";
 import { UnifiedFullScreenViewer } from "@/components/feed/UnifiedFullScreenViewer";
-import { NotificationsSheet } from "@/components/notifications/NotificationsSheet";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useStories } from "@/hooks/useStories";
 import { usePostsCache } from "@/hooks/usePostsCache";
 import { useSmoothScroll } from "@/hooks/useSmoothScroll";
-import { useNotifications } from "@/hooks/useNotifications";
-import { Grid2X2, LayoutList, Bell, Search } from "lucide-react";
+import { Grid2X2, LayoutList } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { SearchSheet } from "@/components/search/SearchSheet";
-import { Badge } from "@/components/ui/badge";
 import { Post } from "@/types";
 
 type GridLayout = 1 | 2;
@@ -28,10 +24,7 @@ const Home = () => {
   const { t } = useLanguage();
   const { storyGroups, refetch: refetchStories } = useStories();
   const { posts, isLoading, isRefreshing, isLoadingMore, hasMore, fetchPosts, loadMore } = usePostsCache();
-  const { unreadCount } = useNotifications();
   const [gridLayout, setGridLayout] = useState<GridLayout>(1);
-  const [searchOpen, setSearchOpen] = useState(false);
-  const [notificationsOpen, setNotificationsOpen] = useState(false);
   const loadMoreSentinelRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useSmoothScroll(true, true); // Enable snap and swipe gestures
 
@@ -103,30 +96,9 @@ const Home = () => {
           className="sticky top-0 z-40 px-4 flex items-center justify-between rounded-2xl mx-3 mt-2 mb-0 border border-white/10 bg-background/40 backdrop-blur-xl shadow-lg my-[6px] py-0">
 
           <h1 className="text-xl font-bold tracking-tight">{t('feed')}</h1>
-          <div className="flex items-center gap-1">
-            <Button variant="ghost" size="icon" onClick={() => setSearchOpen(true)} className="h-9 w-9 rounded-xl">
-              <Search className="h-5 w-5" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setNotificationsOpen(true)}
-              className="relative h-9 w-9 rounded-xl"
-            >
-              <Bell className="h-5 w-5" />
-              {unreadCount > 0 && (
-                <Badge
-                  variant="destructive"
-                  className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-[10px]"
-                >
-                  {unreadCount > 9 ? '9+' : unreadCount}
-                </Badge>
-              )}
-            </Button>
-            <Button variant="ghost" size="icon" onClick={toggleGridLayout} className="h-9 w-9 rounded-xl">
-              {gridLayout === 1 ? <LayoutList className="h-5 w-5" /> : <Grid2X2 className="h-5 w-5" />}
-            </Button>
-          </div>
+          <Button variant="ghost" size="icon" onClick={toggleGridLayout} className="h-9 w-9 rounded-xl">
+            {gridLayout === 1 ? <LayoutList className="h-5 w-5" /> : <Grid2X2 className="h-5 w-5" />}
+          </Button>
         </motion.header>
 
         {/* Stories */}
@@ -206,12 +178,9 @@ const Home = () => {
           onClose={() => setStoryViewerOpen(false)} />
 
         }
-
-        <NotificationsSheet open={notificationsOpen} onOpenChange={setNotificationsOpen} />
-        <SearchSheet open={searchOpen} onOpenChange={setSearchOpen} />
       </div>
-    </AppLayout>
-  );
+    </AppLayout>);
+
 };
 
 const MasonryItem = ({ post }: {post: Post;}) => {

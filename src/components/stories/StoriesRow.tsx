@@ -80,7 +80,7 @@ export const StoriesRow = ({ onStoryClick }: StoriesRowProps) => {
       >
         {/* Add story / My story button */}
         <div className="flex flex-col items-center gap-1 flex-shrink-0">
-          <div className="relative overflow-visible">
+          <div className="relative">
             {myStoryGroup ? (
               <StoryAvatar
                 group={myStoryGroup}
@@ -108,15 +108,17 @@ export const StoriesRow = ({ onStoryClick }: StoriesRowProps) => {
                 )}
               </motion.button>
             )}
-
-            <motion.button
-              onClick={() => navigate("/create-story")}
-              className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-white/85 flex items-center justify-center border-2 border-white/60 shadow-md"
-              whileHover={{ scale: 1.1 }}
-              whileTap={{ scale: 0.95 }}
-            >
-              <Plus className="h-3.5 w-3.5 text-black/80" />
-            </motion.button>
+            {/* Add button overlay for own story */}
+            {!myStoryGroup && (
+              <motion.button
+                onClick={() => navigate("/create-story")}
+                className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-primary flex items-center justify-center border-2 border-background shadow-lg"
+                whileHover={{ scale: 1.1 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Plus className="h-3.5 w-3.5 text-primary-foreground" />
+              </motion.button>
+            )}
           </div>
           <span className="text-xs text-muted-foreground truncate w-16 text-center">
             {myStoryGroup ? "Hikoyangiz" : "Qo'shish"}
@@ -129,6 +131,18 @@ export const StoriesRow = ({ onStoryClick }: StoriesRowProps) => {
           return <StoryAvatar key={group.user_id} group={group} onClick={() => onStoryClick(groupIndex)} />;
         })}
 
+        {/* Quick add story button */}
+        <div className="flex flex-col items-center gap-1 flex-shrink-0">
+          <motion.button
+            onClick={() => navigate("/create")}
+            className="w-[68px] h-[68px] rounded-full bg-muted/50 flex items-center justify-center border-2 border-dashed border-muted-foreground/20 hover:border-primary/40 transition-colors"
+            whileHover={{ scale: 1.08 }}
+            whileTap={{ scale: 0.95 }}
+          >
+            <Plus className="h-6 w-6 text-muted-foreground" />
+          </motion.button>
+          <span className="text-xs text-muted-foreground truncate w-16 text-center">Yangi</span>
+        </div>
       </div>
     </div>
   );

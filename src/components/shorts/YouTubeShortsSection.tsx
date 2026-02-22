@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, ChevronLeft, ChevronRight, Flame, Loader2, Search } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { Play, ChevronLeft, ChevronRight, Flame, Loader2 } from 'lucide-react';
 
 export interface Short {
   id: string;
@@ -51,15 +50,15 @@ function saveCache(shorts: Short[], nextPageToken: string | null) {
 
 // Rotating search queries for variety — Uzbekistan + world trends
 const SEARCH_QUERIES = [
-'uzbekistan shorts trending',
-'uzbek viral shorts',
-'trending shorts worldwide',
-'shorts viral funny trending',
-'toshkent shorts',
-'world trending shorts 2025',
-'uzbekistan funny shorts',
-'shorts comedy viral'];
-
+  'uzbekistan shorts trending',
+  'uzbek viral shorts',
+  'trending shorts worldwide',
+  'shorts viral funny trending',
+  'toshkent shorts',
+  'world trending shorts 2025',
+  'uzbekistan funny shorts',
+  'shorts comedy viral',
+];
 
 function getRandomQuery(): string {
   return SEARCH_QUERIES[Math.floor(Math.random() * SEARCH_QUERIES.length)];
@@ -189,22 +188,13 @@ export function YouTubeShortsSection({ onShortClick }: YouTubeShortsProps) {
   return (
     <div className="pt-1 pb-0">
       {/* Header */}
-      <div className="items-center justify-between mb-1.5 px-[12px] flex flex-row py-[3px]">
-        <div className="flex items-center gap-1.5 flex-shrink-0">
+      <div className="flex items-center justify-between mb-1.5 py-[3px] px-[12px]">
+        <div className="flex items-center gap-1.5">
           <Flame className="w-3.5 h-3.5 text-destructive" />
           <span className="font-semibold text-xs text-foreground">Shorts</span>
           
         </div>
-        <div className="flex-1 px-2">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
-            <Input
-              placeholder="Qidirish..."
-              className="h-7 rounded-full pl-8 pr-3 bg-background/30 border-white/10 backdrop-blur-xl text-xs focus-visible:ring-1 focus-visible:ring-primary/40" />
-
-          </div>
-        </div>
-        <div className="flex gap-0.5 flex-shrink-0">
+        <div className="flex gap-0.5">
           <button
             onClick={() => scroll('left')}
             className="w-6 h-6 rounded-full bg-background/60 backdrop-blur-sm flex items-center justify-center border border-border/20">
@@ -225,7 +215,7 @@ export function YouTubeShortsSection({ onShortClick }: YouTubeShortsProps) {
       <style>{`.shorts-carousel::-webkit-scrollbar{display:none}`}</style>
       <div
         ref={scrollRef}
-        className="shorts-carousel flex gap-2 overflow-x-auto px-3 snap-x snap-mandatory shadow-md"
+        className="shorts-carousel flex gap-2 overflow-x-auto px-3 snap-x snap-mandatory"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}>
 
         {shorts.map((short, index) =>
