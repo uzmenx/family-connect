@@ -77,8 +77,6 @@ const Home = () => {
   }, [handleLoadMore]);
 
   const handleRefresh = async () => {
-    // Also refresh shorts
-    window.dispatchEvent(new Event('refresh-shorts'));
     await Promise.all([fetchPosts(true), refetchStories()]);
   };
 
