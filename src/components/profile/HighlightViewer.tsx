@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { type StoryHighlight } from '@/hooks/useStoryHighlights';
+import { createPortal } from 'react-dom';
 
 interface HighlightViewerProps {
   highlight: StoryHighlight;
@@ -50,7 +51,7 @@ export function HighlightViewer({ highlight, onClose }: HighlightViewerProps) {
 
   const item = items[currentIndex];
 
-  return (
+  const content = (
     <div className="fullscreen-story-view flex flex-col">
       {/* Progress bars — safe-area */}
       <div className="absolute top-0 left-0 right-0 z-10 flex gap-1 pt-[max(8px,env(safe-area-inset-top))] px-2">
@@ -122,4 +123,7 @@ export function HighlightViewer({ highlight, onClose }: HighlightViewerProps) {
       )}
     </div>
   );
+
+  if (typeof document === 'undefined') return null;
+  return createPortal(content, document.body);
 }

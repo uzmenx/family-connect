@@ -262,7 +262,7 @@ export const FamilyTreeV2 = () => {
       )}
 
       {/* Header */}
-      <div className="container mx-auto px-4 py-6">
+      <div className="container mx-auto px-2 pt-3 pb-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-primary to-primary/70 flex items-center justify-center shadow-lg">
@@ -298,8 +298,8 @@ avlodlarimiz uchun xotiralar qoldiraylik</p>
       </div>
       
       {/* Canvas */}
-      <div className={cn("flex-1 container mx-auto px-4 pb-6", isMergeMode && "pt-16")}>
-        <div className="h-[calc(100vh-280px)] min-h-[400px]">
+      <div className={cn("flex-1 container mx-auto px-1 pb-2", isMergeMode && "pt-16")}>
+        <div className="h-[calc(100vh-230px)] min-h-[420px]">
           <FamilyTreeCanvas
             members={members}
             positions={positions}

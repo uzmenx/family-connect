@@ -1,8 +1,26 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { X, ChevronLeft, ChevronRight, Heart, Send, Eye, MoreVertical, Pause, Play, Volume2, VolumeX, Plus } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { StoryGroup, Story, useStories } from '@/hooks/useStories';
@@ -18,6 +36,7 @@ interface StoryViewerProps {
   initialGroupIndex: number;
   initialStoryIndex?: number;
   onClose: () => void;
+  onDeleted?: () => void;
 }
 
 export const StoryViewer = ({
@@ -25,6 +44,7 @@ export const StoryViewer = ({
   initialGroupIndex,
   initialStoryIndex = 0,
   onClose,
+  onDeleted,
 }: StoryViewerProps) => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -41,6 +61,8 @@ export const StoryViewer = ({
   const [viewers, setViewers] = useState<any[]>([]);
   const [likers, setLikers] = useState<any[]>([]);
   const [isLiked, setIsLiked] = useState(false);
+  const [showDeleteDialog, setShowDeleteDialog] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const timerRef = useRef<NodeJS.Timeout | null>(null);
@@ -150,13 +172,36 @@ export const StoryViewer = ({
     goToNext();
   }, [goToNext]);
 
+  const handleDeleteStory = useCallback(async () => {
+    if (!currentStory) return;
+    setIsDeleting(true);
+    try {
+      const { error } = await supabase
+        .from('stories')
+        .delete()
+        .eq('id', currentStory.id);
+
+      if (error) throw error;
+
+      toast.success("Hikoya o'chirildi");
+      onDeleted?.();
+      onClose();
+    } catch (err) {
+      console.error('Error deleting story:', err);
+      toast.error("Xatolik yuz berdi");
+    } finally {
+      setIsDeleting(false);
+      setShowDeleteDialog(false);
+    }
+  }, [currentStory, onClose, onDeleted]);
+
   if (!currentGroup || !currentStory) {
     return null;
   }
 
   const author = currentStory.author || currentGroup.user;
 
-  return (
+  const content = (
     <div className="fullscreen-story-view flex flex-col">
       {/* Story content */}
       <div
@@ -244,6 +289,35 @@ export const StoryViewer = ({
           </div>
 
           <div className="flex items-center gap-2">
+            {isOwnStory && (
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className="text-white hover:bg-white/20"
+                    onClick={(e) => e.stopPropagation()}
+                  >
+                    <MoreVertical className="h-5 w-5" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end" className="w-44">
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setShowDeleteDialog(true);
+                      setIsPaused(true);
+                    }}
+                  >
+                    O'chirish
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            )}
+
             {currentStory.media_type === 'video' && (
               <Button
                 variant="ghost"
@@ -443,6 +517,30 @@ export const StoryViewer = ({
           </ScrollArea>
         </SheetContent>
       </Sheet>
+
+      <AlertDialog open={showDeleteDialog} onOpenChange={setShowDeleteDialog}>
+        <AlertDialogContent onClick={(e) => e.stopPropagation()}>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hikoyani o'chirish</AlertDialogTitle>
+            <AlertDialogDescription>
+              Bu amalni bekor qilib bo'lmaydi. Hikoya butunlay o'chiriladi.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setIsPaused(false)}>Bekor qilish</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteStory}
+              disabled={isDeleting}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {isDeleting ? "O'chirilmoqda..." : "O'chirish"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
+
+  if (typeof document === 'undefined') return null;
+  return createPortal(content, document.body);
 };

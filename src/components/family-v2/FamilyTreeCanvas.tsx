@@ -242,7 +242,7 @@ export const FamilyTreeCanvas = ({
  }, [members, positions, onOpenProfile, setNodes, isMergeMode, mergeSelectedIds, mergedProfiles, onLongPress, onToggleMergeSelect]);
 
   return (
-    <div className="w-full h-full rounded-2xl overflow-hidden border border-border bg-card/50">
+    <div className="w-full h-full rounded-xl overflow-hidden border border-border bg-card/50">
       <ReactFlow
         nodes={nodes}
         edges={edges}

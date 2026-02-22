@@ -335,7 +335,7 @@ export const UnifiedFullScreenViewer = ({
     <>
       <div
         ref={containerRef}
-        className="fixed inset-0 z-50 flex flex-col overflow-hidden touch-none"
+        className="fixed inset-0 z-[60] flex flex-col overflow-hidden touch-none"
         style={bgStyle}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}>
@@ -387,7 +387,7 @@ export const UnifiedFullScreenViewer = ({
       </div>
 
       {typeof document !== 'undefined' && showVideoPlayer && createPortal(
-        <div className="fixed inset-0 z-[60] w-full h-full min-h-[100dvh] overflow-hidden bg-black" style={{ height: '100dvh' }}>
+        <div className="fixed inset-0 z-[80] w-full h-full min-h-[100dvh] overflow-hidden bg-black" style={{ height: '100dvh' }}>
           <SamsungUltraVideoPlayer
             src={videoPlayerSrc}
             title={currentPost?.content?.slice(0, 50) || 'Video'}
@@ -397,5 +397,4 @@ export const UnifiedFullScreenViewer = ({
         document.body
       )}
     </>);
-
 };

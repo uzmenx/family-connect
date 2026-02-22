@@ -91,7 +91,7 @@ const Home = () => {
 
   const toggleGridLayout = () => setGridLayout((prev) => prev === 1 ? 2 : 1);
 
-  const hideNav = viewerOpen || storyViewerOpen;
+  const hideNav = storyViewerOpen;
 
   return (
     <AppLayout showNav={!hideNav}>
@@ -203,7 +203,8 @@ const Home = () => {
         <StoryViewer
           storyGroups={storyGroups}
           initialGroupIndex={storyGroupIndex}
-          onClose={() => setStoryViewerOpen(false)} />
+          onClose={() => setStoryViewerOpen(false)}
+          onDeleted={() => refetchStories()} />
 
         }
 

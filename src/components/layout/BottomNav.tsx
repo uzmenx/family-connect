@@ -31,7 +31,7 @@ export const BottomNav = () => {
   };
 
   return (
-    <nav className="fixed bottom-1 left-3 right-3 z-50">
+    <nav className="fixed bottom-1 left-3 right-3 z-[70]">
       <div className="h-[52px] max-w-lg mx-auto rounded-2xl bg-background/20 backdrop-blur-2xl border border-white/8 shadow-lg flex items-center justify-around px-1">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path;

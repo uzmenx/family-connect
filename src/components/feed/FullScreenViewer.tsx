@@ -175,7 +175,6 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose }: FullScreenVie
     setIsPlaying((prev) => !prev);
   };
 
-
   // Touch handlers for swipe
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartY.current = e.touches[0].clientY;
@@ -221,6 +220,7 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose }: FullScreenVie
       lastTapRef.current = 0;
       return;
     }
+
     lastTapRef.current = now;
 
     const rect = e.currentTarget.getBoundingClientRect();
@@ -246,131 +246,128 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose }: FullScreenVie
 
   return (
     <>
-    <div
+      <div
         ref={containerRef}
-        className="fixed inset-0 z-50 flex flex-col overflow-hidden"
+        className="fixed inset-0 z-[60] flex flex-col overflow-hidden"
         style={{
           background: `linear-gradient(135deg, ${dominantColor} 0%, ${secondaryColor} 50%, ${dominantColor} 100%)`
         }}
         onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}>
+        onTouchEnd={handleTouchEnd}
+      >
 
-      {/* Blurred background overlay for extra depth */}
-      <div
+        {/* Blurred background overlay for extra depth */}
+        <div
           className="absolute inset-0 z-0"
           style={{
             background: `radial-gradient(ellipse at center, transparent 0%, ${dominantColor} 70%)`,
             backdropFilter: 'blur(20px)'
-          }} />
+          }}
+        />
 
-      {/* Header */}
-      <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between p-4 bg-gradient-to-b from-black/50 to-transparent">
-        <button onClick={onClose} className="p-2 rounded-full bg-black/30 backdrop-blur-sm opacity-100 mx-px text-center">
-          
-        </button>
-        
-        {/* Post counter */}
-        
+        {/* Header */}
+        <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between p-4 bg-gradient-to-b from-black/50 to-transparent">
+          <button onClick={onClose} className="p-2 rounded-full bg-black/30 backdrop-blur-sm opacity-100 mx-px text-center">
+            {/* Intentionally blank - icon rendered via CSS in existing styles */}
+          </button>
 
+          {/* Post counter */}
+        </div>
 
-      </div>
-
-      {/* Media area */}
-      <div
+        {/* Media area */}
+        <div
           className={cn(
             "flex-1 flex items-center justify-center relative overflow-hidden z-[1] transition-all duration-300 ease-out",
             slideDirection === 'down' && "animate-slide-out-up",
             slideDirection === 'up' && "animate-slide-out-down",
             !slideDirection && "animate-slide-in"
           )}
-          onClick={handleMediaClick}>
+          onClick={handleMediaClick}
+        >
 
-        {isVideo(currentMediaUrl) ?
-          <>
-            <video
-              ref={videoRef}
-              src={currentMediaUrl}
-              className="max-w-full max-h-full object-contain"
-              loop
-              playsInline
-              autoPlay />
+          {isVideo(currentMediaUrl) ?
+            <>
+              <video
+                ref={videoRef}
+                src={currentMediaUrl}
+                className="max-w-full max-h-full object-contain"
+                loop
+                playsInline
+                autoPlay
+              />
 
-            
-            {/* Play/Pause overlay */}
-            <button
-              onClick={(e) => {e.stopPropagation();togglePlay();}}
-              className="absolute inset-0 flex items-center justify-center">
-
-              <div className={cn(
-                "p-4 rounded-full bg-black/30 backdrop-blur-sm transition-opacity",
-                isPlaying ? "opacity-0" : "opacity-100"
-              )}>
-                {isPlaying ?
-                <Pause className="h-8 w-8 text-white" /> :
-
-                <Play className="h-8 w-8 text-white" />
-                }
-              </div>
-            </button>
-          </> :
-
-          <img
-            src={currentMediaUrl}
-            alt="Post media"
-            className="max-w-full max-h-full object-contain" />
-
-          }
-
-        {/* Double-tap heart animation overlay */}
-        {showDoubleTapHeart &&
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
-            <Heart
-              className="h-24 w-24 text-white fill-white drop-shadow-lg animate-heartBurst" />
-
-          </div>
-          }
-
-        {/* Media indicators */}
-        {mediaUrls.length > 1 &&
-          <>
-            {/* Dots */}
-            <div className="absolute bottom-24 left-1/2 -translate-x-1/2 flex gap-1.5">
-              {mediaUrls.map((_, index) =>
+              {/* Play/Pause overlay */}
               <button
-                key={index}
-                onClick={(e) => {e.stopPropagation();setCurrentMediaIndex(index);}}
-                className={cn(
-                  "w-2 h-2 rounded-full transition-colors",
-                  currentMediaIndex === index ? "bg-white" : "bg-white/40"
-                )} />
-
-              )}
-            </div>
-
-            {/* Navigation arrows */}
-            {currentMediaIndex > 0 &&
-            <button
-              onClick={(e) => {e.stopPropagation();goToPrevMedia();}}
-              className="absolute left-2 top-1/2 -translate-y-1/2 p-2 bg-black/30 backdrop-blur-sm px-px py-[5px] border-0 rounded-2xl opacity-85 text-left text-sm mx-0 my-0">
-
-                <ChevronLeft className="h-5 text-white w-[9px]" />
+                onClick={(e) => { e.stopPropagation(); togglePlay(); }}
+                className="absolute inset-0 flex items-center justify-center"
+              >
+                <div className={cn(
+                  "p-4 rounded-full bg-black/30 backdrop-blur-sm transition-opacity",
+                  isPlaying ? "opacity-0" : "opacity-100"
+                )}>
+                  {isPlaying ?
+                    <Pause className="h-8 w-8 text-white" /> :
+                    <Play className="h-8 w-8 text-white" />
+                  }
+                </div>
               </button>
-            }
-            {currentMediaIndex < mediaUrls.length - 1 &&
-            <button
-              onClick={(e) => {e.stopPropagation();goToNextMedia();}}
-              className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-black/30 backdrop-blur-sm opacity-85 px-px py-[5px] rounded-sm">
+            </> :
 
-                <ChevronRight className="h-5 text-white w-[10px] shadow-2xs opacity-100 px-px py-[5px]" />
-              </button>
-            }
-          </>
+            <img
+              src={currentMediaUrl}
+              alt="Post media"
+              className="max-w-full max-h-full object-contain"
+            />
           }
-      </div>
 
-      {/* Right side actions - vertical layout like reference */}
-      <div className="absolute right-4 bottom-32 z-[2]">
-        <FullscreenActions
+          {/* Double-tap heart animation overlay */}
+          {showDoubleTapHeart &&
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+              <Heart className="h-24 w-24 text-white fill-white drop-shadow-lg animate-heartBurst" />
+            </div>
+          }
+
+          {/* Media indicators */}
+          {mediaUrls.length > 1 &&
+            <>
+              {/* Dots */}
+              <div className="absolute bottom-24 left-1/2 -translate-x-1/2 flex gap-1.5">
+                {mediaUrls.map((_, index) =>
+                  <button
+                    key={index}
+                    onClick={(e) => { e.stopPropagation(); setCurrentMediaIndex(index); }}
+                    className={cn(
+                      "w-2 h-2 rounded-full transition-colors",
+                      currentMediaIndex === index ? "bg-white" : "bg-white/40"
+                    )}
+                  />
+                )}
+              </div>
+
+              {/* Navigation arrows */}
+              {currentMediaIndex > 0 &&
+                <button
+                  onClick={(e) => { e.stopPropagation(); goToPrevMedia(); }}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 p-2 bg-black/30 backdrop-blur-sm px-px py-[5px] border-0 rounded-2xl opacity-85 text-left text-sm mx-0 my-0"
+                >
+                  <ChevronLeft className="h-5 text-white w-[9px]" />
+                </button>
+              }
+              {currentMediaIndex < mediaUrls.length - 1 &&
+                <button
+                  onClick={(e) => { e.stopPropagation(); goToNextMedia(); }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-black/30 backdrop-blur-sm opacity-85 px-px py-[5px] rounded-sm"
+                >
+                  <ChevronRight className="h-5 text-white w-[10px] shadow-2xs opacity-100 px-px py-[5px]" />
+                </button>
+              }
+            </>
+          }
+        </div>
+
+        {/* Right side actions - vertical layout like reference */}
+        <div className="absolute right-4 bottom-32 z-[2]">
+          <FullscreenActions
             postId={currentPost.id}
             initialLikesCount={currentPost.likes_count}
             initialCommentsCount={currentPost.comments_count}
@@ -381,65 +378,34 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose }: FullScreenVie
               setShowVideoPlayer(true);
               if (videoRef.current) videoRef.current.pause();
               setIsPlaying(false);
-            }} />
-
-
-      </div>
-
-      {/* Bottom section - Author info and caption */}
-      <div className="absolute bottom-0 left-0 right-16 bg-gradient-to-t from-black/70 via-black/50 to-transparent p-4 pt-12 z-[1] my-[61px] border-0 px-[16.1px]">
-        {/* Author */}
-        <div className="flex items-center mb-3 gap-[8px]">
-          <UserAvatar
-              userId={currentPost.user_id}
-              avatarUrl={currentPost.author?.avatar_url}
-              name={currentPost.author?.full_name}
-              size="lg"
-              className="border-2 border-white/30 ring-0" />
-
-          <UserInfo
-              userId={currentPost.user_id}
-              name={currentPost.author?.full_name}
-              username={currentPost.author?.username}
-              variant="fullscreen" />
-
-          <FollowButton targetUserId={currentPost.user_id} size="sm" />
+            }}
+          />
         </div>
 
-        {/* Content with hashtags and "more" button */}
-        {currentPost.content &&
-          <PostCaption
-            content={currentPost.content}
-            variant="fullscreen" />
-
-          }
+        {/* Author info */}
+        <div className="absolute bottom-14 left-0 right-14 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 pt-14 z-[1]">
+          <div className="flex items-center mb-2 gap-2">
+            <UserAvatar userId={currentPost.user_id} avatarUrl={currentPost.author?.avatar_url} name={currentPost.author?.full_name} size="lg" className="border-2 border-white/20 ring-0" />
+            <UserInfo userId={currentPost.user_id} name={currentPost.author?.full_name} username={currentPost.author?.username} variant="fullscreen" />
+            <FollowButton targetUserId={currentPost.user_id} size="sm" />
+          </div>
+          {currentPost.content && <PostCaption content={currentPost.content} variant="fullscreen" />}
+        </div>
       </div>
 
-      {/* Swipe indicators */}
-      {currentPostIndex > 0 &&
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-[120%] text-white/40 text-xs z-[1]">
-
-      </div>
-        }
-      {currentPostIndex < posts.length - 1 &&
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 translate-y-[100%] text-white/40 text-xs z-[1]">
-
-      </div>
-        }
-    </div>
-    {typeof document !== 'undefined' && showVideoPlayer && createPortal(
+      {typeof document !== 'undefined' && showVideoPlayer && createPortal(
         <div
-          className="fixed inset-0 z-[60] w-full h-full min-h-[100dvh] overflow-hidden bg-black"
-          style={{ height: '100dvh', maxHeight: '100dvh' }}>
-
-        <SamsungUltraVideoPlayer
+          className="fixed inset-0 z-[80] w-full h-full min-h-[100dvh] overflow-hidden bg-black"
+          style={{ height: '100dvh', maxHeight: '100dvh' }}
+        >
+          <SamsungUltraVideoPlayer
             src={videoPlayerSrc}
             title={currentPost?.content?.slice(0, 50) || 'Video'}
-            onClose={() => setShowVideoPlayer(false)} />
-
-      </div>,
+            onClose={() => setShowVideoPlayer(false)}
+          />
+        </div>,
         document.body
       )}
-    </>);
-
+    </>
+  );
 };
