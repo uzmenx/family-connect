@@ -148,6 +148,33 @@ export type Database = {
         }
         Relationships: []
       }
+      email_otp_codes: {
+        Row: {
+          created_at: string
+          email: string
+          expires_at: string
+          id: string
+          otp_hash: string
+          verified: boolean
+        }
+        Insert: {
+          created_at?: string
+          email: string
+          expires_at: string
+          id?: string
+          otp_hash: string
+          verified?: boolean
+        }
+        Update: {
+          created_at?: string
+          email?: string
+          expires_at?: string
+          id?: string
+          otp_hash?: string
+          verified?: boolean
+        }
+        Relationships: []
+      }
       family_invitations: {
         Row: {
           created_at: string
