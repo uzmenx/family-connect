@@ -20,8 +20,8 @@ export function HighlightsRow({ highlights, isOwner, onCreateNew, onRefresh }: H
 
   return (
     <>
-      <div className="mb-4">
-        <div className="flex gap-3 overflow-x-auto pb-1 px-4" style={{ scrollbarWidth: 'none' }}>
+      <div className="mb-4 w-full">
+        <div className="flex w-full gap-3 overflow-x-auto pb-1 px-4 touch-pan-x" style={{ scrollbarWidth: 'none' }}>
           {highlights.map((h) => {
             const coverSrc = h.cover_url || h.items[0]?.media_url;
             return (
