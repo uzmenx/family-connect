@@ -135,7 +135,7 @@ const AuthLogin = () => {
                   {t('loggingIn')}
                 </>
               ) : (
-                "{t('login')}"
+                t('login')
               )}
             </Button>
           </form>
