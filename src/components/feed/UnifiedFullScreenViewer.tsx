@@ -199,7 +199,7 @@ export const UnifiedFullScreenViewer = ({
         !slideDirection && "animate-slide-in"
       )}>
         {/* YouTube iframe with top overlay to hide YT controls */}
-        <div className="relative w-full h-full">
+        <div className="relative w-full h-full pointer-events-none">
           <iframe
             src={`https://www.youtube.com/embed/${currentShort.id}?rel=0&autoplay=1&controls=0&modestbranding=1&playsinline=1&loop=1&playlist=${currentShort.id}&showinfo=0&iv_load_policy=3&disablekb=1&fs=0`}
             className="w-full h-full"
