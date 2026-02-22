@@ -175,6 +175,9 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
   const audioContextRef = useRef<AudioContext | null>(null);
   const musicAudioRef = useRef<HTMLAudioElement | null>(null);
   const sourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(null);
+  const musicStopTimerRef = useRef<number>();
+  const stopRecordingRef = useRef<() => void>(() => {});
+  const setupAudioMixingRef = useRef<() => Promise<MediaStream | null>>(async () => null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const stickerInputRef = useRef<HTMLInputElement>(null);
@@ -206,6 +209,9 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
   const [textValue, setTextValue] = useState('');
   const [selectedMusic, setSelectedMusic] = useState<{ file: File; name: string; url: string } | null>(null);
   const [isMusicPlaying, setIsMusicPlaying] = useState(false);
+  const [musicDuration, setMusicDuration] = useState(0);
+  const [musicTrimStart, setMusicTrimStart] = useState(0);
+  const [musicTrimEnd, setMusicTrimEnd] = useState(0);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
@@ -258,11 +264,20 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
     clearInterval(recordTimerRef.current);
     clearTimeout(captureTimerRef.current);
     clearTimeout(filterTimerRef.current);
+    clearTimeout(musicStopTimerRef.current);
     return () => {
       clearInterval(recordTimerRef.current);
       clearTimeout(captureTimerRef.current);
       clearTimeout(filterTimerRef.current);
+      clearTimeout(musicStopTimerRef.current);
     };
+  }, []);
+
+  const fmtTime = useCallback((seconds: number) => {
+    const s = Math.max(0, Math.floor(seconds));
+    const mm = Math.floor(s / 60);
+    const ss = (s % 60).toString().padStart(2, '0');
+    return `${mm}:${ss}`;
   }, []);
 
   const addMediaItem = useCallback((media: CapturedMedia) => {
@@ -363,7 +378,7 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
     // Setup audio mixing if music is selected
     let streamToUse = streamRef.current;
     if (selectedMusic) {
-      const mixedStream = await setupAudioMixing();
+      const mixedStream = await setupAudioMixingRef.current();
       if (mixedStream) streamToUse = mixedStream;
     }
 
@@ -402,10 +417,21 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
     
     // Start playing music if selected
     if (selectedMusic && musicAudioRef.current) {
+      clearTimeout(musicStopTimerRef.current);
+      try {
+        musicAudioRef.current.currentTime = Math.min(Math.max(0, musicTrimStart), Math.max(0, (musicTrimEnd || 0) - 0.05));
+      } catch {}
       musicAudioRef.current.play();
       setIsMusicPlaying(true);
+
+      const segmentDuration = Math.max(0, (musicTrimEnd || 0) - (musicTrimStart || 0));
+      if (segmentDuration > 0) {
+        musicStopTimerRef.current = window.setTimeout(() => {
+          stopRecordingRef.current();
+        }, Math.round(segmentDuration * 1000));
+      }
     }
-  }, [addMediaItem, items.length, maxItems, selectedMusic]);
+  }, [addMediaItem, items.length, maxItems, musicTrimEnd, musicTrimStart, selectedMusic]);
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && isRecording) {
@@ -413,6 +439,7 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
       mediaRecorderRef.current.stop();
       setIsRecording(false);
       clearInterval(recordTimerRef.current);
+      clearTimeout(musicStopTimerRef.current);
       
       // Stop music when recording stops
       if (musicAudioRef.current && isMusicPlaying) {
@@ -421,6 +448,10 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
       }
     }
   }, [isRecording, isMusicPlaying]);
+
+  useEffect(() => {
+    stopRecordingRef.current = stopRecording;
+  }, [stopRecording]);
 
   const handleCaptureStart = useCallback(() => {
     if (isRecording) return;
@@ -679,6 +710,18 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
     const url = URL.createObjectURL(file);
     setSelectedMusic({ file, name: file.name, url });
     setIsMusicPlaying(false);
+
+    const a = new Audio(url);
+    a.preload = 'metadata';
+    a.loop = false;
+    a.volume = 0.3;
+    musicAudioRef.current = a;
+    a.onloadedmetadata = () => {
+      const d = Number.isFinite(a.duration) ? a.duration : 0;
+      setMusicDuration(d);
+      setMusicTrimStart(0);
+      setMusicTrimEnd(Math.min(15, d || 0));
+    };
   }, []);
 
   const toggleMusicPlayback = useCallback(() => {
@@ -687,11 +730,24 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
     if (isMusicPlaying) {
       musicAudioRef.current.pause();
       setIsMusicPlaying(false);
+      clearTimeout(musicStopTimerRef.current);
     } else {
+      clearTimeout(musicStopTimerRef.current);
+      try {
+        musicAudioRef.current.currentTime = Math.min(Math.max(0, musicTrimStart), Math.max(0, (musicTrimEnd || 0) - 0.05));
+      } catch {}
       musicAudioRef.current.play();
       setIsMusicPlaying(true);
+
+      const segmentDuration = Math.max(0, (musicTrimEnd || 0) - (musicTrimStart || 0));
+      if (segmentDuration > 0) {
+        musicStopTimerRef.current = window.setTimeout(() => {
+          if (musicAudioRef.current) musicAudioRef.current.pause();
+          setIsMusicPlaying(false);
+        }, Math.round(segmentDuration * 1000));
+      }
     }
-  }, [isMusicPlaying, selectedMusic]);
+  }, [isMusicPlaying, musicTrimEnd, musicTrimStart, selectedMusic]);
 
   const setupAudioMixing = useCallback(async () => {
     if (!selectedMusic || !streamRef.current) return null;
@@ -703,9 +759,17 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
       
       // Create music audio element
       const musicAudio = new Audio(selectedMusic.url);
-      musicAudio.loop = true;
+      musicAudio.loop = false;
       musicAudio.volume = 0.3; // 30% volume
+      musicAudio.preload = 'auto';
       musicAudioRef.current = musicAudio;
+
+      musicAudio.onloadedmetadata = () => {
+        const d = Number.isFinite(musicAudio.duration) ? musicAudio.duration : 0;
+        setMusicDuration(d);
+        setMusicTrimStart((s) => Math.min(s, d));
+        setMusicTrimEnd((e) => Math.min(e || Math.min(15, d), d));
+      };
       
       // Create destination for mixed audio
       const destination = audioContext.createMediaStreamDestination();
@@ -729,6 +793,10 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
       return null;
     }
   }, [selectedMusic]);
+
+  useEffect(() => {
+    setupAudioMixingRef.current = setupAudioMixing;
+  }, [setupAudioMixing]);
 
   const showTopStrip = items.length > 0;
   const isVideo = active?.media.type === 'video';
@@ -1271,6 +1339,56 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
                         )}
                       </button>
                     </div>
+
+                    {/* Trim controls */}
+                    {musicDuration > 0 && (
+                      <div className="mt-4 space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="text-white/70 text-[11px] font-semibold">Qismini tanlang</span>
+                          <span className="text-white/60 text-[11px] font-medium">
+                            {fmtTime(musicTrimStart)} - {fmtTime(musicTrimEnd)} ({fmtTime(Math.max(0, musicTrimEnd - musicTrimStart))})
+                          </span>
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-white/50 text-[10px]">Boshlanish</span>
+                            <span className="text-white/70 text-[10px] font-medium">{fmtTime(musicTrimStart)}</span>
+                          </div>
+                          <input
+                            type="range"
+                            min={0}
+                            max={Math.max(0, musicDuration)}
+                            step={0.1}
+                            value={musicTrimStart}
+                            onChange={(e) => {
+                              const v = Math.min(Math.max(0, Number(e.target.value)), Math.max(0, musicTrimEnd));
+                              setMusicTrimStart(v);
+                            }}
+                            className="w-full"
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-between">
+                            <span className="text-white/50 text-[10px]">Tugash</span>
+                            <span className="text-white/70 text-[10px] font-medium">{fmtTime(musicTrimEnd)}</span>
+                          </div>
+                          <input
+                            type="range"
+                            min={0}
+                            max={Math.max(0, musicDuration)}
+                            step={0.1}
+                            value={musicTrimEnd}
+                            onChange={(e) => {
+                              const v = Math.min(Math.max(0, Number(e.target.value)), Math.max(0, musicDuration));
+                              setMusicTrimEnd(Math.max(v, musicTrimStart));
+                            }}
+                            className="w-full"
+                          />
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
 
