@@ -65,6 +65,8 @@ export const StoryViewer = ({
   const [isDeleting, setIsDeleting] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const mutedMediaRef = useRef(new Map<HTMLMediaElement, { muted: boolean; volume: number }>());
   const timerRef = useRef<NodeJS.Timeout | null>(null);
   const progressRef = useRef<number>(0);
 
@@ -119,6 +121,31 @@ export const StoryViewer = ({
       if (timerRef.current) clearInterval(timerRef.current);
     };
   }, [currentStory, isPaused, storyDuration]);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    const media = Array.from(document.querySelectorAll('video, audio')) as HTMLMediaElement[];
+
+    for (const el of media) {
+      if (container && container.contains(el)) continue;
+      if (!mutedMediaRef.current.has(el)) {
+        mutedMediaRef.current.set(el, { muted: el.muted, volume: el.volume });
+      }
+      try {
+        el.pause();
+      } catch {}
+      el.muted = true;
+      el.volume = 0;
+    }
+
+    return () => {
+      mutedMediaRef.current.forEach((prev, el) => {
+        el.muted = prev.muted;
+        el.volume = prev.volume;
+      });
+      mutedMediaRef.current.clear();
+    };
+  }, []);
 
   const goToNext = useCallback(() => {
     if (currentStoryIndex < currentGroup.stories.length - 1) {
@@ -202,7 +229,7 @@ export const StoryViewer = ({
   const author = currentStory.author || currentGroup.user;
 
   const content = (
-    <div className="fullscreen-story-view flex flex-col">
+    <div ref={containerRef} className="fullscreen-story-view flex flex-col">
       {/* Story content */}
       <div
         className="relative flex-1 w-full min-h-0 flex items-center justify-center touch-none"
