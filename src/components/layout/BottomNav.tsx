@@ -58,8 +58,8 @@ export const BottomNav = () => {
                     isActive ? "p-[1px]" : "p-0"
                   )}>
                       <Avatar className={cn(
-                      "h-6 w-6",
-                      isActive ? "ring-2 ring-primary ring-offset-1 ring-offset-background" : "ring-1 ring-transparent"
+                      "h-5 w-5",
+                      isActive ? "ring-2 ring-primary ring-offset-1 ring-offset-background" : "ring-0"
                     )}>
                         <AvatarImage src={profile?.avatar_url || undefined} className="object-cover" />
                         <AvatarFallback className="text-[10px]">
@@ -79,11 +79,12 @@ export const BottomNav = () => {
                   </Badge>
                 )}
               </motion.div>
-              {!isProfileItem && (
-                <span className={cn("text-[10px] leading-tight transition-all duration-200 text-center", isActive ? "font-semibold text-primary" : "text-muted-foreground")}>
-                  {item.label}
-                </span>
-              )}
+              <span className={cn(
+                "text-[10px] leading-tight transition-all duration-200 text-center",
+                isActive ? "font-semibold text-primary" : "text-muted-foreground"
+              )}>
+                {isProfileItem ? t('you') : item.label}
+              </span>
             </Link>
           );
         })}
