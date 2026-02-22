@@ -133,7 +133,7 @@ const Home = () => {
         <StoriesRow onStoryClick={openStoryViewer} />
 
         {/* YouTube Shorts - compact */}
-        <YouTubeShortsSection onShortClick={openShortsViewer} />
+        <YouTubeShortsSection onShortClick={openShortsViewer} onSearchClick={() => setSearchOpen(true)} />
 
         <PullToRefresh onRefresh={handleRefresh}>
           {isLoading ?

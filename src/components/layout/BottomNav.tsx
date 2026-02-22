@@ -5,13 +5,16 @@ import { cn } from '@/lib/utils';
 import { useConversations } from '@/hooks/useConversations';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useLanguage } from '@/contexts/LanguageContext';
+import { useAuth } from '@/contexts/AuthContext';
 import { Badge } from '@/components/ui/badge';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 export const BottomNav = () => {
   const location = useLocation();
   const { totalUnread } = useConversations();
   const { unreadCount: notifUnread } = useNotifications();
   const { t } = useLanguage();
+  const { profile } = useAuth();
 
   const navItems = [
     { icon: Home, label: t('home'), path: '/' },
@@ -34,6 +37,7 @@ export const BottomNav = () => {
           const isActive = location.pathname === item.path;
           const badgeCount = getBadgeCount(item.badgeType);
           const Icon = item.icon;
+          const isProfileItem = item.path === '/profile';
           return (
             <Link key={item.path} to={item.path} className="flex flex-col items-center gap-0.5 py-1.5 px-3 rounded-xl min-w-[48px]">
               <motion.div
@@ -44,7 +48,28 @@ export const BottomNav = () => {
                 whileTap={{ scale: 0.92 }}
                 transition={{ type: 'spring', stiffness: 400, damping: 17 }}
               >
+                {isProfileItem ?
+                <div className={cn(
+                  "rounded-full p-[1px] transition-colors",
+                  isActive ? "bg-primary" : "bg-transparent"
+                )}>
+                    <div className={cn(
+                    "rounded-full bg-background/20 backdrop-blur-2xl",
+                    isActive ? "p-[1px]" : "p-0"
+                  )}>
+                      <Avatar className={cn(
+                      "h-6 w-6",
+                      isActive ? "ring-2 ring-primary ring-offset-1 ring-offset-background" : "ring-1 ring-transparent"
+                    )}>
+                        <AvatarImage src={profile?.avatar_url || undefined} className="object-cover" />
+                        <AvatarFallback className="text-[10px]">
+                        {(profile?.name || profile?.username || 'P')[0]}
+                      </AvatarFallback>
+                      </Avatar>
+                    </div>
+                  </div> :
                 <Icon className={cn("h-5 w-5", item.path === '/create' && "h-[22px] w-[22px]")} />
+                }
                 {badgeCount > 0 && (
                   <Badge
                     variant="destructive"
@@ -54,9 +79,11 @@ export const BottomNav = () => {
                   </Badge>
                 )}
               </motion.div>
-              <span className={cn("text-[10px] leading-tight transition-all duration-200 text-center", isActive ? "font-semibold text-primary" : "text-muted-foreground")}>
-                {item.label}
-              </span>
+              {!isProfileItem && (
+                <span className={cn("text-[10px] leading-tight transition-all duration-200 text-center", isActive ? "font-semibold text-primary" : "text-muted-foreground")}>
+                  {item.label}
+                </span>
+              )}
             </Link>
           );
         })}
