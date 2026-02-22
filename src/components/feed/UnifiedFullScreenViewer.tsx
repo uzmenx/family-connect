@@ -49,6 +49,9 @@ export const UnifiedFullScreenViewer = ({
   const touchStartY = useRef(0);
   const touchStartX = useRef(0);
   const touchStartTime = useRef(0);
+  const mouseDownRef = useRef(false);
+  const mouseStartY = useRef(0);
+  const mouseStartX = useRef(0);
   const lastTapRef = useRef(0);
 
   const currentPost = activeTab === 'posts' ? posts[postIndex] : null;
@@ -166,6 +169,31 @@ export const UnifiedFullScreenViewer = ({
     }, 150);
   }, [isTransitioning, activeTab, postIndex, shortIndex, posts.length, shorts.length]);
 
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+    let isScrolling = false;
+    let timeout: ReturnType<typeof setTimeout> | undefined;
+
+    const handleWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      if (isScrolling || isTransitioning) return;
+      if (Math.abs(e.deltaY) > 20) {
+        isScrolling = true;
+        smoothNavigate(e.deltaY > 0 ? 'down' : 'up');
+        timeout = setTimeout(() => {
+          isScrolling = false;
+        }, 500);
+      }
+    };
+
+    container.addEventListener('wheel', handleWheel, { passive: false });
+    return () => {
+      container.removeEventListener('wheel', handleWheel);
+      if (timeout) clearTimeout(timeout);
+    };
+  }, [smoothNavigate, isTransitioning]);
+
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartY.current = e.touches[0].clientY;
     touchStartX.current = e.touches[0].clientX;
@@ -178,6 +206,25 @@ export const UnifiedFullScreenViewer = ({
     const elapsed = Date.now() - touchStartTime.current;
     const velocityY = Math.abs(diffY) / Math.max(elapsed, 1);
     const threshold = velocityY > 0.5 ? 30 : 60;
+
+    if (Math.abs(diffY) > Math.abs(diffX) && Math.abs(diffY) > threshold) {
+      smoothNavigate(diffY > 0 ? 'down' : 'up');
+    }
+  };
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    mouseDownRef.current = true;
+    mouseStartY.current = e.clientY;
+    mouseStartX.current = e.clientX;
+  };
+
+  const handleMouseUp = (e: React.MouseEvent) => {
+    if (!mouseDownRef.current) return;
+    mouseDownRef.current = false;
+
+    const diffY = mouseStartY.current - e.clientY;
+    const diffX = mouseStartX.current - e.clientX;
+    const threshold = 60;
 
     if (Math.abs(diffY) > Math.abs(diffX) && Math.abs(diffY) > threshold) {
       smoothNavigate(diffY > 0 ? 'down' : 'up');
@@ -376,7 +423,9 @@ export const UnifiedFullScreenViewer = ({
         className="fixed inset-0 z-[60] flex flex-col overflow-hidden touch-none"
         style={bgStyle}
         onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}>
+        onTouchEnd={handleTouchEnd}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}>
 
         {activeTab === 'posts' && dominantColor &&
         <div className="absolute inset-0 z-0" style={{
