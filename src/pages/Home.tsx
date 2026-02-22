@@ -15,8 +15,9 @@ import { useStories } from "@/hooks/useStories";
 import { usePostsCache } from "@/hooks/usePostsCache";
 import { useSmoothScroll } from "@/hooks/useSmoothScroll";
 import { useNotifications } from "@/hooks/useNotifications";
-import { Grid2X2, LayoutList, Bell } from "lucide-react";
+import { Grid2X2, LayoutList, Bell, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { SearchSheet } from "@/components/search/SearchSheet";
 import { Badge } from "@/components/ui/badge";
 import { Post } from "@/types";
 
@@ -29,6 +30,7 @@ const Home = () => {
   const { posts, isLoading, isRefreshing, isLoadingMore, hasMore, fetchPosts, loadMore } = usePostsCache();
   const { unreadCount } = useNotifications();
   const [gridLayout, setGridLayout] = useState<GridLayout>(1);
+  const [searchOpen, setSearchOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const loadMoreSentinelRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useSmoothScroll(true, true); // Enable snap and swipe gestures
@@ -102,6 +104,9 @@ const Home = () => {
 
           <h1 className="text-xl font-bold tracking-tight">{t('feed')}</h1>
           <div className="flex items-center gap-1">
+            <Button variant="ghost" size="icon" onClick={() => setSearchOpen(true)} className="h-9 w-9 rounded-xl">
+              <Search className="h-5 w-5" />
+            </Button>
             <Button
               variant="ghost"
               size="icon"
@@ -203,6 +208,7 @@ const Home = () => {
         }
 
         <NotificationsSheet open={notificationsOpen} onOpenChange={setNotificationsOpen} />
+        <SearchSheet open={searchOpen} onOpenChange={setSearchOpen} />
       </div>
     </AppLayout>
   );
