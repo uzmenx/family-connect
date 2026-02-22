@@ -3,6 +3,38 @@ import { Wand2, Download, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 const IMAGE_GEN_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-image-gen`;
+const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
+const GEMINI_MODEL = (import.meta.env.VITE_GEMINI_IMAGE_MODEL as string | undefined) || 'gemini-2.5-flash-image';
+
+const geminiEndpoint = (model: string, apiKey: string) => {
+  const base = 'https://generativelanguage.googleapis.com/v1beta/models';
+  return `${base}/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+};
+
+const normalizeImageSrc = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null;
+  const v = value.trim();
+  if (!v) return null;
+  if (v.startsWith('data:image/')) return v;
+  if (v.startsWith('http://') || v.startsWith('https://')) return v;
+  const b64Only = /^[A-Za-z0-9+/=]{200,}$/.test(v);
+  if (b64Only) return `data:image/png;base64,${v}`;
+  return null;
+};
+
+const parseGeminiImage = (payload: any): string | null => {
+  const parts = payload?.candidates?.[0]?.content?.parts;
+  if (!Array.isArray(parts)) return null;
+  for (const p of parts) {
+    const data = p?.inlineData?.data;
+    const mime = p?.inlineData?.mimeType;
+    if (typeof data === 'string' && data) {
+      const m = typeof mime === 'string' && mime ? mime : 'image/png';
+      return `data:${m};base64,${data}`;
+    }
+  }
+  return null;
+};
 
 const AIImageView = () => {
   const [prompt, setPrompt] = useState('');
@@ -14,22 +46,51 @@ const AIImageView = () => {
     setIsGenerating(true);
     setResultImage(null);
     try {
-      const resp = await fetch(IMAGE_GEN_URL, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-        },
-        body: JSON.stringify({ prompt }),
-      });
+      let src: string | null = null;
 
-      if (resp.status === 429) { toast.error("So'rovlar limiti oshdi"); return; }
-      if (resp.status === 402) { toast.error("Kredit yetarli emas"); return; }
-      if (!resp.ok) throw new Error('Rasm yaratishda xatolik');
+      if (GEMINI_API_KEY) {
+        const resp = await fetch(geminiEndpoint(GEMINI_MODEL, GEMINI_API_KEY), {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            contents: [
+              {
+                role: 'user',
+                parts: [{ text: prompt }],
+              },
+            ],
+          }),
+        });
 
-      const data = await resp.json();
-      if (data.content) {
-        setResultImage(data.content);
+        if (!resp.ok) {
+          const t = await resp.text().catch(() => '');
+          throw new Error(t || 'Gemini image generation failed');
+        }
+
+        const data = await resp.json();
+        src = parseGeminiImage(data);
+      } else {
+        const resp = await fetch(IMAGE_GEN_URL, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+          },
+          body: JSON.stringify({ prompt }),
+        });
+
+        if (resp.status === 429) { toast.error("So'rovlar limiti oshdi"); return; }
+        if (resp.status === 402) { toast.error("Kredit yetarli emas"); return; }
+        if (!resp.ok) throw new Error('Rasm yaratishda xatolik');
+
+        const data = await resp.json();
+        src = normalizeImageSrc(data.content);
+      }
+
+      if (src) {
+        setResultImage(src);
       } else {
         toast.error("Rasm yaratilmadi, qayta urinib ko'ring");
       }
