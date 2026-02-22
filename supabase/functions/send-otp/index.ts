@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.190.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const RESEND_API_KEY = Deno.env.get("RESEND_API_KEY");
 
@@ -16,6 +17,14 @@ function generateOTP(): string {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
+async function hashOTP(otp: string): Promise<string> {
+  const encoder = new TextEncoder();
+  const data = encoder.encode(otp);
+  const hashBuffer = await crypto.subtle.digest("SHA-256", data);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
+}
+
 const handler = async (req: Request): Promise<Response> => {
   // Handle CORS preflight requests
   if (req.method === "OPTIONS") {
@@ -25,7 +34,19 @@ const handler = async (req: Request): Promise<Response> => {
   try {
     const { email }: OtpRequest = await req.json();
 
-    if (!email || !email.includes("@")) {
+    if (!RESEND_API_KEY) {
+      return new Response(
+        JSON.stringify({ error: "RESEND_API_KEY is not configured" }),
+        {
+          status: 500,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
+
+    const normalizedEmail = (email || "").toLowerCase().trim();
+
+    if (!normalizedEmail || !normalizedEmail.includes("@")) {
       return new Response(
         JSON.stringify({ error: "Valid email is required" }),
         {
@@ -35,11 +56,49 @@ const handler = async (req: Request): Promise<Response> => {
       );
     }
 
-    const otp = generateOTP();
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+    const supabaseServiceKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+    const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
-    // Store OTP in a simple way (in production, use database)
-    // For now, we'll encode it in the response for demo purposes
-    console.log(`OTP for ${email}: ${otp}`);
+    const oneMinuteAgo = new Date(Date.now() - 60 * 1000).toISOString();
+    const { data: recentOtp } = await supabase
+      .from("email_otp_codes")
+      .select("id")
+      .eq("email", normalizedEmail)
+      .gte("created_at", oneMinuteAgo)
+      .single();
+
+    if (recentOtp) {
+      return new Response(
+        JSON.stringify({ error: "Iltimos, 60 soniya kuting" }),
+        {
+          status: 429,
+          headers: { "Content-Type": "application/json", ...corsHeaders },
+        }
+      );
+    }
+
+    const otp = generateOTP();
+    const otpHash = await hashOTP(otp);
+    const expiresAt = new Date(Date.now() + 10 * 60 * 1000).toISOString();
+
+    await supabase
+      .from("email_otp_codes")
+      .delete()
+      .eq("email", normalizedEmail);
+
+    const { error: insertError } = await supabase
+      .from("email_otp_codes")
+      .insert({
+        email: normalizedEmail,
+        otp_hash: otpHash,
+        expires_at: expiresAt,
+      });
+
+    if (insertError) {
+      console.error("Insert OTP error:", insertError);
+      throw new Error("Failed to store OTP");
+    }
 
     // Send email via Resend API
     const res = await fetch("https://api.resend.com/emails", {
@@ -49,8 +108,8 @@ const handler = async (req: Request): Promise<Response> => {
         Authorization: `Bearer ${RESEND_API_KEY}`,
       },
       body: JSON.stringify({
-        from: "Oilaviy <onboarding@resend.dev>",
-        to: [email],
+        from: "Avlodona <onboarding@resend.dev>",
+        to: [normalizedEmail],
         subject: "Sizning tasdiqlash kodingiz",
         html: `
           <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
@@ -76,8 +135,7 @@ const handler = async (req: Request): Promise<Response> => {
       throw new Error(`Failed to send email: ${errorData}`);
     }
 
-    const emailResponse = await res.json();
-    console.log("Email sent successfully:", emailResponse);
+    await res.json();
 
     return new Response(
       JSON.stringify({ success: true, message: "OTP sent successfully" }),

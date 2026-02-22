@@ -135,12 +135,10 @@ export const PostCard = ({ post, onDelete, onMediaClick, index = 0 }: PostCardPr
           <div className="flex items-center gap-3">
 
             <UserAvatar
-
-            userId={post.user_id}
-
-            avatarUrl={post.author?.avatar_url}
-
-            name={post.author?.full_name} />
+              userId={post.user_id}
+              avatarUrl={post.author?.avatar_url}
+              name={post.author?.full_name}
+              hasStory={post.author?.has_story} />
 
 
 

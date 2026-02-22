@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Play, ChevronLeft, ChevronRight, Flame, Loader2 } from 'lucide-react';
+import { Play, ChevronLeft, ChevronRight, Flame, Loader2, Search } from 'lucide-react';
+import { Input } from '@/components/ui/input';
 
 export interface Short {
   id: string;
@@ -48,6 +49,22 @@ function saveCache(shorts: Short[], nextPageToken: string | null) {
   } catch {}
 }
 
+// Rotating search queries for variety — Uzbekistan + world trends
+const SEARCH_QUERIES = [
+'uzbekistan shorts trending',
+'uzbek viral shorts',
+'trending shorts worldwide',
+'shorts viral funny trending',
+'toshkent shorts',
+'world trending shorts 2025',
+'uzbekistan funny shorts',
+'shorts comedy viral'];
+
+
+function getRandomQuery(): string {
+  return SEARCH_QUERIES[Math.floor(Math.random() * SEARCH_QUERIES.length)];
+}
+
 export function YouTubeShortsSection({ onShortClick }: YouTubeShortsProps) {
   const [shorts, setShorts] = useState<Short[]>([]);
   const [nextToken, setNextToken] = useState<string | null>(null);
@@ -56,20 +73,26 @@ export function YouTubeShortsSection({ onShortClick }: YouTubeShortsProps) {
   const scrollRef = useRef<HTMLDivElement>(null);
   const loaderRef = useRef<HTMLDivElement>(null);
   const fetchingRef = useRef(false);
+  const currentQueryRef = useRef(getRandomQuery());
 
   const fetchShorts = useCallback(async (pageToken?: string) => {
     if (fetchingRef.current) return;
     fetchingRef.current = true;
 
     const isFirstLoad = !pageToken;
-    if (isFirstLoad) setIsLoading(true);else
-    setIsLoadingMore(true);
+    if (isFirstLoad) {
+      setIsLoading(true);
+      // Pick a new random query on each fresh load
+      currentQueryRef.current = getRandomQuery();
+    } else {
+      setIsLoadingMore(true);
+    }
 
     try {
       const projectId = import.meta.env.VITE_SUPABASE_PROJECT_ID;
       const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       const params = new URLSearchParams({
-        q: 'shorts trending viral funny',
+        q: currentQueryRef.current,
         maxResults: '20'
       });
       if (pageToken) params.set('pageToken', pageToken);
@@ -105,16 +128,20 @@ export function YouTubeShortsSection({ onShortClick }: YouTubeShortsProps) {
     }
   }, []);
 
-  // Load from cache or fetch on mount
+  // Always fetch fresh shorts on mount (no cache on initial load)
   useEffect(() => {
-    const cached = loadCache();
-    if (cached && cached.shorts.length > 0) {
-      setShorts(cached.shorts);
-      setNextToken(cached.nextPageToken);
-      setIsLoading(false);
-    } else {
+    fetchShorts();
+  }, [fetchShorts]);
+
+  // Expose a refresh method via a custom event so parent can trigger refresh
+  useEffect(() => {
+    const handler = () => {
+      setShorts([]);
+      setNextToken(null);
       fetchShorts();
-    }
+    };
+    window.addEventListener('refresh-shorts', handler);
+    return () => window.removeEventListener('refresh-shorts', handler);
   }, [fetchShorts]);
 
   // IntersectionObserver for infinite scroll
@@ -162,13 +189,22 @@ export function YouTubeShortsSection({ onShortClick }: YouTubeShortsProps) {
   return (
     <div className="pt-1 pb-0">
       {/* Header */}
-      <div className="flex items-center justify-between mb-1.5 py-[3px] px-[12px]">
-        <div className="flex items-center gap-1.5">
+      <div className="items-center justify-between mb-1.5 px-[12px] flex flex-row py-[3px]">
+        <div className="flex items-center gap-1.5 flex-shrink-0">
           <Flame className="w-3.5 h-3.5 text-destructive" />
           <span className="font-semibold text-xs text-foreground">Shorts</span>
           
         </div>
-        <div className="flex gap-0.5">
+        <div className="flex-1 px-2">
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
+            <Input
+              placeholder="Qidirish..."
+              className="h-7 rounded-full pl-8 pr-3 bg-background/30 border-white/10 backdrop-blur-xl text-xs focus-visible:ring-1 focus-visible:ring-primary/40" />
+
+          </div>
+        </div>
+        <div className="flex gap-0.5 flex-shrink-0">
           <button
             onClick={() => scroll('left')}
             className="w-6 h-6 rounded-full bg-background/60 backdrop-blur-sm flex items-center justify-center border border-border/20">
@@ -189,7 +225,7 @@ export function YouTubeShortsSection({ onShortClick }: YouTubeShortsProps) {
       <style>{`.shorts-carousel::-webkit-scrollbar{display:none}`}</style>
       <div
         ref={scrollRef}
-        className="shorts-carousel flex gap-2 overflow-x-auto px-3 snap-x snap-mandatory"
+        className="shorts-carousel flex gap-2 overflow-x-auto px-3 snap-x snap-mandatory shadow-md"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}>
 
         {shorts.map((short, index) =>

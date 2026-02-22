@@ -11,6 +11,7 @@ export interface User {
   followers_count: number;
   following_count: number;
   relatives_count: number;
+  has_story?: boolean;
   created_at: string;
 }
 
