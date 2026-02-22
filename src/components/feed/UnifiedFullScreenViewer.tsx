@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { Play, Pause, ChevronLeft, ChevronRight, Heart, X } from 'lucide-react';
 import { Post } from '@/types';
 import { cn } from '@/lib/utils';
+
 import { useColorExtractor } from '@/hooks/useColorExtractor';
 import { FullscreenActions } from '@/components/post/FullscreenActions';
 import { PostCaption } from '@/components/post/PostCaption';
@@ -41,9 +42,10 @@ export const UnifiedFullScreenViewer = ({
   const [showVideoPlayer, setShowVideoPlayer] = useState(false);
   const [videoPlayerSrc, setVideoPlayerSrc] = useState('');
   const [shortsPlaying, setShortsPlaying] = useState(true);
-  const [shortsIframeKey, setShortsIframeKey] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const shortsIframeRef = useRef<HTMLIFrameElement>(null);
+  const mutedMediaRef = useRef(new Map<HTMLMediaElement, { muted: boolean; volume: number }>());
   const touchStartY = useRef(0);
   const touchStartX = useRef(0);
   const touchStartTime = useRef(0);
@@ -68,11 +70,21 @@ export const UnifiedFullScreenViewer = ({
   { background: `linear-gradient(135deg, ${dominantColor} 0%, ${secondaryColor} 50%, ${dominantColor} 100%)` } :
   { background: '#000' };
 
+  const ytOrigin = typeof window !== 'undefined' ? window.location.origin : '';
+
+  const sendYouTubeCommand = useCallback((func: 'playVideo' | 'pauseVideo') => {
+    const w = shortsIframeRef.current?.contentWindow;
+    if (!w) return;
+    w.postMessage(
+      JSON.stringify({ event: 'command', func, args: [] }),
+      '*'
+    );
+  }, []);
+
   useEffect(() => {
     setCurrentMediaIndex(0);
     setIsPlaying(true);
     setShortsPlaying(true);
-    setShortsIframeKey((k) => k + 1);
   }, [postIndex, shortIndex, activeTab]);
 
   useEffect(() => {
@@ -86,6 +98,40 @@ export const UnifiedFullScreenViewer = ({
       if (videoRef.current) videoRef.current.pause();
       setIsPlaying(false);
     }
+  }, [activeTab]);
+
+  useEffect(() => {
+    if (activeTab !== 'shorts') {
+      mutedMediaRef.current.forEach((prev, el) => {
+        el.muted = prev.muted;
+        el.volume = prev.volume;
+      });
+      mutedMediaRef.current.clear();
+      return;
+    }
+
+    const container = containerRef.current;
+    const media = Array.from(document.querySelectorAll('video, audio')) as HTMLMediaElement[];
+
+    for (const el of media) {
+      if (container && container.contains(el)) continue;
+      if (!mutedMediaRef.current.has(el)) {
+        mutedMediaRef.current.set(el, { muted: el.muted, volume: el.volume });
+      }
+      try {
+        el.pause();
+      } catch {}
+      el.muted = true;
+      el.volume = 0;
+    }
+
+    return () => {
+      mutedMediaRef.current.forEach((prev, el) => {
+        el.muted = prev.muted;
+        el.volume = prev.volume;
+      });
+      mutedMediaRef.current.clear();
+    };
   }, [activeTab]);
 
   useEffect(() => {
@@ -120,77 +166,28 @@ export const UnifiedFullScreenViewer = ({
     }, 150);
   }, [isTransitioning, activeTab, postIndex, shortIndex, posts.length, shorts.length]);
 
-  // Wheel - with proper deps
-  useEffect(() => {
-    const container = containerRef.current;
-    if (!container) return;
-    let isScrolling = false;
-    let timeout: NodeJS.Timeout;
-    const handleWheel = (e: WheelEvent) => {
-      e.preventDefault();
-      if (isScrolling || isTransitioning) return;
-      if (Math.abs(e.deltaY) > 20) {
-        isScrolling = true;
-        smoothNavigate(e.deltaY > 0 ? 'down' : 'up');
-        timeout = setTimeout(() => {isScrolling = false;}, 500);
-      }
-    };
-    container.addEventListener('wheel', handleWheel, { passive: false });
-    return () => {container.removeEventListener('wheel', handleWheel);clearTimeout(timeout);};
-  }, [smoothNavigate, isTransitioning]);
-
-  // Keyboard
-  useEffect(() => {
-    const handleKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
-      if (e.key === 'ArrowDown') smoothNavigate('down');
-      if (e.key === 'ArrowUp') smoothNavigate('up');
-      if (e.key === 'ArrowLeft') currentMediaIndex > 0 && setCurrentMediaIndex((p) => p - 1);
-      if (e.key === 'ArrowRight') currentMediaIndex < mediaUrls.length - 1 && setCurrentMediaIndex((p) => p + 1);
-      if (e.key === ' ') {e.preventDefault();setIsPlaying((p) => !p);}
-    };
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
-  }, [smoothNavigate, currentMediaIndex, mediaUrls.length, onClose]);
-
-  // Touch - improved with velocity detection
   const handleTouchStart = (e: React.TouchEvent) => {
     touchStartY.current = e.touches[0].clientY;
     touchStartX.current = e.touches[0].clientX;
     touchStartTime.current = Date.now();
   };
+
   const handleTouchEnd = (e: React.TouchEvent) => {
     const diffY = touchStartY.current - e.changedTouches[0].clientY;
     const diffX = touchStartX.current - e.changedTouches[0].clientX;
     const elapsed = Date.now() - touchStartTime.current;
     const velocityY = Math.abs(diffY) / Math.max(elapsed, 1);
-
-    // Lower threshold for fast swipes
     const threshold = velocityY > 0.5 ? 30 : 60;
 
     if (Math.abs(diffY) > Math.abs(diffX) && Math.abs(diffY) > threshold) {
       smoothNavigate(diffY > 0 ? 'down' : 'up');
-    } else if (Math.abs(diffX) > 40 && mediaUrls.length > 1) {
-      diffX > 0 ? setCurrentMediaIndex((p) => Math.min(p + 1, mediaUrls.length - 1)) : setCurrentMediaIndex((p) => Math.max(p - 1, 0));
     }
   };
 
-  const handleMediaClick = (e: React.MouseEvent) => {
+  const handleMediaClick = () => {
     if (activeTab === 'shorts') return;
-    const now = Date.now();
-    if (now - lastTapRef.current < 300) {
-      setShowDoubleTapHeart(true);
-      if (!isLiked) toggleLike();
-      setTimeout(() => setShowDoubleTapHeart(false), 1000);
-      lastTapRef.current = 0;
-      return;
-    }
-    lastTapRef.current = now;
-    setTimeout(() => {
-      if (lastTapRef.current !== 0 && isVideo(currentMediaUrl)) {
-        setIsPlaying((p) => !p);
-      }
-    }, 350);
+    if (!isVideo(currentMediaUrl)) return;
+    setIsPlaying((p) => !p);
   };
 
   const handleTabSwitch = (tab: TabType) => {
@@ -199,7 +196,6 @@ export const UnifiedFullScreenViewer = ({
     setCurrentMediaIndex(0);
   };
 
-  // ─── RENDER: Shorts tab ───
   const renderShort = () => {
     if (!currentShort) return null;
     return (
@@ -209,33 +205,34 @@ export const UnifiedFullScreenViewer = ({
         slideDirection === 'up' && "animate-slide-out-down",
         !slideDirection && "animate-slide-in"
       )}>
-        {/* YouTube iframe with top overlay to hide YT controls */}
         <div className="relative w-full h-full pointer-events-none">
           {shorts.slice(shortIndex + 1, shortIndex + 4).map((s) => (
             <iframe
               key={`preload-${s.id}`}
-              src={`https://www.youtube.com/embed/${s.id}?rel=0&autoplay=1&controls=0&modestbranding=1&playsinline=1&loop=1&playlist=${s.id}&showinfo=0&iv_load_policy=3&disablekb=1&fs=0`}
+              src={`https://www.youtube.com/embed/${s.id}?rel=0&autoplay=1&controls=0&modestbranding=1&playsinline=1&loop=1&playlist=${s.id}&showinfo=0&iv_load_policy=3&disablekb=1&fs=0&enablejsapi=1&origin=${encodeURIComponent(ytOrigin)}`}
               className="absolute inset-0 w-full h-full opacity-0"
               allow="autoplay; encrypted-media"
               allowFullScreen
               title={s.title} />
           ))}
           <iframe
-            key={`${currentShort.id}-${shortsIframeKey}-${shortsPlaying ? 'p' : 's'}`}
-            src={`https://www.youtube.com/embed/${currentShort.id}?rel=0&autoplay=${shortsPlaying ? 1 : 0}&controls=0&modestbranding=1&playsinline=1&loop=1&playlist=${currentShort.id}&showinfo=0&iv_load_policy=3&disablekb=1&fs=0`}
+            ref={shortsIframeRef}
+            src={`https://www.youtube.com/embed/${currentShort.id}?rel=0&autoplay=1&controls=0&modestbranding=1&playsinline=1&loop=1&playlist=${currentShort.id}&showinfo=0&iv_load_policy=3&disablekb=1&fs=0&enablejsapi=1&origin=${encodeURIComponent(ytOrigin)}`}
             className="w-full h-full"
             allow="autoplay; encrypted-media"
             allowFullScreen
             title={currentShort.title} />
-          {/* Cover YouTube's top overlay (profile, title, playlist, 3-dot) */}
           <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-black via-black/80 to-transparent z-[3] pointer-events-none" />
         </div>
 
         <button
           type="button"
           onClick={() => {
-            setShortsPlaying((p) => !p);
-            setShortsIframeKey((k) => k + 1);
+            setShortsPlaying((p) => {
+              const next = !p;
+              sendYouTubeCommand(next ? 'playVideo' : 'pauseVideo');
+              return next;
+            });
           }}
           className="absolute inset-0 z-[4] flex items-center justify-center pointer-events-auto"
           aria-label={shortsPlaying ? 'Pause' : 'Play'}>
@@ -249,7 +246,6 @@ export const UnifiedFullScreenViewer = ({
           </div>
         </button>
 
-        {/* Bottom info - minimalist */}
         <div className="absolute bottom-14 left-0 right-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent px-4 pb-4 pt-16 z-[2]">
           <div className="flex items-end gap-3">
             <div className="flex-1 min-w-0">
