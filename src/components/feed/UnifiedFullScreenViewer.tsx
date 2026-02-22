@@ -209,7 +209,7 @@ export const UnifiedFullScreenViewer = ({
           {shorts.slice(shortIndex + 1, shortIndex + 4).map((s) => (
             <iframe
               key={`preload-${s.id}`}
-              src={`https://www.youtube.com/embed/${s.id}?rel=0&autoplay=1&controls=0&modestbranding=1&playsinline=1&loop=1&playlist=${s.id}&showinfo=0&iv_load_policy=3&disablekb=1&fs=0&enablejsapi=1&origin=${encodeURIComponent(ytOrigin)}`}
+              src={`https://www.youtube.com/embed/${s.id}?rel=0&autoplay=0&mute=1&controls=0&modestbranding=1&playsinline=1&loop=1&playlist=${s.id}&showinfo=0&iv_load_policy=3&disablekb=1&fs=0&enablejsapi=1&origin=${encodeURIComponent(ytOrigin)}`}
               className="absolute inset-0 w-full h-full opacity-0"
               allow="autoplay; encrypted-media"
               allowFullScreen
@@ -225,26 +225,28 @@ export const UnifiedFullScreenViewer = ({
           <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-black via-black/80 to-transparent z-[3] pointer-events-none" />
         </div>
 
-        <button
-          type="button"
-          onClick={() => {
-            setShortsPlaying((p) => {
-              const next = !p;
-              sendYouTubeCommand(next ? 'playVideo' : 'pauseVideo');
-              return next;
-            });
-          }}
-          className="absolute inset-0 z-[4] flex items-center justify-center pointer-events-auto"
-          aria-label={shortsPlaying ? 'Pause' : 'Play'}>
-          <div className={cn(
-            "p-4 rounded-full bg-black/35 backdrop-blur-sm border border-white/10 transition-opacity",
-            shortsPlaying ? "opacity-0" : "opacity-100"
-          )}>
-            {shortsPlaying ?
-            <Pause className="h-8 w-8 text-white" /> :
-            <Play className="h-8 w-8 text-white" />}
-          </div>
-        </button>
+        <div className="absolute inset-0 z-[4] flex items-center justify-center pointer-events-none">
+          <button
+            type="button"
+            onClick={() => {
+              setShortsPlaying((p) => {
+                const next = !p;
+                sendYouTubeCommand(next ? 'playVideo' : 'pauseVideo');
+                return next;
+              });
+            }}
+            className="pointer-events-auto"
+            aria-label={shortsPlaying ? 'Pause' : 'Play'}>
+            <div className={cn(
+              "p-4 rounded-full bg-black/35 backdrop-blur-sm border border-white/10 transition-opacity",
+              shortsPlaying ? "opacity-0" : "opacity-100"
+            )}>
+              {shortsPlaying ?
+              <Pause className="h-8 w-8 text-white" /> :
+              <Play className="h-8 w-8 text-white" />}
+            </div>
+          </button>
+        </div>
 
         <div className="absolute bottom-14 left-0 right-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent px-4 pb-4 pt-16 z-[2]">
           <div className="flex items-end gap-3">
