@@ -40,6 +40,8 @@ export const UnifiedFullScreenViewer = ({
   const [showDoubleTapHeart, setShowDoubleTapHeart] = useState(false);
   const [showVideoPlayer, setShowVideoPlayer] = useState(false);
   const [videoPlayerSrc, setVideoPlayerSrc] = useState('');
+  const [shortsPlaying, setShortsPlaying] = useState(true);
+  const [shortsIframeKey, setShortsIframeKey] = useState(0);
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const touchStartY = useRef(0);
@@ -69,6 +71,8 @@ export const UnifiedFullScreenViewer = ({
   useEffect(() => {
     setCurrentMediaIndex(0);
     setIsPlaying(true);
+    setShortsPlaying(true);
+    setShortsIframeKey((k) => k + 1);
   }, [postIndex, shortIndex, activeTab]);
 
   useEffect(() => {
@@ -76,6 +80,13 @@ export const UnifiedFullScreenViewer = ({
       isPlaying ? videoRef.current.play().catch(() => {}) : videoRef.current.pause();
     }
   }, [isPlaying, currentMediaIndex, postIndex]);
+
+  useEffect(() => {
+    if (activeTab === 'shorts') {
+      if (videoRef.current) videoRef.current.pause();
+      setIsPlaying(false);
+    }
+  }, [activeTab]);
 
   useEffect(() => {
     document.body.style.overflow = 'hidden';
@@ -200,8 +211,18 @@ export const UnifiedFullScreenViewer = ({
       )}>
         {/* YouTube iframe with top overlay to hide YT controls */}
         <div className="relative w-full h-full pointer-events-none">
+          {shorts.slice(shortIndex + 1, shortIndex + 4).map((s) => (
+            <iframe
+              key={`preload-${s.id}`}
+              src={`https://www.youtube.com/embed/${s.id}?rel=0&autoplay=1&controls=0&modestbranding=1&playsinline=1&loop=1&playlist=${s.id}&showinfo=0&iv_load_policy=3&disablekb=1&fs=0`}
+              className="absolute inset-0 w-full h-full opacity-0"
+              allow="autoplay; encrypted-media"
+              allowFullScreen
+              title={s.title} />
+          ))}
           <iframe
-            src={`https://www.youtube.com/embed/${currentShort.id}?rel=0&autoplay=1&controls=0&modestbranding=1&playsinline=1&loop=1&playlist=${currentShort.id}&showinfo=0&iv_load_policy=3&disablekb=1&fs=0`}
+            key={`${currentShort.id}-${shortsIframeKey}-${shortsPlaying ? 'p' : 's'}`}
+            src={`https://www.youtube.com/embed/${currentShort.id}?rel=0&autoplay=${shortsPlaying ? 1 : 0}&controls=0&modestbranding=1&playsinline=1&loop=1&playlist=${currentShort.id}&showinfo=0&iv_load_policy=3&disablekb=1&fs=0`}
             className="w-full h-full"
             allow="autoplay; encrypted-media"
             allowFullScreen
@@ -209,6 +230,24 @@ export const UnifiedFullScreenViewer = ({
           {/* Cover YouTube's top overlay (profile, title, playlist, 3-dot) */}
           <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-black via-black/80 to-transparent z-[3] pointer-events-none" />
         </div>
+
+        <button
+          type="button"
+          onClick={() => {
+            setShortsPlaying((p) => !p);
+            setShortsIframeKey((k) => k + 1);
+          }}
+          className="absolute inset-0 z-[4] flex items-center justify-center pointer-events-auto"
+          aria-label={shortsPlaying ? 'Pause' : 'Play'}>
+          <div className={cn(
+            "p-4 rounded-full bg-black/35 backdrop-blur-sm border border-white/10 transition-opacity",
+            shortsPlaying ? "opacity-0" : "opacity-100"
+          )}>
+            {shortsPlaying ?
+            <Pause className="h-8 w-8 text-white" /> :
+            <Play className="h-8 w-8 text-white" />}
+          </div>
+        </button>
 
         {/* Bottom info - minimalist */}
         <div className="absolute bottom-14 left-0 right-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent px-4 pb-4 pt-16 z-[2]">
@@ -219,6 +258,7 @@ export const UnifiedFullScreenViewer = ({
               </p>
               <p className="text-[11px] text-white/50 mt-1 drop-shadow">{currentShort.channelTitle}</p>
             </div>
+
             {/* YouTube logo indicator */}
             <div className="shrink-0 flex items-center gap-1 bg-white/10 backdrop-blur-md rounded-full px-2.5 py-1 border border-white/10">
               <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 text-red-500 fill-current">
