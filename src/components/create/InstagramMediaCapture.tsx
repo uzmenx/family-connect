@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronRight, Image as ImageIcon, Music2, Play, Pause, RefreshCw, Smile, Type, Volume2, VolumeX, X, Disc } from 'lucide-react';
+import { ChevronRight, Image as ImageIcon, Music2, Play, Pause, RefreshCw, Smile, Type, Volume2, VolumeX, X, Disc, ImagePlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EMOJIS, MEDIA_FILTERS } from './filters';
 import FilterStrip from './FilterStrip';
@@ -17,7 +17,133 @@ type EditableItem = {
   media: CapturedMedia;
   filter: string;
   texts: TextItem[];
+  images: ImageSticker[];
+  mediaTransform: {
+    x: number;
+    y: number;
+    scale: number;
+    rotation: number;
+  };
 };
+
+type ImageSticker = {
+  id: string;
+  file: File;
+  url: string;
+  x: number;
+  y: number;
+  scale: number;
+  rotation: number;
+};
+
+function ImageOverlay({
+  item,
+  containerRef,
+  onUpdate,
+  onDelete,
+}: {
+  item: ImageSticker;
+  containerRef: React.RefObject<HTMLDivElement>;
+  onUpdate: (item: ImageSticker) => void;
+  onDelete: (id: string) => void;
+}) {
+  const [isDragging, setIsDragging] = useState(false);
+  const dragStart = useRef({ x: 0, y: 0, itemX: 0, itemY: 0 });
+  const pinchRef = useRef<{ dist: number; angle: number; scale: number; rotation: number } | null>(null);
+  const elRef = useRef<HTMLDivElement>(null);
+
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setIsDragging(true);
+    dragStart.current = { x: e.clientX, y: e.clientY, itemX: item.x, itemY: item.y };
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  }, [item.x, item.y]);
+
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (!isDragging) return;
+    const rect = containerRef.current?.getBoundingClientRect();
+    if (!rect) return;
+    const dx = e.clientX - dragStart.current.x;
+    const dy = e.clientY - dragStart.current.y;
+    onUpdate({
+      ...item,
+      x: Math.max(0, Math.min(100, dragStart.current.itemX + (dx / rect.width) * 100)),
+      y: Math.max(0, Math.min(100, dragStart.current.itemY + (dy / rect.height) * 100)),
+    });
+  }, [containerRef, isDragging, item, onUpdate]);
+
+  const handlePointerUp = useCallback(() => setIsDragging(false), []);
+
+  useEffect(() => {
+    const el = elRef.current;
+    if (!el) return;
+
+    const handleTouchStart = (e: TouchEvent) => {
+      if (e.touches.length === 2) {
+        e.stopPropagation();
+        e.preventDefault();
+        const t1 = e.touches[0], t2 = e.touches[1];
+        const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+        const angle = Math.atan2(t2.clientY - t1.clientY, t2.clientX - t1.clientX) * (180 / Math.PI);
+        pinchRef.current = { dist, angle, scale: item.scale, rotation: item.rotation };
+      }
+    };
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 2 && pinchRef.current) {
+        e.stopPropagation();
+        e.preventDefault();
+        const t1 = e.touches[0], t2 = e.touches[1];
+        const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+        const angle = Math.atan2(t2.clientY - t1.clientY, t2.clientX - t1.clientX) * (180 / Math.PI);
+        onUpdate({
+          ...item,
+          scale: Math.max(0.2, Math.min(6, pinchRef.current.scale * (dist / pinchRef.current.dist))),
+          rotation: pinchRef.current.rotation + (angle - pinchRef.current.angle),
+        });
+      }
+    };
+
+    const handleTouchEnd = () => { pinchRef.current = null; };
+
+    el.addEventListener('touchstart', handleTouchStart, { passive: false });
+    el.addEventListener('touchmove', handleTouchMove, { passive: false });
+    el.addEventListener('touchend', handleTouchEnd);
+    return () => {
+      el.removeEventListener('touchstart', handleTouchStart);
+      el.removeEventListener('touchmove', handleTouchMove);
+      el.removeEventListener('touchend', handleTouchEnd);
+    };
+  }, [item, onUpdate]);
+
+  return (
+    <div
+      ref={elRef}
+      className="absolute select-none touch-none cursor-move group"
+      style={{
+        left: `${item.x}%`,
+        top: `${item.y}%`,
+        transform: `translate(-50%, -50%) scale(${item.scale}) rotate(${item.rotation}deg)`,
+        zIndex: isDragging ? 50 : 35,
+      }}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+    >
+      <div className="relative">
+        <img src={item.url} alt="" className="w-28 max-w-[42vw] h-auto rounded-xl shadow-[0_8px_24px_rgba(0,0,0,0.45)]" draggable={false} />
+        <button
+          onClick={(e) => { e.stopPropagation(); onDelete(item.id); }}
+          className="absolute -top-3 -right-3 w-5 h-5 bg-destructive rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity"
+        >
+          <X className="w-3 h-3 text-destructive-foreground" />
+        </button>
+      </div>
+    </div>
+  );
+}
 
 interface InstagramMediaCaptureProps {
   onClose: () => void;
@@ -31,6 +157,18 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
   const previewVideoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
+  const isPinchingMediaRef = useRef(false);
+  const mediaPinchRef = useRef<{
+    dist: number;
+    angle: number;
+    midX: number;
+    midY: number;
+    x: number;
+    y: number;
+    scale: number;
+    rotation: number;
+  } | null>(null);
+
   const streamRef = useRef<MediaStream | null>(null);
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const recordedChunksRef = useRef<Blob[]>([]);
@@ -39,18 +177,14 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
   const sourceNodeRef = useRef<MediaStreamAudioSourceNode | null>(null);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const stickerInputRef = useRef<HTMLInputElement>(null);
   const recordTimerRef = useRef<number>();
   const captureTimerRef = useRef<number>();
   const isTakingPhotoRef = useRef(false);
   const swipeStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
   const [focusedMediaId, setFocusedMediaId] = useState<string | null>(null);
-  const [trayOpen, setTrayOpen] = useState(() => {
-    if (typeof window === 'undefined') return false;
-    const coarse = window.matchMedia?.('(pointer: coarse)')?.matches;
-    const small = window.matchMedia?.('(max-width: 768px)')?.matches;
-    return !!(coarse || small);
-  });
+  const [trayOpen, setTrayOpen] = useState(false);
   const trayStartYRef = useRef<number | null>(null);
 
   const [items, setItems] = useState<EditableItem[]>([]);
@@ -132,7 +266,13 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
 
   const addMediaItem = useCallback((media: CapturedMedia) => {
     setItems(prev => {
-      const next = [...prev, { media, filter: 'original', texts: [] }];
+      const next = [...prev, {
+        media,
+        filter: 'original',
+        texts: [],
+        images: [],
+        mediaTransform: { x: 0, y: 0, scale: 1, rotation: 0 },
+      }];
       // activeIndex should point to the newly added item
       setActiveIndex(next.length - 1);
       return next;
@@ -145,7 +285,10 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
     setItems(prev => {
       const idx = prev.findIndex(x => x.media.id === id);
       const found = prev[idx];
-      if (found) URL.revokeObjectURL(found.media.url);
+      if (found) {
+        URL.revokeObjectURL(found.media.url);
+        found.images.forEach(img => URL.revokeObjectURL(img.url));
+      }
       const next = prev.filter(x => x.media.id !== id);
 
       // Clamp activeIndex against the new array length.
@@ -366,6 +509,34 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
     setShowEmojiPicker(false);
   }, [active, updateActive]);
 
+  const handleStickerFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) {
+      e.target.value = '';
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    const sticker: ImageSticker = {
+      id: crypto.randomUUID(),
+      file,
+      url,
+      x: 50,
+      y: 55,
+      scale: 1,
+      rotation: 0,
+    };
+    updateActive({ images: [...(active?.images || []), sticker] });
+    e.target.value = '';
+  }, [active?.images, updateActive]);
+
+  const removeSticker = useCallback((stickerId: string) => {
+    if (!active) return;
+    const found = active.images.find(x => x.id === stickerId);
+    if (found) URL.revokeObjectURL(found.url);
+    updateActive({ images: active.images.filter(x => x.id !== stickerId) });
+  }, [active, updateActive]);
+
   const togglePlay = useCallback(() => {
     const v = previewVideoRef.current;
     if (!v) return;
@@ -416,6 +587,74 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
       }
     }
   }, [active, updateActive]);
+
+  const handleEditTouchStart = useCallback((e: React.TouchEvent) => {
+    if (e.touches.length === 2 && containerRef.current && active) {
+      e.preventDefault();
+      e.stopPropagation();
+      isPinchingMediaRef.current = true;
+
+      const t1 = e.touches[0];
+      const t2 = e.touches[1];
+      const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+      const angle = Math.atan2(t2.clientY - t1.clientY, t2.clientX - t1.clientX) * (180 / Math.PI);
+      const midX = (t1.clientX + t2.clientX) / 2;
+      const midY = (t1.clientY + t2.clientY) / 2;
+
+      mediaPinchRef.current = {
+        dist,
+        angle,
+        midX,
+        midY,
+        x: active.mediaTransform.x,
+        y: active.mediaTransform.y,
+        scale: active.mediaTransform.scale,
+        rotation: active.mediaTransform.rotation,
+      };
+      return;
+    }
+
+    if (e.touches.length === 1 && !isPinchingMediaRef.current) {
+      handleSwipeStart(e);
+    }
+  }, [active, handleSwipeStart]);
+
+  const handleEditTouchMove = useCallback((e: React.TouchEvent) => {
+    if (!isPinchingMediaRef.current || e.touches.length !== 2 || !mediaPinchRef.current || !containerRef.current || !active) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const rect = containerRef.current.getBoundingClientRect();
+    const t1 = e.touches[0];
+    const t2 = e.touches[1];
+    const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
+    const angle = Math.atan2(t2.clientY - t1.clientY, t2.clientX - t1.clientX) * (180 / Math.PI);
+    const midX = (t1.clientX + t2.clientX) / 2;
+    const midY = (t1.clientY + t2.clientY) / 2;
+
+    const start = mediaPinchRef.current;
+    const scale = Math.max(0.5, Math.min(5, start.scale * (dist / start.dist)));
+    const rotation = start.rotation + (angle - start.angle);
+
+    const dxPercent = ((midX - start.midX) / rect.width) * 100;
+    const dyPercent = ((midY - start.midY) / rect.height) * 100;
+    const x = Math.max(-50, Math.min(50, start.x + dxPercent));
+    const y = Math.max(-50, Math.min(50, start.y + dyPercent));
+
+    updateActive({ mediaTransform: { x, y, scale, rotation } });
+  }, [active, updateActive]);
+
+  const handleEditTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (isPinchingMediaRef.current) {
+      if (e.touches.length < 2) {
+        isPinchingMediaRef.current = false;
+        mediaPinchRef.current = null;
+      }
+      return;
+    }
+    handleSwipeEnd(e);
+  }, [handleSwipeEnd]);
 
   const handleNext = useCallback(() => {
     if (items.length === 0) return;
@@ -522,6 +761,7 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
   return (
     <div className="fixed inset-0 z-[60] bg-black flex flex-col overflow-hidden">
       <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple onChange={handleFileSelect} className="hidden" />
+      <input ref={stickerInputRef} type="file" accept="image/*" onChange={handleStickerFileSelect} className="hidden" />
 
       {/* Header */}
       <div className="absolute top-0 left-0 right-0 z-30 flex items-center justify-between px-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
@@ -738,28 +978,39 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
               <div
                 ref={containerRef}
                 className="relative w-full max-w-md aspect-[9/16] max-h-[calc(100vh-260px)] rounded-2xl overflow-hidden border border-white/20 shadow-2xl"
-                onTouchStart={handleSwipeStart}
-                onTouchEnd={handleSwipeEnd}
+                onTouchStart={handleEditTouchStart}
+                onTouchMove={handleEditTouchMove}
+                onTouchEnd={handleEditTouchEnd}
               >
-                {isVideo ? (
-                  <video
-                    ref={previewVideoRef}
-                    src={active.media.url}
-                    className="w-full h-full object-cover"
-                    style={{ filter: currentFilter.css }}
-                    playsInline
-                    loop
-                    muted={isMuted}
-                    onClick={togglePlay}
-                  />
-                ) : (
-                  <img
-                    src={active.media.url}
-                    alt="Edit"
-                    className="w-full h-full object-cover"
-                    style={{ filter: currentFilter.css }}
-                  />
-                )}
+                <div
+                  className="absolute inset-0 will-change-transform"
+                  style={{
+                    transform: `translate(${active.mediaTransform.x}%, ${active.mediaTransform.y}%) scale(${active.mediaTransform.scale}) rotate(${active.mediaTransform.rotation}deg)`,
+                    transformOrigin: 'center',
+                    touchAction: 'none',
+                  }}
+                >
+                  {isVideo ? (
+                    <video
+                      ref={previewVideoRef}
+                      src={active.media.url}
+                      className="w-full h-full object-cover"
+                      style={{ filter: currentFilter.css }}
+                      playsInline
+                      loop
+                      muted={isMuted}
+                      onClick={togglePlay}
+                    />
+                  ) : (
+                    <img
+                      src={active.media.url}
+                      alt="Edit"
+                      className="w-full h-full object-cover"
+                      style={{ filter: currentFilter.css }}
+                      draggable={false}
+                    />
+                  )}
+                </div>
 
                 {active.texts.map(t => (
                   <TextOverlay
@@ -768,6 +1019,16 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
                     containerRef={containerRef as React.RefObject<HTMLDivElement>}
                     onUpdate={(updated) => updateActive({ texts: active.texts.map(x => (x.id === updated.id ? updated : x)) })}
                     onDelete={(id) => updateActive({ texts: active.texts.filter(x => x.id !== id) })}
+                  />
+                ))}
+
+                {active.images.map(img => (
+                  <ImageOverlay
+                    key={img.id}
+                    item={img}
+                    containerRef={containerRef as React.RefObject<HTMLDivElement>}
+                    onUpdate={(updated) => updateActive({ images: active.images.map(x => (x.id === updated.id ? updated : x)) })}
+                    onDelete={(id) => removeSticker(id)}
                   />
                 ))}
 
@@ -805,6 +1066,20 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
                     <Smile className="w-5 h-5" />
                   </div>
                   <span className="text-[9px] text-white/70 font-medium">Stiker</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    stickerInputRef.current?.click();
+                    setShowEmojiPicker(false);
+                    setShowTextInput(false);
+                  }}
+                  className="flex flex-col items-center gap-0.5"
+                >
+                  <div className="w-11 h-11 rounded-xl bg-black/40 backdrop-blur-xl border border-white/20 flex items-center justify-center text-white shadow-lg">
+                    <ImagePlus className="w-5 h-5" />
+                  </div>
+                  <span className="text-[9px] text-white/70 font-medium">Rasm</span>
                 </button>
 
                 <button
@@ -850,6 +1125,25 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
 
             <div className="flex-shrink-0 pb-4">
               <FilterStrip selectedFilter={active.filter} onSelectFilter={(f) => updateActive({ filter: f })} />
+              {active.images.length > 0 && (
+                <div className="px-3 pt-2">
+                  <div className="flex gap-2 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
+                    {active.images.map((img) => (
+                      <button
+                        key={img.id}
+                        onClick={() => removeSticker(img.id)}
+                        className="relative flex-shrink-0 w-14 h-14 rounded-xl overflow-hidden border border-white/15 bg-black/30"
+                        title="Remove"
+                      >
+                        <img src={img.url} alt="" className="w-full h-full object-cover" />
+                        <div className="absolute top-1 right-1 w-4 h-4 rounded-full bg-black/60 flex items-center justify-center">
+                          <X className="w-3 h-3 text-white" />
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {showTextInput && (

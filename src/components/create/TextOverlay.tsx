@@ -76,6 +76,7 @@ export default function TextOverlay({ item, containerRef, onUpdate, onDelete }: 
 
     const handleTouchStart = (e: TouchEvent) => {
       if (e.touches.length === 2) {
+        e.stopPropagation();
         e.preventDefault();
         const t1 = e.touches[0], t2 = e.touches[1];
         const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
@@ -86,6 +87,7 @@ export default function TextOverlay({ item, containerRef, onUpdate, onDelete }: 
 
     const handleTouchMove = (e: TouchEvent) => {
       if (e.touches.length === 2 && pinchRef.current) {
+        e.stopPropagation();
         e.preventDefault();
         const t1 = e.touches[0], t2 = e.touches[1];
         const dist = Math.hypot(t2.clientX - t1.clientX, t2.clientY - t1.clientY);
