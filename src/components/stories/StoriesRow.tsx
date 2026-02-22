@@ -101,7 +101,7 @@ export const StoriesRow = ({ onStoryClick }: StoriesRowProps) => {
                   <img
                     src={profile.avatar_url}
                     alt="You"
-                    className="w-full h-full rounded-full object-cover opacity-70"
+                    className="w-full h-full rounded-full object-cover"
                   />
                 ) : (
                   <Plus className="h-6 w-6 text-muted-foreground" />

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronRight, Image as ImageIcon, Music2, Play, Pause, RefreshCw, Smile, Type, Volume2, VolumeX, X, Disc, ImagePlus } from 'lucide-react';
+import { Camera, ChevronRight, Image as ImageIcon, Lock, Music2, Play, Pause, RefreshCw, Smile, Type, Volume2, VolumeX, X, Disc, ImagePlus } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { EMOJIS, MEDIA_FILTERS } from './filters';
 import FilterStrip from './FilterStrip';
@@ -181,6 +181,7 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
   const recordTimerRef = useRef<number>();
   const captureTimerRef = useRef<number>();
   const isTakingPhotoRef = useRef(false);
+  const justStoppedRecordingAtRef = useRef<number>(0);
   const swipeStartRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
 
   const [focusedMediaId, setFocusedMediaId] = useState<string | null>(null);
@@ -408,6 +409,7 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
 
   const stopRecording = useCallback(() => {
     if (mediaRecorderRef.current && isRecording) {
+      justStoppedRecordingAtRef.current = Date.now();
       mediaRecorderRef.current.stop();
       setIsRecording(false);
       clearInterval(recordTimerRef.current);
@@ -421,16 +423,28 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
   }, [isRecording, isMusicPlaying]);
 
   const handleCaptureStart = useCallback(() => {
+    if (isRecording) return;
     setIsCapturing(true);
     captureTimerRef.current = window.setTimeout(() => startRecording(), 500);
-  }, [startRecording]);
+  }, [isRecording, startRecording]);
 
   const handleCaptureEnd = useCallback(() => {
     clearTimeout(captureTimerRef.current);
     if (isTakingPhotoRef.current) return;
 
-    if (isRecording) stopRecording();
-    else takePhoto();
+    // Avoid taking a photo on the synthetic second event fired right after stopping a recording.
+    if (Date.now() - justStoppedRecordingAtRef.current < 450) {
+      setIsCapturing(false);
+      return;
+    }
+
+    if (isRecording) {
+      stopRecording();
+      setIsCapturing(false);
+      return;
+    }
+
+    takePhoto();
 
     setIsCapturing(false);
   }, [isRecording, stopRecording, takePhoto]);
@@ -882,12 +896,10 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
                   />
 
                   <span className="shutter-spark" style={{ top: '10%', left: '72%', animationDelay: '0ms' }} />
-                  <span className="shutter-spark" style={{ top: '72%', left: '16%', animationDelay: '650ms' }} />
-                  <span className="shutter-spark" style={{ top: '38%', left: '8%', animationDelay: '1100ms' }} />
+                  <span className="shutter-spark" style={{ top: '62%', left: '14%', animationDelay: '120ms' }} />
+                  <span className="shutter-spark" style={{ top: '78%', left: '70%', animationDelay: '220ms' }} />
                 </div>
               </div>
-
-              <div className="absolute inset-[9px] rounded-full bg-black/25 border border-white/10" />
 
               <div
                 className={cn(
@@ -898,8 +910,14 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
               >
                 {isRecording && <div className="absolute inset-0 rounded-lg animate-pulse bg-red-400" />}
               </div>
+
               {isRecording && (
-                <div className="absolute inset-0 rounded-full border-[3px] border-red-400/80 shadow-[0_0_18px_rgba(239,68,68,0.35)] animate-ping" />
+                <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 pointer-events-none">
+                  <Lock className="w-4 h-4 text-white/95" />
+                  <span className="text-[10px] font-semibold text-white/90 tabular-nums">
+                    {Math.floor(recordingTime / 60)}:{(recordingTime % 60).toString().padStart(2, '0')}
+                  </span>
+                </div>
               )}
             </button>
           </div>
@@ -959,6 +977,15 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
                       </div>
                     )}
                   </div>
+
+                  {focusedMediaId === it.media.id && (
+                    <div className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+                      <div className="w-8 h-8 rounded-full bg-black/35 backdrop-blur-xl border border-white/25 flex items-center justify-center shadow-lg">
+                        <Camera className="w-4 h-4 text-white" />
+                      </div>
+                    </div>
+                  )}
+
                   <button
                     onClick={(e) => { e.stopPropagation(); removeMedia(it.media.id); }}
                     className="absolute -top-1 -right-1 w-4.5 h-4.5 rounded-full bg-destructive flex items-center justify-center shadow"
