@@ -1,11 +1,14 @@
-import { useState, useRef, useEffect } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+
 import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
+
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
+
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Settings, Edit, Grid3X3, Bookmark, Bell, AtSign, Users, ChevronDown, ChevronUp } from 'lucide-react';
+import { AtSign, Bell, Bookmark, Check, ChevronDown, ChevronUp, Edit, Grid3X3, Settings, Trash2, Users } from 'lucide-react';
 import { SocialLinksList } from '@/components/profile';
 import { useUserPosts } from '@/hooks/useUserPosts';
 import { useSavedPosts } from '@/hooks/useSavedPosts';
@@ -13,7 +16,7 @@ import { useFollow } from '@/hooks/useFollow';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useStoryHighlights } from '@/hooks/useStoryHighlights';
 import { useMentionsCollabs } from '@/hooks/useMentionsCollabs';
-import { usePostCollections } from '@/hooks/usePostCollections';
+import { type PostCollection, usePostCollections } from '@/hooks/usePostCollections';
 import { useSmoothScroll } from '@/hooks/useSmoothScroll';
 import { useActiveStories } from '@/hooks/useActiveStories';
 import { useStories } from '@/hooks/useStories';
@@ -28,25 +31,44 @@ import { CollabRequestsSheet } from '@/components/post/CollabRequestsSheet';
 import { NotificationsSheet } from '@/components/notifications/NotificationsSheet';
 import { StoryViewer } from '@/components/stories/StoryViewer';
 import { Badge } from '@/components/ui/badge';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
+import { ScrollArea } from '@/components/ui/scroll-area';
 import { cn } from '@/lib/utils';
 import { formatCount } from '@/lib/formatCount';
 import { getStoryRingGradient } from '@/components/stories/storyRings';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 const Profile = () => {
+
   const { profile, user } = useAuth();
   const { t } = useLanguage();
   const navigate = useNavigate();
+  const { toast } = useToast();
   const { posts, isLoading, postsCount, refetch, removePost } = useUserPosts(user?.id);
   const { savedPosts, isLoading: savedLoading, fetchSavedPosts } = useSavedPosts();
   const { followersCount, followingCount } = useFollow(user?.id);
   const { unreadCount } = useNotifications();
   const { highlights, fetchHighlights } = useStoryHighlights();
-  const { collections, selectedCollectionId, setSelectedCollectionId, collectionPosts, createCollection } = usePostCollections();
+  const {
+    collections,
+    selectedCollectionId,
+    setSelectedCollectionId,
+    collectionPosts,
+    createCollection,
+    updateCollection,
+    deleteCollection,
+    addPostToCollection,
+    removePostFromCollection,
+  } = usePostCollections();
+
   const { mentionedPosts, collabPosts, pendingCollabs, respondToCollab } = useMentionsCollabs();
   const { getStoryInfo } = useActiveStories();
   const { storyGroups } = useStories();
   const [profileStoryGroups, setProfileStoryGroups] = useState<typeof storyGroups>([]);
   const [activeTab, setActiveTab] = useState<'posts' | 'saved' | 'mentions'>('posts');
+
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
   const [viewerPosts, setViewerPosts] = useState<typeof posts>([]);
@@ -57,6 +79,119 @@ const Profile = () => {
   const [needsMoreButton, setNeedsMoreButton] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [storyViewerOpen, setStoryViewerOpen] = useState(false);
+  const [collectionEditorOpen, setCollectionEditorOpen] = useState(false);
+  const [collectionEditorMode, setCollectionEditorMode] = useState<'create' | 'edit'>('edit');
+  const [editingCollection, setEditingCollection] = useState<PostCollection | null>(null);
+  const [editingName, setEditingName] = useState('');
+  const [editingTheme, setEditingTheme] = useState(0);
+  const [collectionTab, setCollectionTab] = useState<'selected' | 'all'>('selected');
+  const [selectedPostIds, setSelectedPostIds] = useState<Set<string>>(new Set());
+  const [isSavingCollection, setIsSavingCollection] = useState(false);
+
+  const collectionThemes = useMemo(
+    () => [
+      { bg: 'from-rose-500/25 via-fuchsia-500/15 to-indigo-500/25', ring: 'ring-rose-500/25' },
+      { bg: 'from-emerald-500/25 via-teal-500/15 to-cyan-500/25', ring: 'ring-emerald-500/25' },
+      { bg: 'from-amber-500/25 via-orange-500/15 to-rose-500/25', ring: 'ring-amber-500/25' },
+      { bg: 'from-sky-500/25 via-blue-500/15 to-violet-500/25', ring: 'ring-sky-500/25' },
+      { bg: 'from-violet-500/25 via-purple-500/15 to-pink-500/25', ring: 'ring-violet-500/25' },
+      { bg: 'from-lime-500/20 via-green-500/15 to-emerald-500/25', ring: 'ring-lime-500/25' },
+    ],
+    []
+  );
+
+  const openCollectionEditor = useCallback(async (c: PostCollection, mode: 'create' | 'edit' = 'edit') => {
+    setCollectionEditorMode(mode);
+    setEditingCollection(c);
+    setEditingName(c.name || '');
+    setEditingTheme(Number.isFinite((c as any).theme) ? (((c as any).theme as number) || 0) : 0);
+    setCollectionTab('selected');
+
+    try {
+      const { data: items, error } = await supabase
+        .from('post_collection_items')
+        .select('post_id')
+        .eq('collection_id', c.id);
+      if (error) throw error;
+      setSelectedPostIds(new Set((items || []).map(i => i.post_id)));
+    } catch (e) {
+      console.error('Error fetching collection items:', e);
+      setSelectedPostIds(new Set());
+    }
+
+    setCollectionEditorOpen(true);
+  }, []);
+
+  const togglePostInEditor = useCallback((postId: string) => {
+    setSelectedPostIds(prev => {
+      const next = new Set(prev);
+      if (next.has(postId)) next.delete(postId);
+      else next.add(postId);
+      return next;
+    });
+  }, []);
+
+  const saveCollectionEditor = useCallback(async () => {
+    if (!editingCollection) return;
+    if (isSavingCollection) return;
+
+    setIsSavingCollection(true);
+    try {
+      const { data: items, error } = await supabase
+        .from('post_collection_items')
+        .select('post_id')
+        .eq('collection_id', editingCollection.id);
+      if (error) throw error;
+      const currentIds = new Set((items || []).map(i => i.post_id));
+
+      const toAdd: string[] = [];
+      const toRemove: string[] = [];
+
+      for (const id of selectedPostIds) {
+        if (!currentIds.has(id)) toAdd.push(id);
+      }
+      for (const id of currentIds) {
+        if (!selectedPostIds.has(id)) toRemove.push(id);
+      }
+
+      const nameTrimmed = editingName.trim();
+      if (nameTrimmed && nameTrimmed !== editingCollection.name) {
+        await updateCollection(editingCollection.id, { name: nameTrimmed });
+      }
+
+      const existingTheme = Number.isFinite((editingCollection as any).theme) ? (((editingCollection as any).theme as number) || 0) : 0;
+      if (editingTheme !== existingTheme) {
+        await updateCollection(editingCollection.id, { theme: editingTheme });
+      }
+
+      for (const pid of toAdd) {
+        await addPostToCollection(editingCollection.id, pid);
+      }
+      for (const pid of toRemove) {
+        await removePostFromCollection(editingCollection.id, pid);
+      }
+
+      setCollectionEditorOpen(false);
+      setEditingCollection(null);
+    } catch (e) {
+      console.error('Error saving collection editor:', e);
+      toast({ title: 'Saqlashda xatolik', description: 'Rang yoki postlar saqlanmadi. (DB migration theme qo‘shilganini tekshiring)' });
+    } finally {
+      setIsSavingCollection(false);
+    }
+  }, [addPostToCollection, editingCollection, editingName, editingTheme, isSavingCollection, removePostFromCollection, selectedPostIds, toast, updateCollection]);
+
+  const handleDeleteCollection = useCallback(async () => {
+    if (!editingCollection) return;
+    try {
+      await deleteCollection(editingCollection.id);
+      setCollectionEditorOpen(false);
+      setEditingCollection(null);
+    } catch (e) {
+      console.error('Error deleting collection:', e);
+    }
+  }, [deleteCollection, editingCollection]);
+
   const bioRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -324,7 +459,13 @@ const Profile = () => {
               selectedId={selectedCollectionId}
               onSelect={setSelectedCollectionId}
               isOwner={true}
-              onCreateCollection={(name) => createCollection(name)} />
+              onCreateCollection={async (name, theme) => {
+                const created = await createCollection(name, theme);
+                if (created) {
+                  await openCollectionEditor(created as any, 'create');
+                }
+              }}
+              onLongPressCollection={(c) => openCollectionEditor(c, 'edit')} />
 
           </div>
           }
@@ -518,10 +659,114 @@ const Profile = () => {
           />
         )}
 
+        <Dialog open={collectionEditorOpen} onOpenChange={(v) => {
+          setCollectionEditorOpen(v);
+          if (!v) setEditingCollection(null);
+        }}>
+          <DialogContent className="max-w-lg p-0 overflow-hidden">
+            <div className="flex items-center justify-between px-5 pt-4">
+              <DialogHeader className="p-0">
+                <DialogTitle>{collectionEditorMode === 'create' ? "Yangi ro'yxat" : 'Tahrirlash'}</DialogTitle>
+              </DialogHeader>
+              <div className="flex items-center gap-2">
+                {collectionEditorMode === 'edit' && (
+                  <Button variant="ghost" size="icon" onClick={handleDeleteCollection} disabled={!editingCollection || isSavingCollection}>
+                    <Trash2 className="h-4 w-4" />
+                  </Button>
+                )}
+                <Button onClick={saveCollectionEditor} disabled={!editingCollection || isSavingCollection || !editingName.trim()}>
+                  {collectionEditorMode === 'create' ? 'Tayyor' : 'Saqlash'}
+                </Button>
+              </div>
+            </div>
+
+            <div className="px-5 pb-5 pt-3 space-y-3">
+              <Input value={editingName} onChange={(e) => setEditingName(e.target.value)} placeholder="Nomi" />
+
+              <div className="flex items-center gap-2">
+                {collectionThemes.map((th, idx) => {
+                  const isActive = editingTheme === idx;
+                  return (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() => setEditingTheme(idx)}
+                      className={cn(
+                        'h-7 w-7 rounded-full bg-gradient-to-br ring-2 transition-all',
+                        th.bg,
+                        isActive ? cn('scale-105', th.ring) : 'ring-white/10 hover:scale-105'
+                      )}
+                      aria-label={`Theme ${idx + 1}`}
+                    />
+                  );
+                })}
+              </div>
+
+              <div className="flex gap-1 bg-muted/50 rounded-xl p-1">
+                <button
+                  type="button"
+                  onClick={() => setCollectionTab('selected')}
+                  className={cn(
+                    'flex-1 py-2 rounded-lg text-sm font-semibold transition-colors',
+                    collectionTab === 'selected' ? 'bg-background shadow-sm' : 'text-muted-foreground'
+                  )}
+                >
+                  Tanlangan ({selectedPostIds.size})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setCollectionTab('all')}
+                  className={cn(
+                    'flex-1 py-2 rounded-lg text-sm font-semibold transition-colors',
+                    collectionTab === 'all' ? 'bg-background shadow-sm' : 'text-muted-foreground'
+                  )}
+                >
+                  Postlar
+                </button>
+              </div>
+
+              <ScrollArea className="h-[52vh] pr-2">
+                <div className="grid grid-cols-3 gap-2">
+                  {(collectionTab === 'selected'
+                    ? posts.filter(p => selectedPostIds.has(p.id))
+                    : posts
+                  ).map((p) => {
+                    const thumb = (p.media_urls && p.media_urls.length > 0 ? p.media_urls[0] : (p.image_url || '')) as string;
+                    const isSelected = selectedPostIds.has(p.id);
+                    return (
+                      <button
+                        key={p.id}
+                        type="button"
+                        onClick={() => togglePostInEditor(p.id)}
+                        className={cn(
+                          'relative aspect-[3/4] rounded-xl overflow-hidden bg-muted',
+                          'ring-1 ring-white/10',
+                          isSelected && 'ring-2 ring-primary'
+                        )}
+                      >
+                        {thumb ? (
+                          <img src={thumb} alt="" className="w-full h-full object-cover" />
+                        ) : (
+                          <div className="w-full h-full bg-muted" />
+                        )}
+                        <div className={cn(
+                          'absolute top-2 right-2 h-5 w-5 rounded-full border flex items-center justify-center',
+                          isSelected ? 'bg-primary border-primary' : 'bg-black/30 border-white/30'
+                        )}>
+                          {isSelected && <Check className="h-3.5 w-3.5 text-primary-foreground" />}
+                        </div>
+                      </button>
+                    );
+                  })}
+                </div>
+              </ScrollArea>
+            </div>
+          </DialogContent>
+        </Dialog>
+
         </div>
       </div>
     </AppLayout>);
-
 };
 
 export default Profile;

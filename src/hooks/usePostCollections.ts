@@ -7,6 +7,7 @@ export interface PostCollection {
   user_id: string;
   name: string;
   cover_url: string | null;
+  theme?: number | null;
   sort_order: number;
   created_at: string;
   posts_count?: number;
@@ -86,11 +87,11 @@ export const usePostCollections = (userId?: string) => {
     setCollectionPosts(ordered);
   }, []);
 
-  const createCollection = async (name: string) => {
+  const createCollection = async (name: string, theme?: number) => {
     if (!user) return null;
     const { data, error } = await supabase
       .from('post_collections')
-      .insert({ user_id: user.id, name, sort_order: collections.length })
+      .insert({ user_id: user.id, name, sort_order: collections.length, theme: Number.isFinite(theme as number) ? (theme as number) : (collections.length % 6) })
       .select()
       .single();
     if (error) { console.error(error); return null; }
@@ -98,7 +99,7 @@ export const usePostCollections = (userId?: string) => {
     return data;
   };
 
-  const updateCollection = async (id: string, updates: { name?: string; cover_url?: string | null }) => {
+  const updateCollection = async (id: string, updates: { name?: string; cover_url?: string | null; theme?: number | null }) => {
     const { error } = await supabase.from('post_collections').update(updates).eq('id', id);
     if (!error) await fetchCollections();
   };
