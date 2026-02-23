@@ -7,6 +7,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2, Mail, Lock, User, ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable/index";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { LangSwitcher } from "@/components/LangSwitcher";
 
@@ -35,26 +36,34 @@ const Signup = () => {
 
     setIsLoading(true);
     try {
-      const response = await supabase.functions.invoke('send-otp', {
-        body: { email }
+      // Direct signup without OTP (Resend temporarily disabled)
+      const { data, error } = await supabase.auth.signUp({
+        email,
+        password,
+        options: {
+          data: {
+            username,
+            name: username,
+            gender: gender || null,
+          },
+        },
       });
 
-      if (response.error) {
-        throw new Error(response.error.message);
-      }
-      if ((response.data as any)?.error) {
-        throw new Error((response.data as any).error);
-      }
+      if (error) throw error;
 
-      toast({ title: t("success"), description: "Kod emailingizga yuborildi" });
-      navigate('/verify-otp', {
-        state: {
-          email,
-          password,
+      if (data.user) {
+        // Create/update profile
+        await supabase.from('profiles').upsert({
+          id: data.user.id,
           username,
-          gender,
-        }
-      });
+          name: username,
+          email,
+          gender: gender || null,
+        });
+
+        toast({ title: t("success"), description: "Ro'yxatdan o'tdingiz!" });
+        navigate("/");
+      }
     } catch (error: any) {
       toast({ title: t("error"), description: error.message || t("signupError"), variant: "destructive" });
     } finally {
@@ -65,9 +74,8 @@ const Signup = () => {
   const handleGoogleSignup = async () => {
     setIsGoogleLoading(true);
     try {
-      const { error } = await supabase.auth.signInWithOAuth({
-        provider: "google",
-        options: { redirectTo: `${window.location.origin}/` },
+      const { error } = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: window.location.origin,
       });
       if (error) throw error;
     } catch (error: any) {

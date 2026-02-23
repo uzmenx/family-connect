@@ -4,6 +4,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { useConversations } from "@/hooks/useConversations";
 import { useGroupChats } from "@/hooks/useGroupChats";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useActiveStories } from "@/hooks/useActiveStories";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
@@ -19,6 +20,7 @@ import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { NotificationsTab } from "@/components/notifications/NotificationsTab";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
+import { getStoryRingGradient as getStoryRingGradientFn } from "@/components/stories/storyRings";
 
 // Group components
 import { NewChatMenu } from "@/components/groups/NewChatMenu";
@@ -52,6 +54,7 @@ const Messages = () => {
   const { conversations, isLoading: convLoading, totalUnread } = useConversations();
   const { groups, channels, isLoading: groupsLoading, createGroupChat, refetch: refetchGroups } = useGroupChats();
   const { unreadCount: notifUnreadCount } = useNotifications();
+  const { getStoryInfo } = useActiveStories();
 
   // Check if tab param is set to notifications
   const initialTab = searchParams.get("tab") === "notifications" ? "notifications" : "all";
@@ -506,10 +509,37 @@ const Messages = () => {
                         </div>
                   }
                       <div className="relative">
-                        <Avatar className="h-12 w-12">
-                          <AvatarImage src={conv.otherUser.avatar_url || undefined} />
-                          <AvatarFallback>{getInitials(conv.otherUser.name)}</AvatarFallback>
-                        </Avatar>
+                        {(() => {
+                          const storyInfo = getStoryInfo(conv.otherUser.id);
+                          if (storyInfo) {
+                            return (
+                              <div
+                                className="h-12 w-12 rounded-full p-[2px] flex items-center justify-center"
+                                style={{
+                                  background: storyInfo.has_unviewed
+                                    ? getStoryRingGradientFn(storyInfo.ring_id)
+                                    : undefined,
+                                }}
+                              >
+                                {!storyInfo.has_unviewed && (
+                                  <div className="absolute inset-0 rounded-full bg-muted-foreground/30 p-[2px]" />
+                                )}
+                                <div className="w-full h-full rounded-full bg-background p-[1.5px]">
+                                  <Avatar className="h-full w-full">
+                                    <AvatarImage src={conv.otherUser.avatar_url || undefined} />
+                                    <AvatarFallback>{getInitials(conv.otherUser.name)}</AvatarFallback>
+                                  </Avatar>
+                                </div>
+                              </div>
+                            );
+                          }
+                          return (
+                            <Avatar className="h-12 w-12">
+                              <AvatarImage src={conv.otherUser.avatar_url || undefined} />
+                              <AvatarFallback>{getInitials(conv.otherUser.name)}</AvatarFallback>
+                            </Avatar>
+                          );
+                        })()}
                         {conv.unreadCount > 0 &&
                     <span className="absolute -top-1 -right-1 h-5 w-5 bg-primary text-primary-foreground text-xs rounded-full flex items-center justify-center">
                             {conv.unreadCount > 9 ? "9+" : conv.unreadCount}
