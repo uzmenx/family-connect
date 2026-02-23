@@ -1536,14 +1536,14 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
         {/* Bottom tray */}
         <div
           className={cn(
-            'absolute left-0 right-0 z-40 transition-transform duration-250',
+            'absolute left-0 right-0 z-40 transition-transform duration-250 pointer-events-none',
             trayOpen ? 'translate-y-0' : 'translate-y-[calc(100%_-_5.25rem)]'
           )}
           style={{ bottom: 0 }}
           onTouchStart={handleTrayTouchStart}
           onTouchEnd={handleTrayTouchEnd}
         >
-          <div className="bg-black/70 backdrop-blur-xl border-t border-white/10 rounded-t-3xl overflow-hidden">
+          <div className="bg-black/70 backdrop-blur-xl border-t border-white/10 rounded-t-3xl overflow-hidden pointer-events-auto">
             <div className="flex items-center justify-center py-2">
               <div className="w-10 h-1 rounded-full bg-white/30" />
             </div>
