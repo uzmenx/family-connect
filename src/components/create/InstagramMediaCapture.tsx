@@ -977,27 +977,6 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
               </div>
               <span className="text-white/50 text-[10px] font-medium">{items.length}/{maxItems}</span>
             </div>
-
-            {/* Music button */}
-            <button
-              type="button"
-              onClick={() => setShowMusicList(true)}
-              className="absolute left-8 z-50 w-12 h-12 rounded-full glass-button flex items-center justify-center active:scale-90 transition-transform group"
-              aria-label="Music"
-              style={{ bottom: `calc(${trayPeekHeight} + max(0.75rem, env(safe-area-inset-bottom)))` }}
-            >
-              <Music2 className="w-6 h-6 text-white animate-pulse-slow group-hover:animate-bounce-slow transition-all duration-500" />
-            </button>
-
-            {/* Flip camera (bottom-right) */}
-            <button
-              onClick={() => setFacingMode(f => (f === 'environment' ? 'user' : 'environment'))}
-              className="absolute right-8 z-50 w-12 h-12 rounded-full glass-button flex items-center justify-center active:scale-90 transition-transform group"
-              aria-label="Switch camera"
-              style={{ bottom: `calc(${trayPeekHeight} + max(0.75rem, env(safe-area-inset-bottom)))` }}
-            >
-              <RefreshCw className="w-6 h-6 text-white animate-spin-very-slow group-hover:animate-spin transition-all duration-500" />
-            </button>
           </>
         )}
 
@@ -1621,6 +1600,30 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
             )}
           </div>
         </div>
+
+        {/* Music & Camera switch buttons — rendered AFTER tray so z-50 beats tray's z-40 */}
+        {showCaptureUi && (
+          <>
+            <button
+              type="button"
+              onClick={() => setShowMusicList(true)}
+              className="absolute left-8 z-50 w-12 h-12 rounded-full glass-button flex items-center justify-center active:scale-90 transition-transform group"
+              aria-label="Music"
+              style={{ bottom: `calc(${trayPeekHeight} + max(1.5rem, env(safe-area-inset-bottom)))` }}
+            >
+              <Music2 className="w-6 h-6 text-white animate-pulse-slow group-hover:animate-bounce-slow transition-all duration-500" />
+            </button>
+
+            <button
+              onClick={() => setFacingMode(f => (f === 'environment' ? 'user' : 'environment'))}
+              className="absolute right-8 z-50 w-12 h-12 rounded-full glass-button flex items-center justify-center active:scale-90 transition-transform group"
+              aria-label="Switch camera"
+              style={{ bottom: `calc(${trayPeekHeight} + max(1.5rem, env(safe-area-inset-bottom)))` }}
+            >
+              <RefreshCw className="w-6 h-6 text-white animate-spin-very-slow group-hover:animate-spin transition-all duration-500" />
+            </button>
+          </>
+        )}
       </div>
     </div>
   );
