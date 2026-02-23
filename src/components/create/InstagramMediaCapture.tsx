@@ -13,6 +13,8 @@ export interface CapturedMedia {
   thumbnail?: string;
 }
 
+type CaptureMode = 'photo' | 'video';
+
 type EditableItem = {
   media: CapturedMedia;
   filter: string;
@@ -203,6 +205,8 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
   const [recordingTime, setRecordingTime] = useState(0);
   const [dragStartY, setDragStartY] = useState<number | null>(null);
 
+  const [captureMode, setCaptureMode] = useState<CaptureMode>('photo');
+
   const [showTextInput, setShowTextInput] = useState(false);
   const [showEmojiPicker, setShowEmojiPicker] = useState(false);
   const [showMusicList, setShowMusicList] = useState(false);
@@ -212,6 +216,7 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
   const [musicDuration, setMusicDuration] = useState(0);
   const [musicTrimStart, setMusicTrimStart] = useState(0);
   const [musicTrimEnd, setMusicTrimEnd] = useState(0);
+  const [musicArmed, setMusicArmed] = useState(false);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [isMuted, setIsMuted] = useState(false);
@@ -240,15 +245,25 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
   const startCamera = useCallback(async () => {
     stopCamera();
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({
-        video: { facingMode, width: { ideal: 1920 }, height: { ideal: 1080 } },
-        audio: true,
-      });
+      let stream: MediaStream | null = null;
+      try {
+        stream = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode, width: { ideal: 1920 }, height: { ideal: 1080 } },
+          audio: true,
+        });
+      } catch (e1) {
+        try {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+        } catch (e2) {
+          stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: false });
+        }
+      }
+
       streamRef.current = stream;
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
-        setCameraReady(true);
       }
+      setCameraReady(true);
     } catch (err) {
       console.error('Camera error:', err);
       setCameraReady(false);
@@ -455,13 +470,24 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
 
   const handleCaptureStart = useCallback(() => {
     if (isRecording) return;
+    if (captureMode === 'video') {
+      startRecording();
+      return;
+    }
+
     setIsCapturing(true);
     captureTimerRef.current = window.setTimeout(() => startRecording(), 500);
-  }, [isRecording, startRecording]);
+  }, [captureMode, isRecording, startRecording]);
 
   const handleCaptureEnd = useCallback(() => {
     clearTimeout(captureTimerRef.current);
     if (isTakingPhotoRef.current) return;
+
+    if (captureMode === 'video') {
+      if (isRecording) stopRecording();
+      setIsCapturing(false);
+      return;
+    }
 
     // Avoid taking a photo on the synthetic second event fired right after stopping a recording.
     if (Date.now() - justStoppedRecordingAtRef.current < 450) {
@@ -478,7 +504,30 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
     takePhoto();
 
     setIsCapturing(false);
-  }, [isRecording, stopRecording, takePhoto]);
+  }, [captureMode, isRecording, stopRecording, takePhoto]);
+
+  const removeSelectedMusic = useCallback(() => {
+    clearTimeout(musicStopTimerRef.current);
+    if (musicAudioRef.current) {
+      try {
+        musicAudioRef.current.pause();
+      } catch {}
+    }
+    setIsMusicPlaying(false);
+    setSelectedMusic(null);
+    setMusicDuration(0);
+    setMusicTrimStart(0);
+    setMusicTrimEnd(0);
+    setMusicArmed(false);
+    setCaptureMode('photo');
+  }, []);
+
+  const armSelectedMusic = useCallback(() => {
+    if (!selectedMusic) return;
+    setMusicArmed(true);
+    setCaptureMode('video');
+    setShowMusicList(false);
+  }, [selectedMusic]);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (isRecording) setDragStartY(e.touches[0].clientY);
@@ -865,6 +914,33 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
         )}
       </div>
 
+      {/* Armed music (top bar) */}
+      {showCaptureUi && musicArmed && selectedMusic && (
+        <div className="absolute left-3 right-3 z-30" style={{ top: 'max(3.25rem, calc(env(safe-area-inset-top) + 2.25rem))' }}>
+          <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-2xl bg-black/60 backdrop-blur-xl border border-white/15">
+            <div className="flex items-center gap-2 min-w-0">
+              <Disc className="w-4 h-4 text-primary flex-shrink-0" />
+              <div className="min-w-0">
+                <div className="text-white text-xs font-semibold truncate">{selectedMusic.name}</div>
+                {musicDuration > 0 && (
+                  <div className="text-white/60 text-[10px] font-medium tabular-nums">
+                    {fmtTime(musicTrimStart)} - {fmtTime(musicTrimEnd)}
+                  </div>
+                )}
+              </div>
+            </div>
+            <button
+              type="button"
+              onClick={removeSelectedMusic}
+              className="w-9 h-9 rounded-full glass-button flex items-center justify-center active:scale-90 transition-transform flex-shrink-0"
+              aria-label="Remove music"
+            >
+              <X className="w-4 h-4 text-white" />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Stage: Capture - camera always as base */}
       <div className="relative flex-1 min-h-0">
         <video
@@ -882,7 +958,7 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
           <>
             {/* Zoom pills (center, above shutter) */}
             <div
-              className="absolute left-1/2 -translate-x-1/2 z-20 flex flex-col items-center gap-1"
+              className="absolute left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-1"
               style={{ bottom: `calc(${trayPeekHeight} + max(2.25rem, env(safe-area-inset-bottom)) + 4.5rem)` }}
             >
               <div className="flex gap-0.5 p-0.5 rounded-full bg-white/10 backdrop-blur-sm">
@@ -906,7 +982,7 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
             <button
               type="button"
               onClick={() => setShowMusicList(true)}
-              className="absolute left-8 z-20 w-12 h-12 rounded-full glass-button flex items-center justify-center active:scale-90 transition-transform group"
+              className="absolute left-8 z-50 w-12 h-12 rounded-full glass-button flex items-center justify-center active:scale-90 transition-transform group"
               aria-label="Music"
               style={{ bottom: `calc(${trayPeekHeight} + max(0.75rem, env(safe-area-inset-bottom)))` }}
             >
@@ -916,7 +992,7 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
             {/* Flip camera (bottom-right) */}
             <button
               onClick={() => setFacingMode(f => (f === 'environment' ? 'user' : 'environment'))}
-              className="absolute right-8 z-20 w-12 h-12 rounded-full glass-button flex items-center justify-center active:scale-90 transition-transform group"
+              className="absolute right-8 z-50 w-12 h-12 rounded-full glass-button flex items-center justify-center active:scale-90 transition-transform group"
               aria-label="Switch camera"
               style={{ bottom: `calc(${trayPeekHeight} + max(0.75rem, env(safe-area-inset-bottom)))` }}
             >
@@ -928,7 +1004,7 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
         {/* Capture button */}
         {showCaptureUi && (
           <div
-            className="absolute left-0 right-0 z-20 flex items-center justify-center"
+            className="absolute left-0 right-0 z-50 flex items-center justify-center"
             style={{ bottom: `calc(${trayPeekHeight} + max(0.75rem, env(safe-area-inset-bottom)))` }}
           >
             <button
@@ -1328,16 +1404,28 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
                           <p className="text-white/60 text-xs">Tanlangan musiqa</p>
                         </div>
                       </div>
-                      <button
-                        onClick={toggleMusicPlayback}
-                        className="w-10 h-10 rounded-full glass-button flex items-center justify-center active:scale-90 transition-transform"
-                      >
-                        {isMusicPlaying ? (
-                          <Pause className="w-4 h-4 text-white" />
-                        ) : (
-                          <Play className="w-4 h-4 text-white" />
-                        )}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          onClick={toggleMusicPlayback}
+                          className="w-10 h-10 rounded-full glass-button flex items-center justify-center active:scale-90 transition-transform"
+                        >
+                          {isMusicPlaying ? (
+                            <Pause className="w-4 h-4 text-white" />
+                          ) : (
+                            <Play className="w-4 h-4 text-white" />
+                          )}
+                        </button>
+                        <button
+                          onClick={armSelectedMusic}
+                          className={cn(
+                            'w-10 h-10 rounded-full flex items-center justify-center active:scale-90 transition-transform border',
+                            musicArmed ? 'bg-primary text-primary-foreground border-primary/70' : 'bg-white/10 text-white border-white/20'
+                          )}
+                          aria-label="Add music"
+                        >
+                          <ImagePlus className="w-4 h-4" />
+                        </button>
+                      </div>
                     </div>
 
                     {/* Trim controls */}
@@ -1403,7 +1491,7 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
                     { id: 5, title: 'Mountain High', artist: 'Alpine Sound', duration: '4:03', cover: '🏔️' },
                     { id: 6, title: 'Desert Wind', artist: 'Sahara Vibes', duration: '3:36', cover: '🏜️' },
                   ].map((track) => (
-                    <button
+                    <div
                       key={track.id}
                       className="w-full flex items-center gap-3 p-3 hover:bg-white/5 transition-colors border-b border-white/5"
                     >
@@ -1421,11 +1509,23 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
                       {/* Duration & Play */}
                       <div className="flex items-center gap-2">
                         <span className="text-white/40 text-xs">{track.duration}</span>
-                        <div className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center">
+                        <button
+                          type="button"
+                          className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center"
+                          onClick={() => {}}
+                        >
                           <Play className="w-4 h-4 text-primary" />
-                        </div>
+                        </button>
+                        <button
+                          type="button"
+                          className="w-8 h-8 rounded-full bg-white/10 border border-white/15 flex items-center justify-center"
+                          onClick={() => {}}
+                          aria-label="Add"
+                        >
+                          <ImagePlus className="w-4 h-4 text-white" />
+                        </button>
                       </div>
-                    </button>
+                    </div>
                   ))}
                 </div>
               </div>
