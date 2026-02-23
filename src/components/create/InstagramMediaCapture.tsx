@@ -780,6 +780,9 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
       setMusicTrimStart(0);
       setMusicTrimEnd(Math.min(15, d || 0));
     };
+    setMusicArmed(true);
+    setCaptureMode('video');
+    setShowMusicList(false);
   }, []);
 
   const toggleMusicPlayback = useCallback(() => {
@@ -1042,6 +1045,11 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
               className="absolute left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-1"
               style={{ bottom: `calc(${trayPeekHeight} + max(2.25rem, env(safe-area-inset-bottom)) + 4.5rem)` }}
             >
+              {captureMode === 'video' && (
+                <div className="px-2.5 py-1 rounded-full bg-white/10 border border-white/15">
+                  <span className="text-white/85 text-[10px] font-bold tracking-wide">VIDEO</span>
+                </div>
+              )}
               <div className="flex gap-0.5 p-0.5 rounded-full bg-white/10 backdrop-blur-sm">
                 {[1, 2, 5].map((zl) => (
                   <button
