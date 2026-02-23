@@ -111,17 +111,17 @@ const Home = () => {
               variant="ghost"
               size="icon"
               onClick={() => setNotificationsOpen(true)}
-              className="relative h-9 w-9 rounded-xl"
-            >
+              className="relative h-9 w-9 rounded-xl">
+
               <Bell className="h-5 w-5" />
-              {unreadCount > 0 && (
-                <Badge
-                  variant="destructive"
-                  className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-[10px]"
-                >
+              {unreadCount > 0 &&
+              <Badge
+                variant="destructive"
+                className="absolute -top-1 -right-1 h-4 w-4 p-0 flex items-center justify-center text-[10px]">
+
                   {unreadCount > 9 ? '9+' : unreadCount}
                 </Badge>
-              )}
+              }
             </Button>
             <Button variant="ghost" size="icon" onClick={toggleGridLayout} className="h-9 w-9 rounded-xl">
               {gridLayout === 1 ? <LayoutList className="h-5 w-5" /> : <Grid2X2 className="h-5 w-5" />}
@@ -157,7 +157,7 @@ const Home = () => {
               {!hasMore && posts.length > 0 && <EndOfFeed />}
             </div> :
 
-          <div ref={scrollContainerRef} className="smooth-scroll-container pb-20 px-3">
+          <div ref={scrollContainerRef} className="smooth-scroll-container pb-20 px-px">
               <div className="flex gap-1 p-1">
                 <div className="flex-1 flex flex-col gap-1">
                   {posts.filter((_, i) => i % 2 === 0).map((post) => {
@@ -211,8 +211,8 @@ const Home = () => {
         <NotificationsSheet open={notificationsOpen} onOpenChange={setNotificationsOpen} />
         <SearchSheet open={searchOpen} onOpenChange={setSearchOpen} />
       </div>
-    </AppLayout>
-  );
+    </AppLayout>);
+
 };
 
 const MasonryItem = ({ post }: {post: Post;}) => {
