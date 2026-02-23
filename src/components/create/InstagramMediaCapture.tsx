@@ -183,6 +183,7 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const stickerInputRef = useRef<HTMLInputElement>(null);
+  const musicInputRef = useRef<HTMLInputElement>(null);
   const recordTimerRef = useRef<number>();
   const captureTimerRef = useRef<number>();
   const isTakingPhotoRef = useRef(false);
@@ -528,6 +529,14 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
     setCaptureMode('video');
     setShowMusicList(false);
   }, [selectedMusic]);
+
+  useEffect(() => {
+    if (!showMusicList) return;
+    const t = window.setTimeout(() => {
+      musicInputRef.current?.click();
+    }, 0);
+    return () => window.clearTimeout(t);
+  }, [showMusicList]);
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
     if (isRecording) setDragStartY(e.touches[0].clientY);
@@ -893,6 +902,17 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
     <div className="fixed inset-0 z-[60] bg-black flex flex-col overflow-hidden">
       <input ref={fileInputRef} type="file" accept="image/*,video/*" multiple onChange={handleFileSelect} className="hidden" />
       <input ref={stickerInputRef} type="file" accept="image/*" onChange={handleStickerFileSelect} className="hidden" />
+      <input
+        ref={musicInputRef}
+        type="file"
+        accept="audio/*"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) handleMusicSelect(file);
+          e.target.value = '';
+        }}
+        className="hidden"
+      />
 
       {/* Header */}
       <div className="absolute top-0 left-0 right-0 z-30 flex items-center justify-between px-3 pt-[max(0.75rem,env(safe-area-inset-top))]">
@@ -1458,55 +1478,6 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
                     )}
                   </div>
                 )}
-
-                {/* Demo Tracks */}
-                <div className="p-4">
-                  <h3 className="text-white/70 text-xs font-semibold mb-3">Tavsiya etilgan</h3>
-                  {[
-                    { id: 1, title: 'Summer Vibes', artist: 'DJ Sunset', duration: '3:24', cover: '🌅' },
-                    { id: 2, title: 'Night Drive', artist: 'Luna Wave', duration: '4:15', cover: '🌙' },
-                    { id: 3, title: 'Ocean Breeze', artist: 'Coastal Beats', duration: '2:58', cover: '🌊' },
-                    { id: 4, title: 'City Lights', artist: 'Urban Flow', duration: '3:42', cover: '🌃' },
-                    { id: 5, title: 'Mountain High', artist: 'Alpine Sound', duration: '4:03', cover: '🏔️' },
-                    { id: 6, title: 'Desert Wind', artist: 'Sahara Vibes', duration: '3:36', cover: '🏜️' },
-                  ].map((track) => (
-                    <div
-                      key={track.id}
-                      className="w-full flex items-center gap-3 p-3 hover:bg-white/5 transition-colors border-b border-white/5"
-                    >
-                      {/* Cover */}
-                      <div className="w-12 h-12 rounded-lg bg-gradient-to-br from-primary/20 to-purple-500/20 flex items-center justify-center text-2xl">
-                        {track.cover}
-                      </div>
-                      
-                      {/* Info */}
-                      <div className="flex-1 text-left">
-                        <h3 className="text-white font-medium text-sm">{track.title}</h3>
-                        <p className="text-white/60 text-xs">{track.artist}</p>
-                      </div>
-                      
-                      {/* Duration & Play */}
-                      <div className="flex items-center gap-2">
-                        <span className="text-white/40 text-xs">{track.duration}</span>
-                        <button
-                          type="button"
-                          className="w-8 h-8 rounded-full bg-primary/20 flex items-center justify-center"
-                          onClick={() => {}}
-                        >
-                          <Play className="w-4 h-4 text-primary" />
-                        </button>
-                        <button
-                          type="button"
-                          className="w-8 h-8 rounded-full bg-white/10 border border-white/15 flex items-center justify-center"
-                          onClick={() => {}}
-                          aria-label="Add"
-                        >
-                          <ImagePlus className="w-4 h-4 text-white" />
-                        </button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
               </div>
             </div>
           </div>
