@@ -1,9 +1,10 @@
-import { useState, useRef } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle } from '@/components/ui/drawer';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Heart, Send, Trash2 } from 'lucide-react';
+
 import { formatDistanceToNow } from 'date-fns';
 import { useComments, Comment } from '@/hooks/useComments';
 import { useAuth } from '@/contexts/AuthContext';
@@ -23,6 +24,21 @@ export const CommentsSheet = ({ open, onOpenChange, postId }: CommentsSheetProps
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isInputFocused, setIsInputFocused] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    window.dispatchEvent(new CustomEvent('app:forceHideNav', { detail: { hide: open } }));
+    return () => {
+      window.dispatchEvent(new CustomEvent('app:forceHideNav', { detail: { hide: false } }));
+    };
+  }, [open]);
+
+  // If the sheet opens before auth session is ready (common after refresh),
+  // refetch once the user becomes available so comments don't appear empty.
+  useEffect(() => {
+    if (!open) return;
+    if (!user?.id) return;
+    fetchComments();
+  }, [open, user?.id, fetchComments]);
 
   // ALWAYS fetch fresh comments when sheet opens
   const handleOpenChange = (isOpen: boolean) => {

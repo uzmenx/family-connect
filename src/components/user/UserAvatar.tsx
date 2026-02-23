@@ -47,7 +47,7 @@ export const UserAvatar = ({
   const handleClick = (e: React.MouseEvent) => {
     if (!clickable) return;
     e.stopPropagation();
-    if (hasStory && showUnviewed && onStoryClick) {
+    if (hasStory && onStoryClick) {
       onStoryClick();
     } else {
       navigate(`/user/${userId}`);

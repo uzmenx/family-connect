@@ -21,6 +21,8 @@ import { cn } from "@/lib/utils";
 import { NotificationsTab } from "@/components/notifications/NotificationsTab";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { getStoryRingGradient as getStoryRingGradientFn } from "@/components/stories/storyRings";
+import { StoryViewer } from "@/components/stories/StoryViewer";
+import type { StoryGroup, Story } from "@/hooks/useStories";
 
 // Group components
 import { NewChatMenu } from "@/components/groups/NewChatMenu";
@@ -56,6 +58,9 @@ const Messages = () => {
   const { unreadCount: notifUnreadCount } = useNotifications();
   const { getStoryInfo } = useActiveStories();
 
+  const [storyViewerOpen, setStoryViewerOpen] = useState(false);
+  const [storyViewerGroups, setStoryViewerGroups] = useState<StoryGroup[]>([]);
+
   // Check if tab param is set to notifications
   const initialTab = searchParams.get("tab") === "notifications" ? "notifications" : "all";
   const [activeTab, setActiveTab] = useState<TabValue>(initialTab);
@@ -85,10 +90,7 @@ const Messages = () => {
       if (followersData) {
         const followerIds = followersData.map((f) => f.follower_id);
         if (followerIds.length > 0) {
-          const { data: profiles } = await supabase.
-          from("profiles").
-          select("id, name, username, avatar_url").
-          in("id", followerIds);
+          const { data: profiles } = await supabase.from("profiles").select("id, name, username, avatar_url").in("id", followerIds);
           setFollowers(profiles || []);
         }
       }
@@ -99,10 +101,7 @@ const Messages = () => {
       if (followingData) {
         const followingIds = followingData.map((f) => f.following_id);
         if (followingIds.length > 0) {
-          const { data: profiles } = await supabase.
-          from("profiles").
-          select("id, name, username, avatar_url").
-          in("id", followingIds);
+          const { data: profiles } = await supabase.from("profiles").select("id, name, username, avatar_url").in("id", followingIds);
           setFollowing(profiles || []);
         }
       }
@@ -113,12 +112,7 @@ const Messages = () => {
 
   const getInitials = (name: string | null | undefined) => {
     if (!name) return "U";
-    return name.
-    split(" ").
-    map((n) => n[0]).
-    join("").
-    toUpperCase().
-    slice(0, 2);
+    return name.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2);
   };
 
   const formatTime = (dateStr: string) => {
@@ -127,6 +121,65 @@ const Messages = () => {
 
   const handleUserClick = (userId: string) => {
     navigate(`/chat/${userId}`);
+  };
+
+  const fetchStoryGroupForUser = async (targetUserId: string): Promise<StoryGroup | null> => {
+    try {
+      const { data: stories, error } = await supabase.from('stories').select('*').eq('user_id', targetUserId).gt('expires_at', new Date().toISOString()).order('created_at', { ascending: true });
+
+      if (error) throw error;
+      if (!stories || stories.length === 0) return null;
+
+      const { data: profiles } = await supabase.from('profiles').select('id, name, username, avatar_url').in('id', [targetUserId]);
+
+      const authorProfile = profiles?.find(p => p.id === targetUserId);
+      const viewerId = user?.id;
+
+      const [viewsRes, likesRes] = await Promise.all([
+        viewerId
+          ? supabase.from('story_views').select('story_id').eq('viewer_id', viewerId).in('story_id', stories.map(s => s.id))
+          : Promise.resolve({ data: [] as any[] }),
+        viewerId
+          ? supabase.from('story_likes').select('story_id').eq('user_id', viewerId).in('story_id', stories.map(s => s.id))
+          : Promise.resolve({ data: [] as any[] }),
+      ]);
+
+      const viewedStoryIds = new Set((viewsRes as any)?.data?.map((v: any) => v.story_id) || []);
+      const likedStoryIds = new Set((likesRes as any)?.data?.map((l: any) => l.story_id) || []);
+
+      const normalizedStories: Story[] = stories.map((s: any) => ({
+        ...s,
+        media_type: s.media_type as 'image' | 'video',
+        ring_id: s.ring_id || 'default',
+        author: authorProfile
+          ? {
+              id: authorProfile.id,
+              name: authorProfile.name,
+              username: authorProfile.username,
+              avatar_url: authorProfile.avatar_url,
+            }
+          : undefined,
+        has_viewed: viewerId ? viewedStoryIds.has(s.id) : false,
+        has_liked: viewerId ? likedStoryIds.has(s.id) : false,
+      }));
+
+      return {
+        user_id: targetUserId,
+        user: authorProfile || { id: targetUserId, name: null, username: null, avatar_url: null },
+        stories: normalizedStories,
+        has_unviewed: normalizedStories.some(s => !s.has_viewed),
+      };
+    } catch (err) {
+      console.error('Error fetching user stories:', err);
+      return null;
+    }
+  };
+
+  const openStoriesForUser = async (targetUserId: string) => {
+    const g = await fetchStoryGroupForUser(targetUserId);
+    if (!g) return;
+    setStoryViewerGroups([g]);
+    setStoryViewerOpen(true);
   };
 
   const handleGroupClick = (groupId: string) => {
@@ -454,7 +507,7 @@ const Messages = () => {
                           <h3 className="font-bold truncate text-foreground">{t('aiName')}</h3>
                           <Sparkles className="h-3.5 w-3.5 text-purple-400 flex-shrink-0" />
                         </div>
-                        <p className="text-sm text-muted-foreground truncate">🤖 {t('aiDesc')}</p>
+                        <p className="text-sm text-muted-foreground truncate"> {t('aiDesc')}</p>
                       </div>
                       <Badge className="bg-gradient-to-r from-violet-500 to-pink-500 text-white border-0 text-[10px] px-2">
                         AI
@@ -513,13 +566,19 @@ const Messages = () => {
                           const storyInfo = getStoryInfo(conv.otherUser.id);
                           if (storyInfo) {
                             return (
-                              <div
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  openStoriesForUser(conv.otherUser.id);
+                                }}
                                 className="h-12 w-12 rounded-full p-[2px] flex items-center justify-center"
                                 style={{
                                   background: storyInfo.has_unviewed
                                     ? getStoryRingGradientFn(storyInfo.ring_id)
                                     : undefined,
                                 }}
+                                aria-label="View story"
                               >
                                 {!storyInfo.has_unviewed && (
                                   <div className="absolute inset-0 rounded-full bg-muted-foreground/30 p-[2px]" />
@@ -530,21 +589,25 @@ const Messages = () => {
                                     <AvatarFallback>{getInitials(conv.otherUser.name)}</AvatarFallback>
                                   </Avatar>
                                 </div>
-                              </div>
+                              </button>
                             );
                           }
                           return (
-                            <Avatar className="h-12 w-12">
-                              <AvatarImage src={conv.otherUser.avatar_url || undefined} />
-                              <AvatarFallback>{getInitials(conv.otherUser.name)}</AvatarFallback>
-                            </Avatar>
+                            <button
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleUserClick(conv.otherUser.id);
+                              }}
+                              aria-label="Open chat"
+                            >
+                              <Avatar className="h-12 w-12">
+                                <AvatarImage src={conv.otherUser.avatar_url || undefined} />
+                                <AvatarFallback>{getInitials(conv.otherUser.name)}</AvatarFallback>
+                              </Avatar>
+                            </button>
                           );
                         })()}
-                        {conv.unreadCount > 0 &&
-                    <span className="absolute -top-1 -right-1 h-5 w-5 bg-primary text-primary-foreground text-xs rounded-full flex items-center justify-center">
-                            {conv.unreadCount > 9 ? "9+" : conv.unreadCount}
-                          </span>
-                    }
                       </div>
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between">
@@ -740,8 +803,15 @@ const Messages = () => {
         open={showRingtoneSelector}
         onOpenChange={setShowRingtoneSelector} />
 
-    </AppLayout>);
+      {storyViewerOpen && storyViewerGroups.length > 0 && (
+        <StoryViewer
+          storyGroups={storyViewerGroups}
+          initialGroupIndex={0}
+          onClose={() => setStoryViewerOpen(false)}
+        />
+      )}
 
+    </AppLayout>);
 };
 
 export default Messages;

@@ -27,6 +27,10 @@ import { useFamilyTree } from '@/hooks/useFamilyTree';
 import { SelectMemberDialog } from '@/components/family/SelectMemberDialog';
 import { AddRelativeDialog } from '@/components/family/AddRelativeDialog';
 import { useToast } from '@/hooks/use-toast';
+import { useActiveStories } from '@/hooks/useActiveStories';
+import { getStoryRingGradient } from '@/components/stories/storyRings';
+import { StoryViewer } from '@/components/stories/StoryViewer';
+import type { StoryGroup, Story } from '@/hooks/useStories';
 
 interface UserProfile {
   id: string;
@@ -43,6 +47,7 @@ const UserProfilePage = () => {
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
   const { toast } = useToast();
+  const { getStoryInfo } = useActiveStories();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const { posts, isLoading: postsLoading, postsCount, refetch } = useUserPosts(userId);
@@ -51,6 +56,8 @@ const UserProfilePage = () => {
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
   const [showPostsStats, setShowPostsStats] = useState(false);
+  const [storyViewerOpen, setStoryViewerOpen] = useState(false);
+  const [profileStoryGroups, setProfileStoryGroups] = useState<StoryGroup[]>([]);
   
   // Bio expand/collapse states
   const [bioExpanded, setBioExpanded] = useState(false);
@@ -122,6 +129,88 @@ const UserProfilePage = () => {
     setViewerOpen(true);
   };
 
+  const fetchStoryGroupForUser = useCallback(async (targetUserId: string): Promise<StoryGroup | null> => {
+    try {
+      const { data: stories, error } = await supabase
+        .from('stories')
+        .select('*')
+        .eq('user_id', targetUserId)
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      if (!stories || stories.length === 0) return null;
+
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, name, username, avatar_url')
+        .in('id', [targetUserId]);
+
+      const authorProfile = profiles?.find(p => p.id === targetUserId);
+
+      const viewerId = currentUser?.id;
+
+      const [viewsRes, likesRes] = await Promise.all([
+        viewerId
+          ? supabase
+              .from('story_views')
+              .select('story_id')
+              .eq('viewer_id', viewerId)
+              .in('story_id', stories.map(s => s.id))
+          : Promise.resolve({ data: [] as any[] }),
+        viewerId
+          ? supabase
+              .from('story_likes')
+              .select('story_id')
+              .eq('user_id', viewerId)
+              .in('story_id', stories.map(s => s.id))
+          : Promise.resolve({ data: [] as any[] }),
+      ]);
+
+      const viewedStoryIds = new Set((viewsRes as any)?.data?.map((v: any) => v.story_id) || []);
+      const likedStoryIds = new Set((likesRes as any)?.data?.map((l: any) => l.story_id) || []);
+
+      const normalizedStories: Story[] = stories.map((s: any) => ({
+        ...s,
+        media_type: s.media_type as 'image' | 'video',
+        ring_id: s.ring_id || 'default',
+        author: authorProfile
+          ? {
+              id: authorProfile.id,
+              name: authorProfile.name,
+              username: authorProfile.username,
+              avatar_url: authorProfile.avatar_url,
+            }
+          : undefined,
+        has_viewed: viewerId ? viewedStoryIds.has(s.id) : false,
+        has_liked: viewerId ? likedStoryIds.has(s.id) : false,
+      }));
+
+      const hasUnviewed = normalizedStories.some(s => !s.has_viewed);
+
+      return {
+        user_id: targetUserId,
+        user: authorProfile || { id: targetUserId, name: null, username: null, avatar_url: null },
+        stories: normalizedStories,
+        has_unviewed: hasUnviewed,
+      };
+    } catch (err) {
+      console.error('Error fetching profile stories:', err);
+      return null;
+    }
+  }, [currentUser?.id]);
+
+  const openProfileStories = useCallback(async () => {
+    if (!userId) return;
+    const g = await fetchStoryGroupForUser(userId);
+    if (!g) {
+      toast({ title: 'Hikoya topilmadi' });
+      return;
+    }
+    setProfileStoryGroups([g]);
+    setStoryViewerOpen(true);
+  }, [fetchStoryGroupForUser, toast, userId]);
+
   if (isLoading) {
     return (
       <AppLayout>
@@ -189,14 +278,40 @@ const UserProfilePage = () => {
               </span>
             </div>
 
-            {/* CENTER: Avatar */}
+            {/* CENTER: Avatar (with story ring when user has active story) */}
             <div className="flex-shrink-0 flex flex-col items-center">
-              <Avatar className="h-20 w-20 border-4 border-background shadow-2xl ring-2 ring-primary/30">
-                <AvatarImage src={profile.avatar_url || undefined} />
-                <AvatarFallback className="text-2xl bg-gradient-to-br from-primary to-accent text-white font-bold">
-                  {getInitials(profile.name)}
-                </AvatarFallback>
-              </Avatar>
+              {(() => {
+                const info = userId ? getStoryInfo(userId) : undefined;
+                if (info) {
+                  return (
+                    <div
+                      className="h-20 w-20 rounded-full p-[3px] cursor-pointer shadow-2xl"
+                      style={{
+                        background: info.has_unviewed ? getStoryRingGradient(info.ring_id as any) : 'var(--muted-foreground)',
+                      }}
+                      onClick={openProfileStories}
+                    >
+                      <div className="w-full h-full rounded-full bg-background p-[2px]">
+                        <Avatar className="h-full w-full">
+                          <AvatarImage src={profile.avatar_url || undefined} />
+                          <AvatarFallback className="text-2xl bg-gradient-to-br from-primary to-accent text-white font-bold">
+                            {getInitials(profile.name)}
+                          </AvatarFallback>
+                        </Avatar>
+                      </div>
+                    </div>
+                  );
+                }
+
+                return (
+                  <Avatar className="h-20 w-20 border-4 border-background shadow-2xl ring-2 ring-primary/30">
+                    <AvatarImage src={profile.avatar_url || undefined} />
+                    <AvatarFallback className="text-2xl bg-gradient-to-br from-primary to-accent text-white font-bold">
+                      {getInitials(profile.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                );
+              })()}
             </div>
 
             {/* RIGHT: Postlar */}
@@ -436,6 +551,15 @@ const UserProfilePage = () => {
             posts={posts}
             initialIndex={viewerInitialIndex}
             onClose={() => setViewerOpen(false)}
+          />
+        )}
+
+        {/* Story Viewer for this profile only */}
+        {storyViewerOpen && profileStoryGroups.length > 0 && (
+          <StoryViewer
+            storyGroups={profileStoryGroups}
+            initialGroupIndex={0}
+            onClose={() => setStoryViewerOpen(false)}
           />
         )}
 

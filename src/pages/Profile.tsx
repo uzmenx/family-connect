@@ -45,6 +45,7 @@ const Profile = () => {
   const { mentionedPosts, collabPosts, pendingCollabs, respondToCollab } = useMentionsCollabs();
   const { getStoryInfo } = useActiveStories();
   const { storyGroups } = useStories();
+  const [profileStoryGroups, setProfileStoryGroups] = useState<typeof storyGroups>([]);
   const [activeTab, setActiveTab] = useState<'posts' | 'saved' | 'mentions'>('posts');
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
@@ -179,7 +180,10 @@ const Profile = () => {
                       }}
                       onClick={() => {
                         const idx = storyGroups.findIndex(g => g.user_id === user?.id);
-                        if (idx >= 0) setStoryViewerOpen(true);
+                        if (idx >= 0) {
+                          setProfileStoryGroups([storyGroups[idx]]);
+                          setStoryViewerOpen(true);
+                        }
                       }}
                     >
                       <div className="w-full h-full rounded-full bg-background p-[2px]">
@@ -506,10 +510,10 @@ const Profile = () => {
             onRespond={respondToCollab} />
 
         {/* Story Viewer for own stories */}
-        {storyViewerOpen && storyGroups.length > 0 && (
+        {storyViewerOpen && profileStoryGroups.length > 0 && (
           <StoryViewer
-            storyGroups={storyGroups}
-            initialGroupIndex={storyGroups.findIndex(g => g.user_id === user?.id)}
+            storyGroups={profileStoryGroups}
+            initialGroupIndex={0}
             onClose={() => setStoryViewerOpen(false)}
           />
         )}

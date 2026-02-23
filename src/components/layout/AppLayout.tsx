@@ -1,4 +1,4 @@
-import { ReactNode, useEffect } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { BottomNav } from './BottomNav';
 import { useTheme } from '@/contexts/ThemeContext';
 import { enableSmoothScrolling } from '@/utils/scrollBehavior';
@@ -19,11 +19,23 @@ const bgClassMap: Record<string, string> = {
 export const AppLayout = ({ children, showNav = true }: AppLayoutProps) => {
   const { bgTheme } = useTheme();
   const bgClass = bgClassMap[bgTheme] || '';
+  const [forceHideNav, setForceHideNav] = useState(false);
 
   // Enable smooth scrolling globally
   useEffect(() => {
     enableSmoothScrolling();
   }, []);
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const ce = e as CustomEvent<{ hide?: boolean } | undefined>;
+      setForceHideNav(!!ce.detail?.hide);
+    };
+    window.addEventListener('app:forceHideNav', handler);
+    return () => window.removeEventListener('app:forceHideNav', handler);
+  }, []);
+
+  const effectiveShowNav = showNav && !forceHideNav;
 
   return (
     <div className={cn('min-h-screen', bgClass || 'bg-background')}>
@@ -33,10 +45,10 @@ export const AppLayout = ({ children, showNav = true }: AppLayoutProps) => {
           bgClass || 'bg-background'
         )}
       />
-      <main className={showNav ? "pb-20" : ""}>
+      <main className={effectiveShowNav ? "pb-20" : ""}>
         {children}
       </main>
-      {showNav && <BottomNav />}
+      {effectiveShowNav && <BottomNav />}
     </div>
   );
 };

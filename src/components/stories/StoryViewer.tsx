@@ -61,6 +61,8 @@ export const StoryViewer = ({
   const [viewers, setViewers] = useState<any[]>([]);
   const [likers, setLikers] = useState<any[]>([]);
   const [isLiked, setIsLiked] = useState(false);
+  const [likeAnimKey, setLikeAnimKey] = useState(0);
+  const [showLikeAnim, setShowLikeAnim] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   
@@ -75,13 +77,56 @@ export const StoryViewer = ({
   const isOwnStory = currentStory?.user_id === user?.id;
   const storyDuration = currentStory?.media_type === 'video' ? 15000 : 5000;
 
+  const getLocalLikeKey = useCallback((storyId: string) => {
+    const viewerId = user?.id || 'anon';
+    return `story_like_v1:${viewerId}:${storyId}`;
+  }, [user?.id]);
+
+  const readLocalLike = useCallback((storyId: string) => {
+    try {
+      const raw = localStorage.getItem(getLocalLikeKey(storyId));
+      if (!raw) return null;
+      const parsed = JSON.parse(raw) as { liked?: boolean; expiresAt?: number };
+      if (!parsed || typeof parsed.expiresAt !== 'number') return null;
+      if (Date.now() > parsed.expiresAt) {
+        localStorage.removeItem(getLocalLikeKey(storyId));
+        return null;
+      }
+      return parsed;
+    } catch {
+      return null;
+    }
+  }, [getLocalLikeKey]);
+
+  const writeLocalLike = useCallback((storyId: string, liked: boolean) => {
+    try {
+      const ttlMs = 36 * 60 * 60 * 1000;
+      localStorage.setItem(
+        getLocalLikeKey(storyId),
+        JSON.stringify({ liked, expiresAt: Date.now() + ttlMs })
+      );
+    } catch {}
+  }, [getLocalLikeKey]);
+
+  const removeLocalLike = useCallback((storyId: string) => {
+    try {
+      localStorage.removeItem(getLocalLikeKey(storyId));
+    } catch {}
+  }, [getLocalLikeKey]);
+
   // Record view when story changes
   useEffect(() => {
     if (currentStory && !isOwnStory) {
       recordView(currentStory.id);
     }
-    setIsLiked(currentStory?.has_liked || false);
-  }, [currentStory, isOwnStory, recordView]);
+    if (currentStory) {
+      const local = readLocalLike(currentStory.id);
+      if (local && typeof local.liked === 'boolean') setIsLiked(local.liked);
+      else setIsLiked(currentStory.has_liked || false);
+    } else {
+      setIsLiked(false);
+    }
+  }, [currentStory, isOwnStory, readLocalLike, recordView]);
 
   // Load viewers/likers for own story
   useEffect(() => {
@@ -185,11 +230,30 @@ export const StoryViewer = ({
     }
   };
 
-  const handleLike = async () => {
+  const handleLike = useCallback(async () => {
     if (!currentStory) return;
-    await toggleLike(currentStory.id, isLiked);
-    setIsLiked(!isLiked);
-  };
+
+    const next = !isLiked;
+    setIsLiked(next);
+
+    if (next) {
+      writeLocalLike(currentStory.id, true);
+      setLikeAnimKey(k => k + 1);
+      setShowLikeAnim(true);
+      window.setTimeout(() => setShowLikeAnim(false), 650);
+    } else {
+      removeLocalLike(currentStory.id);
+    }
+
+    try {
+      await toggleLike(currentStory.id, isLiked);
+    } catch {
+      setIsLiked(!next);
+      if (!next) writeLocalLike(currentStory.id, true);
+      else removeLocalLike(currentStory.id);
+      toast.error('Xatolik yuz berdi');
+    }
+  }, [currentStory, isLiked, removeLocalLike, toggleLike, writeLocalLike]);
 
   const timeAgo = currentStory
     ? formatDistanceToNow(new Date(currentStory.created_at), { addSuffix: true })
@@ -235,6 +299,17 @@ export const StoryViewer = ({
         className="relative flex-1 w-full min-h-0 flex items-center justify-center touch-none"
         onClick={handleTap}
       >
+        {showLikeAnim && (
+          <div key={likeAnimKey} className="absolute inset-0 z-20 flex items-center justify-center pointer-events-none">
+            <div className="relative">
+              <div className="absolute inset-0 rounded-full bg-red-500/20 blur-xl animate-ping" />
+              <div className="relative w-24 h-24 flex items-center justify-center">
+                <Heart className="w-20 h-20 text-red-500 fill-red-500 drop-shadow-[0_8px_18px_rgba(239,68,68,0.35)] animate-[likePop_650ms_ease-out]" />
+              </div>
+            </div>
+          </div>
+        )}
+
         {currentStory.media_type === 'video' ? (
           <video
             ref={videoRef}
@@ -425,20 +500,25 @@ export const StoryViewer = ({
                 variant="ghost"
                 size="icon"
                 className={cn(
-                  "text-white hover:bg-white/20",
-                  isLiked && "text-red-500"
+                  'text-white hover:bg-white/20 active:scale-95 transition-transform',
+                  'h-12 w-12 rounded-full bg-white/10 border border-white/15 backdrop-blur-md',
+                  isLiked && 'text-red-500 bg-white/15 border-white/25'
                 )}
                 onClick={(e) => {
                   e.stopPropagation();
                   handleLike();
                 }}
               >
-                <Heart className={cn("h-6 w-6", isLiked && "fill-current")} />
+                <Heart className={cn('h-7 w-7', isLiked && 'fill-current')} />
               </Button>
               <Button
                 variant="ghost"
                 size="icon"
-                className="text-white hover:bg-white/20"
+                className={cn(
+                  'text-white hover:bg-white/20 active:scale-95 transition-transform',
+                  'h-12 w-12 rounded-full bg-gradient-to-br from-white/18 to-white/8 border border-white/15 backdrop-blur-md',
+                  'disabled:opacity-40 disabled:active:scale-100'
+                )}
                 disabled={!reply.trim()}
                 onClick={async (e) => {
                   e.stopPropagation();
@@ -571,3 +651,11 @@ export const StoryViewer = ({
   if (typeof document === 'undefined') return null;
   return createPortal(content, document.body);
 };
+
+const styleId = 'story-like-pop-style';
+if (typeof document !== 'undefined' && !document.getElementById(styleId)) {
+  const s = document.createElement('style');
+  s.id = styleId;
+  s.innerHTML = `@keyframes likePop{0%{transform:scale(.65);opacity:0}35%{transform:scale(1.12);opacity:1}100%{transform:scale(1);opacity:.95}}`;
+  document.head.appendChild(s);
+}
