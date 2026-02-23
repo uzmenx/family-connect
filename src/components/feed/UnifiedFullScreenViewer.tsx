@@ -13,6 +13,11 @@ import { UserInfo } from '@/components/user/UserInfo';
 import { FollowButton } from '@/components/user/FollowButton';
 import { SamsungUltraVideoPlayer } from '@/components/video/SamsungUltraVideoPlayer';
 import type { Short } from '@/components/shorts/YouTubeShortsSection';
+import { useActiveStories } from '@/hooks/useActiveStories';
+import { useAuth } from '@/contexts/AuthContext';
+import { supabase } from '@/integrations/supabase/client';
+import { StoryViewer } from '@/components/stories/StoryViewer';
+import type { StoryGroup, Story } from '@/hooks/useStories';
 
 type TabType = 'shorts' | 'posts';
 
@@ -31,6 +36,8 @@ export const UnifiedFullScreenViewer = ({
   initialIndex,
   onClose
 }: UnifiedFullScreenViewerProps) => {
+  const { user } = useAuth();
+  const { getStoryInfo } = useActiveStories();
   const [activeTab, setActiveTab] = useState<TabType>(initialTab);
   const [postIndex, setPostIndex] = useState(initialTab === 'posts' ? initialIndex : 0);
   const [shortIndex, setShortIndex] = useState(initialTab === 'shorts' ? initialIndex : 0);
@@ -42,6 +49,10 @@ export const UnifiedFullScreenViewer = ({
   const [showVideoPlayer, setShowVideoPlayer] = useState(false);
   const [videoPlayerSrc, setVideoPlayerSrc] = useState('');
   const [shortsPlaying, setShortsPlaying] = useState(true);
+
+  const [storyViewerOpen, setStoryViewerOpen] = useState(false);
+  const [storyViewerGroups, setStoryViewerGroups] = useState<StoryGroup[]>([]);
+
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const shortsIframeRef = useRef<HTMLIFrameElement>(null);
@@ -70,8 +81,8 @@ export const UnifiedFullScreenViewer = ({
   );
 
   const bgStyle = activeTab === 'posts' && dominantColor ?
-  { background: `linear-gradient(135deg, ${dominantColor} 0%, ${secondaryColor} 50%, ${dominantColor} 100%)` } :
-  { background: '#000' };
+    { background: `linear-gradient(135deg, ${dominantColor} 0%, ${secondaryColor} 50%, ${dominantColor} 100%)` } :
+    { background: '#000' };
 
   const ytOrigin = typeof window !== 'undefined' ? window.location.origin : '';
 
@@ -139,7 +150,7 @@ export const UnifiedFullScreenViewer = ({
 
   useEffect(() => {
     document.body.style.overflow = 'hidden';
-    return () => {document.body.style.overflow = '';};
+    return () => { document.body.style.overflow = ''; };
   }, []);
 
   const itemCount = activeTab === 'posts' ? posts.length : shorts.length;
@@ -289,8 +300,8 @@ export const UnifiedFullScreenViewer = ({
               shortsPlaying ? "opacity-0" : "opacity-100"
             )}>
               {shortsPlaying ?
-              <Pause className="h-8 w-8 text-white" /> :
-              <Play className="h-8 w-8 text-white" />}
+                <Pause className="h-8 w-8 text-white" /> :
+                <Play className="h-8 w-8 text-white" />}
             </div>
           </button>
         </div>
@@ -318,10 +329,10 @@ export const UnifiedFullScreenViewer = ({
         {/* Position indicator */}
         <div className="absolute right-3 top-1/2 -translate-y-1/2 flex flex-col gap-1 z-[3]">
           {shorts.map((_, i) =>
-          <div key={i} className={cn("w-1 rounded-full transition-all duration-300 opacity-0",
+            <div key={i} className={cn("w-1 rounded-full transition-all duration-300 opacity-0",
 
-          i === shortIndex ? "h-4 bg-white/80" : "h-1.5 bg-white/20"
-          )} />
+              i === shortIndex ? "h-4 bg-white/80" : "h-1.5 bg-white/20"
+            )} />
           )}
         </div>
       </div>);
@@ -343,45 +354,45 @@ export const UnifiedFullScreenViewer = ({
           onClick={handleMediaClick}>
 
           {isVideo(currentMediaUrl) ?
-          <>
+            <>
               <video ref={videoRef} src={currentMediaUrl} className="max-w-full max-h-full object-contain" loop playsInline autoPlay />
-              <button onClick={(e) => {e.stopPropagation();setIsPlaying((p) => !p);}} className="absolute inset-0 flex items-center justify-center">
+              <button onClick={(e) => { e.stopPropagation(); setIsPlaying((p) => !p); }} className="absolute inset-0 flex items-center justify-center">
                 <div className={cn("p-4 rounded-full bg-black/30 backdrop-blur-sm transition-opacity", isPlaying ? "opacity-0" : "opacity-100")}>
                   {isPlaying ? <Pause className="h-8 w-8 text-white" /> : <Play className="h-8 w-8 text-white" />}
                 </div>
               </button>
             </> :
 
-          <img src={currentMediaUrl} alt="Post media" className="max-w-full max-h-full object-contain" />
+            <img src={currentMediaUrl} alt="Post media" className="max-w-full max-h-full object-contain" />
           }
 
           {showDoubleTapHeart &&
-          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
               <Heart className="h-24 w-24 text-white fill-white drop-shadow-lg animate-heartBurst" />
             </div>
           }
 
           {/* Multi-media dots */}
           {mediaUrls.length > 1 &&
-          <>
+            <>
               <div className="absolute bottom-20 left-1/2 -translate-x-1/2 flex gap-1.5">
                 {mediaUrls.map((_, i) =>
-              <button key={i} onClick={(e) => {e.stopPropagation();setCurrentMediaIndex(i);}}
-              className={cn("w-1.5 h-1.5 rounded-full transition-colors", currentMediaIndex === i ? "bg-white" : "bg-white/30")} />
-              )}
+                  <button key={i} onClick={(e) => { e.stopPropagation(); setCurrentMediaIndex(i); }}
+                    className={cn("w-1.5 h-1.5 rounded-full transition-colors", currentMediaIndex === i ? "bg-white" : "bg-white/30")} />
+                )}
               </div>
               {currentMediaIndex > 0 &&
-            <button onClick={(e) => {e.stopPropagation();setCurrentMediaIndex((p) => p - 1);}}
-            className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 bg-black/20 backdrop-blur-sm rounded-full">
+                <button onClick={(e) => { e.stopPropagation(); setCurrentMediaIndex((p) => p - 1); }}
+                  className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 bg-black/20 backdrop-blur-sm rounded-full">
                   <ChevronLeft className="h-4 w-4 text-white" />
                 </button>
-            }
+              }
               {currentMediaIndex < mediaUrls.length - 1 &&
-            <button onClick={(e) => {e.stopPropagation();setCurrentMediaIndex((p) => p + 1);}}
-            className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-black/20 backdrop-blur-sm rounded-full">
+                <button onClick={(e) => { e.stopPropagation(); setCurrentMediaIndex((p) => p + 1); }}
+                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-black/20 backdrop-blur-sm rounded-full">
                   <ChevronRight className="h-4 w-4 text-white" />
                 </button>
-            }
+              }
             </>
           }
         </div>
@@ -406,7 +417,17 @@ export const UnifiedFullScreenViewer = ({
         {/* Author info */}
         <div className="absolute bottom-14 left-0 right-14 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 pt-14 z-[1]">
           <div className="flex items-center mb-2 gap-2">
-            <UserAvatar userId={currentPost.user_id} avatarUrl={currentPost.author?.avatar_url} name={currentPost.author?.full_name} size="lg" className="border-2 border-white/20 ring-0" />
+            <UserAvatar
+              userId={currentPost.user_id}
+              avatarUrl={currentPost.author?.avatar_url}
+              name={currentPost.author?.full_name}
+              size="lg"
+              className="border-2 border-white/20 ring-0"
+              hasStory={!!getStoryInfo(currentPost.user_id)}
+              storyRingId={getStoryInfo(currentPost.user_id)?.ring_id}
+              hasUnviewedStory={getStoryInfo(currentPost.user_id)?.has_unviewed}
+              onStoryClick={() => openStoriesForUser(currentPost.user_id)}
+            />
             <UserInfo userId={currentPost.user_id} name={currentPost.author?.full_name} username={currentPost.author?.username} variant="fullscreen" />
             <FollowButton targetUserId={currentPost.user_id} size="sm" />
           </div>
@@ -415,6 +436,81 @@ export const UnifiedFullScreenViewer = ({
       </>);
 
   };
+
+  const fetchStoryGroupForUser = useCallback(async (targetUserId: string): Promise<StoryGroup | null> => {
+    try {
+      const { data: stories, error } = await supabase
+        .from('stories')
+        .select('*')
+        .eq('user_id', targetUserId)
+        .gt('expires_at', new Date().toISOString())
+        .order('created_at', { ascending: true });
+
+      if (error) throw error;
+      if (!stories || stories.length === 0) return null;
+
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, name, username, avatar_url')
+        .in('id', [targetUserId]);
+
+      const authorProfile = profiles?.find(p => p.id === targetUserId);
+      const viewerId = user?.id;
+
+      const [viewsRes, likesRes] = await Promise.all([
+        viewerId
+          ? supabase
+            .from('story_views')
+            .select('story_id')
+            .eq('viewer_id', viewerId)
+            .in('story_id', stories.map(s => s.id))
+          : Promise.resolve({ data: [] as any[] }),
+        viewerId
+          ? supabase
+            .from('story_likes')
+            .select('story_id')
+            .eq('user_id', viewerId)
+            .in('story_id', stories.map(s => s.id))
+          : Promise.resolve({ data: [] as any[] }),
+      ]);
+
+      const viewedStoryIds = new Set((viewsRes as any)?.data?.map((v: any) => v.story_id) || []);
+      const likedStoryIds = new Set((likesRes as any)?.data?.map((l: any) => l.story_id) || []);
+
+      const normalizedStories: Story[] = stories.map((s: any) => ({
+        ...s,
+        media_type: s.media_type as 'image' | 'video',
+        ring_id: s.ring_id || 'default',
+        author: authorProfile
+          ? {
+            id: authorProfile.id,
+            name: authorProfile.name,
+            username: authorProfile.username,
+            avatar_url: authorProfile.avatar_url,
+          }
+          : undefined,
+        has_viewed: viewerId ? viewedStoryIds.has(s.id) : false,
+        has_liked: viewerId ? likedStoryIds.has(s.id) : false,
+      }));
+
+      return {
+        user_id: targetUserId,
+        user: authorProfile || { id: targetUserId, name: null, username: null, avatar_url: null },
+        stories: normalizedStories,
+        has_unviewed: normalizedStories.some(s => !s.has_viewed),
+      };
+    } catch (err) {
+      console.error('Error fetching user stories:', err);
+      return null;
+    }
+  }, [user?.id]);
+
+  const openStoriesForUser = useCallback(async (targetUserId: string) => {
+    const g = await fetchStoryGroupForUser(targetUserId);
+    if (!g) return;
+    setStoryViewerGroups([g]);
+    setStoryViewerOpen(true);
+  }, [fetchStoryGroupForUser]);
 
   return (
     <>
@@ -428,10 +524,10 @@ export const UnifiedFullScreenViewer = ({
         onMouseUp={handleMouseUp}>
 
         {activeTab === 'posts' && dominantColor &&
-        <div className="absolute inset-0 z-0" style={{
-          background: `radial-gradient(ellipse at center, transparent 0%, ${dominantColor} 70%)`,
-          backdropFilter: 'blur(20px)'
-        }} />
+          <div className="absolute inset-0 z-0" style={{
+            background: `radial-gradient(ellipse at center, transparent 0%, ${dominantColor} 70%)`,
+            backdropFilter: 'blur(20px)'
+          }} />
         }
 
         {/* Top bar with tabs */}
@@ -447,8 +543,8 @@ export const UnifiedFullScreenViewer = ({
               className={cn(
                 "px-3.5 py-1 rounded-full text-[11px] font-medium transition-all",
                 activeTab === 'shorts' ?
-                "bg-white/20 text-white shadow-sm" :
-                "text-white/50 hover:text-white/70"
+                  "bg-white/20 text-white shadow-sm" :
+                  "text-white/50 hover:text-white/70"
               )}>
 
               yt shorts
@@ -458,8 +554,8 @@ export const UnifiedFullScreenViewer = ({
               className={cn(
                 "px-3.5 py-1 rounded-full text-[11px] font-medium transition-all",
                 activeTab === 'posts' ?
-                "bg-white/20 text-white shadow-sm" :
-                "text-white/50 hover:text-white/70"
+                  "bg-white/20 text-white shadow-sm" :
+                  "text-white/50 hover:text-white/70"
               )}>
 
               postlar
@@ -482,6 +578,14 @@ export const UnifiedFullScreenViewer = ({
 
         </div>,
         document.body
+      )}
+
+      {storyViewerOpen && storyViewerGroups.length > 0 && (
+        <StoryViewer
+          storyGroups={storyViewerGroups}
+          initialGroupIndex={0}
+          onClose={() => setStoryViewerOpen(false)}
+        />
       )}
     </>);
 };
