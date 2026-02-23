@@ -159,6 +159,9 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
   const previewVideoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
+  const musicTrimBarRef = useRef<HTMLDivElement>(null);
+  const musicTrimDraggingRef = useRef<'start' | 'end' | null>(null);
+
   const isPinchingMediaRef = useRef(false);
   const mediaPinchRef = useRef<{
     dist: number;
@@ -412,17 +415,54 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
       const file = new File([blob], `video-${Date.now()}.webm`, { type: 'video/webm' });
       const url = URL.createObjectURL(blob);
 
-      const tempVideo = document.createElement('video');
-      tempVideo.src = url;
-      tempVideo.currentTime = 0.5;
-      tempVideo.onloadeddata = () => {
-        const c = document.createElement('canvas');
-        c.width = tempVideo.videoWidth;
-        c.height = tempVideo.videoHeight;
-        c.getContext('2d')?.drawImage(tempVideo, 0, 0);
-        const thumb = c.toDataURL('image/jpeg', 0.7);
-        addMediaItem({ id: crypto.randomUUID(), type: 'video', file, url, thumbnail: thumb });
-      };
+      (async () => {
+        try {
+          const tempVideo = document.createElement('video');
+          tempVideo.src = url;
+          tempVideo.muted = true;
+          (tempVideo as any).playsInline = true;
+
+          try {
+            tempVideo.preload = 'auto';
+            tempVideo.load();
+          } catch {}
+
+          await new Promise<void>((resolve, reject) => {
+            const onLoaded = () => resolve();
+            const onErr = () => reject(new Error('thumbnail: video load error'));
+            tempVideo.addEventListener('loadedmetadata', onLoaded, { once: true });
+            tempVideo.addEventListener('error', onErr, { once: true });
+          });
+
+          const seekTime = Math.min(0.2, Math.max(0, (Number.isFinite(tempVideo.duration) ? tempVideo.duration : 0) / 4));
+          try {
+            tempVideo.currentTime = seekTime;
+          } catch {}
+
+          await new Promise<void>((resolve) => {
+            const done = () => resolve();
+            const t = window.setTimeout(done, 600);
+            const onDone = () => {
+              window.clearTimeout(t);
+              done();
+            };
+
+            tempVideo.addEventListener('seeked', onDone, { once: true });
+            // If seek never fires (some browsers), resolve on next loadeddata/timeupdate.
+            tempVideo.addEventListener('loadeddata', onDone, { once: true });
+            tempVideo.addEventListener('timeupdate', onDone, { once: true });
+          });
+
+          const c = document.createElement('canvas');
+          c.width = tempVideo.videoWidth || 720;
+          c.height = tempVideo.videoHeight || 1280;
+          c.getContext('2d')?.drawImage(tempVideo, 0, 0);
+          const thumb = c.toDataURL('image/jpeg', 0.7);
+          addMediaItem({ id: crypto.randomUUID(), type: 'video', file, url, thumbnail: thumb });
+        } catch {
+          addMediaItem({ id: crypto.randomUUID(), type: 'video', file, url });
+        }
+      })();
     };
 
     recorder.start();
@@ -465,6 +505,8 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
     }
   }, [isRecording, isMusicPlaying]);
 
+  const lastVideoToggleTouchAtRef = useRef(0);
+
   useEffect(() => {
     stopRecordingRef.current = stopRecording;
   }, [stopRecording]);
@@ -479,6 +521,11 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
     setIsCapturing(true);
     captureTimerRef.current = window.setTimeout(() => startRecording(), 500);
   }, [captureMode, isRecording, startRecording]);
+
+  const handleVideoToggleCapture = useCallback(() => {
+    if (isRecording) stopRecording();
+    else startRecording();
+  }, [isRecording, startRecording, stopRecording]);
 
   const handleCaptureEnd = useCallback(() => {
     clearTimeout(captureTimerRef.current);
@@ -529,6 +576,37 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
     setCaptureMode('video');
     setShowMusicList(false);
   }, [selectedMusic]);
+
+  const setTrimFromClientX = useCallback((clientX: number, which: 'start' | 'end') => {
+    if (!musicTrimBarRef.current || !Number.isFinite(musicDuration) || musicDuration <= 0) return;
+    const rect = musicTrimBarRef.current.getBoundingClientRect();
+    const pct = (clientX - rect.left) / rect.width;
+    const t = Math.max(0, Math.min(musicDuration, pct * musicDuration));
+    if (which === 'start') {
+      setMusicTrimStart(Math.min(t, musicTrimEnd));
+    } else {
+      setMusicTrimEnd(Math.max(t, musicTrimStart));
+    }
+  }, [musicDuration, musicTrimEnd, musicTrimStart]);
+
+  useEffect(() => {
+    const handleMove = (e: PointerEvent) => {
+      const which = musicTrimDraggingRef.current;
+      if (!which) return;
+      setTrimFromClientX(e.clientX, which);
+    };
+    const handleUp = () => {
+      musicTrimDraggingRef.current = null;
+    };
+    window.addEventListener('pointermove', handleMove);
+    window.addEventListener('pointerup', handleUp);
+    window.addEventListener('pointercancel', handleUp);
+    return () => {
+      window.removeEventListener('pointermove', handleMove);
+      window.removeEventListener('pointerup', handleUp);
+      window.removeEventListener('pointercancel', handleUp);
+    };
+  }, [setTrimFromClientX]);
 
   useEffect(() => {
     if (!showMusicList) return;
@@ -980,7 +1058,7 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
                       </span>
                     </div>
 
-                    <div className="relative h-5">
+                    <div ref={musicTrimBarRef} className="relative h-5 touch-none">
                       <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-1 rounded-full bg-white/15" />
                       <div
                         className="absolute top-1/2 -translate-y-1/2 h-1 rounded-full bg-primary/70"
@@ -990,40 +1068,43 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
                         }}
                       />
 
-                      <input
-                        type="range"
-                        min={0}
-                        max={musicDuration}
-                        step={0.1}
-                        value={musicTrimStart}
-                        onChange={(e) => {
-                          const v = Math.min(Math.max(0, Number(e.target.value)), Math.max(0, musicTrimEnd));
-                          setMusicTrimStart(v);
+                      <div
+                        className="absolute z-10 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-white shadow border border-white/30"
+                        style={{ left: `calc(${(musicTrimStart / musicDuration) * 100}% - 7px)` }}
+                        onPointerDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          try { (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId); } catch {}
+                          musicTrimDraggingRef.current = 'start';
+                          setTrimFromClientX(e.clientX, 'start');
                         }}
-                        className="absolute inset-0 w-full opacity-0"
-                        aria-label="Trim start"
                       />
-                      <input
-                        type="range"
-                        min={0}
-                        max={musicDuration}
-                        step={0.1}
-                        value={musicTrimEnd}
-                        onChange={(e) => {
-                          const v = Math.min(Math.max(0, Number(e.target.value)), Math.max(0, musicDuration));
-                          setMusicTrimEnd(Math.max(v, musicTrimStart));
+                      <div
+                        className="absolute z-10 top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-white shadow border border-white/30"
+                        style={{ left: `calc(${(musicTrimEnd / musicDuration) * 100}% - 7px)` }}
+                        onPointerDown={(e) => {
+                          e.preventDefault();
+                          e.stopPropagation();
+                          try { (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId); } catch {}
+                          musicTrimDraggingRef.current = 'end';
+                          setTrimFromClientX(e.clientX, 'end');
                         }}
-                        className="absolute inset-0 w-full opacity-0"
-                        aria-label="Trim end"
                       />
 
                       <div
-                        className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-white shadow border border-white/30"
-                        style={{ left: `calc(${(musicTrimStart / musicDuration) * 100}% - 7px)` }}
-                      />
-                      <div
-                        className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-white shadow border border-white/30"
-                        style={{ left: `calc(${(musicTrimEnd / musicDuration) * 100}% - 7px)` }}
+                        className="absolute inset-0 z-0"
+                        onPointerDown={(e) => {
+                          e.preventDefault();
+                          const rect = (e.currentTarget as HTMLDivElement).getBoundingClientRect();
+                          const pct = (e.clientX - rect.left) / rect.width;
+                          const t = Math.max(0, Math.min(musicDuration, pct * musicDuration));
+                          const distStart = Math.abs(t - musicTrimStart);
+                          const distEnd = Math.abs(t - musicTrimEnd);
+                          const which: 'start' | 'end' = distStart <= distEnd ? 'start' : 'end';
+                          try { (e.currentTarget as HTMLDivElement).setPointerCapture(e.pointerId); } catch {}
+                          musicTrimDraggingRef.current = which;
+                          setTrimFromClientX(e.clientX, which);
+                        }}
                       />
                     </div>
                   </div>
@@ -1046,7 +1127,7 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
               style={{ bottom: `calc(${trayPeekHeight} + max(2.25rem, env(safe-area-inset-bottom)) + 4.5rem)` }}
             >
               {captureMode === 'video' && (
-                <div className="px-2.5 py-1 rounded-full bg-white/10 border border-white/15">
+                <div className="px-2.5 py-1 rounded-full bg-white/10 border border-white/15 pointer-events-none">
                   <span className="text-white/85 text-[10px] font-bold tracking-wide">VIDEO</span>
                 </div>
               )}
@@ -1076,12 +1157,46 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
             style={{ bottom: `calc(${trayPeekHeight} + max(0.75rem, env(safe-area-inset-bottom)))` }}
           >
             <button
-              onMouseDown={handleCaptureStart}
-              onMouseUp={handleCaptureEnd}
-              onMouseLeave={() => { if (isCapturing) handleCaptureEnd(); }}
-              onTouchStart={(e) => { handleCaptureStart(); handleTouchStart(e); }}
-              onTouchMove={handleTouchMove}
-              onTouchEnd={() => { handleCaptureEnd(); handleTouchEnd(); }}
+              onClick={() => {
+                if (captureMode === 'video') {
+                  if (Date.now() - lastVideoToggleTouchAtRef.current < 700) return;
+                  handleVideoToggleCapture();
+                }
+              }}
+              onMouseDown={(e) => {
+                if (captureMode === 'video') {
+                  e.preventDefault();
+                  return;
+                }
+                handleCaptureStart();
+              }}
+              onMouseUp={() => {
+                if (captureMode === 'video') return;
+                handleCaptureEnd();
+              }}
+              onMouseLeave={() => { if (captureMode !== 'video' && isCapturing) handleCaptureEnd(); }}
+              onTouchStart={(e) => {
+                if (captureMode === 'video') {
+                  e.preventDefault();
+                  lastVideoToggleTouchAtRef.current = Date.now();
+                  handleVideoToggleCapture();
+                  return;
+                }
+                handleCaptureStart();
+                handleTouchStart(e);
+              }}
+              onTouchMove={(e) => {
+                if (captureMode === 'video') return;
+                handleTouchMove(e);
+              }}
+              onTouchEnd={() => {
+                if (captureMode === 'video') {
+                  handleTouchEnd();
+                  return;
+                }
+                handleCaptureEnd();
+                handleTouchEnd();
+              }}
               disabled={!cameraReady || !canAddMore}
               className={cn(
                 'relative w-[78px] h-[78px] rounded-full flex items-center justify-center disabled:opacity-30',
