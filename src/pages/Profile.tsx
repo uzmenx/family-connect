@@ -15,6 +15,8 @@ import { useStoryHighlights } from '@/hooks/useStoryHighlights';
 import { useMentionsCollabs } from '@/hooks/useMentionsCollabs';
 import { usePostCollections } from '@/hooks/usePostCollections';
 import { useSmoothScroll } from '@/hooks/useSmoothScroll';
+import { useActiveStories } from '@/hooks/useActiveStories';
+import { useStories } from '@/hooks/useStories';
 import { PostCard } from '@/components/feed/PostCard';
 import { FullScreenViewer } from '@/components/feed/FullScreenViewer';
 import { PullToRefresh } from '@/components/feed/PullToRefresh';
@@ -24,9 +26,11 @@ import { HighlightEditor } from '@/components/profile/HighlightEditor';
 import { CollectionsFilter } from '@/components/profile/CollectionsFilter';
 import { CollabRequestsSheet } from '@/components/post/CollabRequestsSheet';
 import { NotificationsSheet } from '@/components/notifications/NotificationsSheet';
+import { StoryViewer } from '@/components/stories/StoryViewer';
 import { Badge } from '@/components/ui/badge';
 import { cn } from '@/lib/utils';
 import { formatCount } from '@/lib/formatCount';
+import { getStoryRingGradient } from '@/components/stories/storyRings';
 
 const Profile = () => {
   const { profile, user } = useAuth();
@@ -39,6 +43,8 @@ const Profile = () => {
   const { highlights, fetchHighlights } = useStoryHighlights();
   const { collections, selectedCollectionId, setSelectedCollectionId, collectionPosts, createCollection } = usePostCollections();
   const { mentionedPosts, collabPosts, pendingCollabs, respondToCollab } = useMentionsCollabs();
+  const { getStoryInfo } = useActiveStories();
+  const { storyGroups } = useStories();
   const [activeTab, setActiveTab] = useState<'posts' | 'saved' | 'mentions'>('posts');
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
@@ -49,6 +55,7 @@ const Profile = () => {
   const [bioExpanded, setBioExpanded] = useState(false);
   const [needsMoreButton, setNeedsMoreButton] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
+  const [storyViewerOpen, setStoryViewerOpen] = useState(false);
   const bioRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -157,14 +164,44 @@ const Profile = () => {
               </span>
             </div>
 
-            {/* CENTER: Avatar */}
+            {/* CENTER: Avatar with story ring */}
             <div className="flex-shrink-0 flex flex-col items-center">
-              <Avatar className="h-20 w-20 border-4 border-background shadow-2xl ring-2 ring-primary/30">
-                <AvatarImage src={profile?.avatar_url || undefined} />
-                <AvatarFallback className="text-2xl bg-gradient-to-br from-primary to-accent text-white font-bold">
-                  {getInitials(profile?.name)}
-                </AvatarFallback>
-              </Avatar>
+              {(() => {
+                const myStoryInfo = user ? getStoryInfo(user.id) : undefined;
+                if (myStoryInfo) {
+                  return (
+                    <div
+                      className="h-20 w-20 rounded-full p-[3px] cursor-pointer shadow-2xl"
+                      style={{
+                        background: myStoryInfo.has_unviewed
+                          ? getStoryRingGradient(myStoryInfo.ring_id)
+                          : 'var(--muted-foreground)',
+                      }}
+                      onClick={() => {
+                        const idx = storyGroups.findIndex(g => g.user_id === user?.id);
+                        if (idx >= 0) setStoryViewerOpen(true);
+                      }}
+                    >
+                      <div className="w-full h-full rounded-full bg-background p-[2px]">
+                        <Avatar className="h-full w-full">
+                          <AvatarImage src={profile?.avatar_url || undefined} />
+                          <AvatarFallback className="text-2xl bg-gradient-to-br from-primary to-accent text-white font-bold">
+                            {getInitials(profile?.name)}
+                          </AvatarFallback>
+                        </Avatar>
+                      </div>
+                    </div>
+                  );
+                }
+                return (
+                  <Avatar className="h-20 w-20 border-4 border-background shadow-2xl ring-2 ring-primary/30">
+                    <AvatarImage src={profile?.avatar_url || undefined} />
+                    <AvatarFallback className="text-2xl bg-gradient-to-br from-primary to-accent text-white font-bold">
+                      {getInitials(profile?.name)}
+                    </AvatarFallback>
+                  </Avatar>
+                );
+              })()}
             </div>
 
             {/* RIGHT: Postlar */}
@@ -467,6 +504,15 @@ const Profile = () => {
             onOpenChange={setShowCollabRequests}
             requests={pendingCollabs}
             onRespond={respondToCollab} />
+
+        {/* Story Viewer for own stories */}
+        {storyViewerOpen && storyGroups.length > 0 && (
+          <StoryViewer
+            storyGroups={storyGroups}
+            initialGroupIndex={storyGroups.findIndex(g => g.user_id === user?.id)}
+            onClose={() => setStoryViewerOpen(false)}
+          />
+        )}
 
         </div>
       </div>
