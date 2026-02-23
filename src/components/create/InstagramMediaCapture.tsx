@@ -934,33 +934,6 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
         )}
       </div>
 
-      {/* Armed music (top bar) */}
-      {showCaptureUi && musicArmed && selectedMusic && (
-        <div className="absolute left-3 right-3 z-30" style={{ top: 'max(3.25rem, calc(env(safe-area-inset-top) + 2.25rem))' }}>
-          <div className="flex items-center justify-between gap-2 px-3 py-2 rounded-2xl bg-black/60 backdrop-blur-xl border border-white/15">
-            <div className="flex items-center gap-2 min-w-0">
-              <Disc className="w-4 h-4 text-primary flex-shrink-0" />
-              <div className="min-w-0">
-                <div className="text-white text-xs font-semibold truncate">{selectedMusic.name}</div>
-                {musicDuration > 0 && (
-                  <div className="text-white/60 text-[10px] font-medium tabular-nums">
-                    {fmtTime(musicTrimStart)} - {fmtTime(musicTrimEnd)}
-                  </div>
-                )}
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={removeSelectedMusic}
-              className="w-9 h-9 rounded-full glass-button flex items-center justify-center active:scale-90 transition-transform flex-shrink-0"
-              aria-label="Remove music"
-            >
-              <X className="w-4 h-4 text-white" />
-            </button>
-          </div>
-        </div>
-      )}
-
       {/* Stage: Capture - camera always as base */}
       <div className="relative flex-1 min-h-0">
         <video
@@ -976,6 +949,94 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
         {/* Flip camera */}
         {showCaptureUi && (
           <>
+            {/* Music timeline (above zoom pills) */}
+            {musicArmed && selectedMusic && musicDuration > 0 && (
+              <div
+                className="absolute left-4 right-4 z-50"
+                style={{ bottom: `calc(${trayPeekHeight} + max(2.25rem, env(safe-area-inset-bottom)) + 7.35rem)` }}
+              >
+                <div className="flex items-center gap-2 px-3 py-2 rounded-2xl bg-black/55 backdrop-blur-xl border border-white/15">
+                  <button
+                    type="button"
+                    onClick={toggleMusicPlayback}
+                    className="w-7 h-7 rounded-full bg-white/10 border border-white/15 flex items-center justify-center active:scale-90 transition-transform flex-shrink-0"
+                    aria-label={isMusicPlaying ? 'Pause music' : 'Play music'}
+                  >
+                    {isMusicPlaying ? (
+                      <Pause className="w-3.5 h-3.5 text-white" />
+                    ) : (
+                      <Play className="w-3.5 h-3.5 text-white" />
+                    )}
+                  </button>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between mb-1">
+                      <span className="text-white/80 text-[10px] font-semibold truncate">{selectedMusic.name}</span>
+                      <span className="text-white/60 text-[10px] font-medium tabular-nums ml-2 flex-shrink-0">
+                        {fmtTime(musicTrimStart)}-{fmtTime(musicTrimEnd)}
+                      </span>
+                    </div>
+
+                    <div className="relative h-5">
+                      <div className="absolute left-0 right-0 top-1/2 -translate-y-1/2 h-1 rounded-full bg-white/15" />
+                      <div
+                        className="absolute top-1/2 -translate-y-1/2 h-1 rounded-full bg-primary/70"
+                        style={{
+                          left: `${(musicTrimStart / musicDuration) * 100}%`,
+                          right: `${100 - (musicTrimEnd / musicDuration) * 100}%`,
+                        }}
+                      />
+
+                      <input
+                        type="range"
+                        min={0}
+                        max={musicDuration}
+                        step={0.1}
+                        value={musicTrimStart}
+                        onChange={(e) => {
+                          const v = Math.min(Math.max(0, Number(e.target.value)), Math.max(0, musicTrimEnd));
+                          setMusicTrimStart(v);
+                        }}
+                        className="absolute inset-0 w-full opacity-0"
+                        aria-label="Trim start"
+                      />
+                      <input
+                        type="range"
+                        min={0}
+                        max={musicDuration}
+                        step={0.1}
+                        value={musicTrimEnd}
+                        onChange={(e) => {
+                          const v = Math.min(Math.max(0, Number(e.target.value)), Math.max(0, musicDuration));
+                          setMusicTrimEnd(Math.max(v, musicTrimStart));
+                        }}
+                        className="absolute inset-0 w-full opacity-0"
+                        aria-label="Trim end"
+                      />
+
+                      <div
+                        className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-white shadow border border-white/30"
+                        style={{ left: `calc(${(musicTrimStart / musicDuration) * 100}% - 7px)` }}
+                      />
+                      <div
+                        className="absolute top-1/2 -translate-y-1/2 w-3.5 h-3.5 rounded-full bg-white shadow border border-white/30"
+                        style={{ left: `calc(${(musicTrimEnd / musicDuration) * 100}% - 7px)` }}
+                      />
+                    </div>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={removeSelectedMusic}
+                    className="w-7 h-7 rounded-full bg-white/10 border border-white/15 flex items-center justify-center active:scale-90 transition-transform flex-shrink-0"
+                    aria-label="Remove music"
+                  >
+                    <X className="w-3.5 h-3.5 text-white" />
+                  </button>
+                </div>
+              </div>
+            )}
+
             {/* Zoom pills (center, above shutter) */}
             <div
               className="absolute left-1/2 -translate-x-1/2 z-50 flex flex-col items-center gap-1"
@@ -1356,16 +1417,33 @@ export default function InstagramMediaCapture({ onClose, onNext, maxItems = 5 }:
             <div className="w-full bg-black/90 backdrop-blur-2xl border-t border-white/20 rounded-t-3xl max-h-[70vh] overflow-hidden">
               {/* Header */}
               <div className="flex items-center justify-between p-4 border-b border-white/10">
-                <div className="flex items-center gap-3">
-                  <Disc className="w-6 h-6 text-primary" />
+                <div>
                   <h2 className="text-white font-semibold text-lg">Musiqa</h2>
+                  <p className="text-white/60 text-sm">Video uchun musiqa tanlang</p>
                 </div>
-                <button
-                  onClick={() => setShowMusicList(false)}
-                  className="w-10 h-10 rounded-full glass-button flex items-center justify-center active:scale-90 transition-transform"
-                >
-                  <X className="w-5 h-5 text-white" />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    disabled={!selectedMusic}
+                    onClick={() => {
+                      armSelectedMusic();
+                      setShowMusicList(false);
+                    }}
+                    className={cn(
+                      'px-4 py-2 rounded-full text-sm font-semibold border transition-colors disabled:opacity-40',
+                      selectedMusic ? 'bg-primary text-primary-foreground border-primary/70' : 'bg-white/10 text-white border-white/15'
+                    )}
+                  >
+                    Done
+                  </button>
+                  <button
+                    onClick={() => setShowMusicList(false)}
+                    className="w-10 h-10 rounded-full glass-button flex items-center justify-center active:scale-90 transition-transform"
+                    aria-label="Close"
+                  >
+                    <X className="w-5 h-5 text-white" />
+                  </button>
+                </div>
               </div>
 
               {/* Music List */}
