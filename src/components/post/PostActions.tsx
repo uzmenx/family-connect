@@ -91,27 +91,36 @@ export const PostActions = ({
         {/* Left side: Like, Comment, Share */}
         <div className="flex items-center gap-6">
           {/* Like with count */}
-          <motion.button
-            className="flex items-center gap-2 text-white/90 hover:text-white transition-colors"
-            onClick={handleLikeClick}
-            disabled={isLoading}
-            whileTap={{ scale: 0.9 }}>
+          <div className="flex items-center gap-2">
+            <motion.button
+              className="flex items-center gap-2 text-white/90 hover:text-white transition-colors"
+              onClick={handleLikeClick}
+              disabled={isLoading}
+              whileTap={{ scale: 0.9 }}>
 
-            <motion.div
-              animate={{
-                scale: isAnimating ? [1, 1.35, 1.15] : 1
-              }}
-              transition={{ duration: 0.4, times: [0, 0.4, 1] }}>
+              <motion.div
+                animate={{
+                  scale: isAnimating ? [1, 1.35, 1.15] : 1
+                }}
+                transition={{ duration: 0.4, times: [0, 0.4, 1] }}>
 
-              <Heart
-                className={cn(
-                  "h-5 w-5 transition-colors duration-200",
-                  isLiked && "fill-red-500 text-red-500"
-                )} />
+                <Heart
+                  className={cn(
+                    "h-5 w-5 transition-colors duration-200",
+                    isLiked && "fill-red-500 text-red-500"
+                  )} />
 
-            </motion.div>
-            <span className="text-sm font-bold">{formatCount(displayLikesCount)}</span>
-          </motion.button>
+              </motion.div>
+            </motion.button>
+
+            <button
+              className="text-sm font-bold text-white/90 hover:text-white hover:underline transition-colors"
+              onClick={handleLikesCountClick}
+              type="button"
+            >
+              {formatCount(displayLikesCount)}
+            </button>
+          </div>
           
           {/* Comment with count */}
           <button
@@ -178,7 +187,7 @@ export const PostActions = ({
       <ShareDialog
         open={showShare}
         onOpenChange={setShowShare}
-        postId={postId} />
+        postId={postId ?? undefined} />
 
     </>);
 };

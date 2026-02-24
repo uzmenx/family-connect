@@ -14,14 +14,18 @@ import { toast } from 'sonner';
 interface ShareDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  postId: string;
+  postId?: string;
+  shortId?: string;
 }
 
-export const ShareDialog = ({ open, onOpenChange, postId }: ShareDialogProps) => {
+export const ShareDialog = ({ open, onOpenChange, postId, shortId }: ShareDialogProps) => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  const shareUrl = `${window.location.origin}/post/${postId}`;
-  const shareMarker = `[[POST:${postId}]]`;
+  const shareMarker = postId
+    ? `[[POST:${postId}]]`
+    : shortId
+    ? `[[SHORT:${shortId}]]`
+    : '';
   const [searchQuery, setSearchQuery] = useState('');
   const [messageText, setMessageText] = useState('');
   const [profiles, setProfiles] = useState<Array<{ id: string; name: string | null; username: string | null; avatar_url: string | null }>>([]);
@@ -96,6 +100,10 @@ export const ShareDialog = ({ open, onOpenChange, postId }: ShareDialogProps) =>
 
   const handleSend = async () => {
     if (!user?.id) return;
+    if (!shareMarker) {
+      toast.error('Xatolik yuz berdi');
+      return;
+    }
     if (selectedIds.size === 0) {
       toast.error('Tanlang');
       return;
@@ -106,8 +114,8 @@ export const ShareDialog = ({ open, onOpenChange, postId }: ShareDialogProps) =>
       const ids = Array.from(selectedIds);
       const trimmedMessage = messageText.trim();
       const contentToSend = trimmedMessage
-        ? `${trimmedMessage}\n\n${shareMarker}\n📎 Post: ${shareUrl}`
-        : `${shareMarker}\n📎 Post: ${shareUrl}`;
+        ? `${trimmedMessage}\n\n${shareMarker}`
+        : `${shareMarker}`;
       for (const targetUserId of ids) {
         const { data: existingConv, error: convErr } = await supabase
           .from('conversations')

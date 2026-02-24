@@ -9,7 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Post } from '@/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Check, CheckCheck, Video, Loader2, Clock, MoreVertical, ChevronDown } from 'lucide-react';
+import { ArrowLeft, Phone, Video, MoreVertical, Check, CheckCheck, Clock, Download, Trash, Copy, Forward, Reply, Mic, MicOff, Volume2, VolumeX, Loader2, ChevronDown } from 'lucide-react';
 import { format, isToday, isYesterday, isSameDay } from 'date-fns';
 import { uz } from 'date-fns/locale';
 import { cn } from '@/lib/utils';
@@ -22,7 +22,8 @@ import { MediaFullscreen } from '@/components/chat/MediaFullscreen';
 import { MessageContextMenu } from '@/components/chat/MessageContextMenu';
 import { ForwardMessageDialog } from '@/components/chat/ForwardMessageDialog';
 import { ReplyPreview } from '@/components/chat/ReplyPreview';
-import { FullScreenViewer } from '@/components/feed/FullScreenViewer';
+import { UnifiedFullScreenViewer } from '@/components/feed/UnifiedFullScreenViewer';
+import type { Short } from '@/components/shorts/YouTubeShortsSection';
 import ChatWallpaperPicker from '@/components/chat/ChatWallpaperPicker';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { toast } from 'sonner';
@@ -48,8 +49,10 @@ const Chat = () => {
   const [fullscreenMedia, setFullscreenMedia] = useState<{ url: string; type: 'image' | 'video' } | null>(null);
   const [sharedPosts, setSharedPosts] = useState<Post[]>([]);
   const [sharedPostsLoading, setSharedPostsLoading] = useState(false);
-  const [postViewerOpen, setPostViewerOpen] = useState(false);
-  const [postViewerInitialIndex, setPostViewerInitialIndex] = useState(0);
+  const [sharedShorts, setSharedShorts] = useState<Short[]>([]);
+  const [viewerOpen, setViewerOpen] = useState(false);
+  const [viewerTab, setViewerTab] = useState<'posts' | 'shorts'>('posts');
+  const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
   const [chatWallpaper, setChatWallpaper] = useLocalStorage('chat_wallpaper', 'none');
   const [showWallpaperPicker, setShowWallpaperPicker] = useState(false);
   const [showScrollDown, setShowScrollDown] = useState(false);
@@ -116,10 +119,44 @@ const Chat = () => {
     const postId = markerMatch[1];
     const cleaned = content
       .replace(markerMatch[0], '')
-      .replace(/\n?📎\s*Post:\s*\S+/g, '')
+      .replace(/\n?📎\s*(Post|Shorts):\s*\S+/g, '')
       .trim();
     return { postId, messageText: cleaned };
   };
+
+  const extractSharedShort = (content: string | null | undefined) => {
+    if (!content) return null;
+    const markerMatch = content.match(/\[\[SHORT:([^\]]+)\]\]/);
+    if (!markerMatch) return null;
+    const shortId = markerMatch[1];
+    const cleaned = content
+      .replace(markerMatch[0], '')
+      .replace(/\n?📎\s*(Post|Shorts):\s*\S+/g, '')
+      .trim();
+    return { shortId, messageText: cleaned };
+  };
+
+  const buildSharedShortsFromMessages = useCallback((msgs: Message[]): Short[] => {
+    const found: Short[] = [];
+    const seen = new Set<string>();
+
+    for (const m of msgs) {
+      const content = m.content || '';
+      const matches = content.matchAll(/\[\[SHORT:([^\]]+)\]\]/g);
+      for (const match of matches) {
+        const id = match[1];
+        if (!id || seen.has(id)) continue;
+        seen.add(id);
+        found.push({
+          id,
+          title: 'YouTube Shorts',
+          channelTitle: 'YouTube',
+          thumbnail: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
+        });
+      }
+    }
+    return found;
+  }, []);
 
   const enrichPostsWithAuthors = async (postsData: any[]): Promise<Post[]> => {
     if (!postsData || postsData.length === 0) return [];
@@ -196,8 +233,18 @@ const Chat = () => {
     }
 
     const idx = nextPosts.findIndex((p) => p.id === postId);
-    setPostViewerInitialIndex(Math.max(0, idx));
-    setPostViewerOpen(true);
+    setViewerTab('posts');
+    setViewerInitialIndex(Math.max(0, idx));
+    setViewerOpen(true);
+  };
+
+  const openSharedShortViewer = (shortId: string) => {
+    const shortsList = buildSharedShortsFromMessages(messages.filter((m) => !deletedMessageIds.has(m.id)));
+    setSharedShorts(shortsList);
+    const idx = shortsList.findIndex((s) => s.id === shortId);
+    setViewerTab('shorts');
+    setViewerInitialIndex(Math.max(0, idx));
+    setViewerOpen(true);
   };
 
   // Real-time online status subscription
@@ -232,6 +279,16 @@ const Chat = () => {
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages]);
+
+  // If chat contains shared posts, fetch some posts so previews render
+  useEffect(() => {
+    if (sharedPosts.length > 0) return;
+    if (sharedPostsLoading) return;
+    const hasSharedPost = messages.some((m) => (m.content || '').includes('[[POST:'));
+    if (!hasSharedPost) return;
+    loadSharedPosts().then();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentionally not depending on loadSharedPosts identity
+  }, [messages, sharedPosts.length, sharedPostsLoading]);
 
   // Scroll detection for scroll-to-bottom button
   useEffect(() => {
@@ -373,31 +430,71 @@ const Chat = () => {
               openSharedPostViewer(shared.postId);
             }}
             className={cn(
-              'w-[240px] max-w-[65vw] overflow-hidden rounded-2xl border border-white/10 bg-black/20 backdrop-blur-md text-left',
+              'w-[280px] max-w-[75vw] overflow-hidden rounded-3xl border border-white/10 bg-black/20 backdrop-blur-md text-left shadow-lg',
               isMine ? 'border-white/20' : 'border-border/20'
             )}
           >
-            <div className="w-full aspect-[4/5] bg-black/30">
+            <div className="relative w-full aspect-[4/5] bg-black/30">
               {mediaUrl ? (
                 isVideo ? (
-                  <video src={mediaUrl} className="h-full w-full object-cover" muted playsInline />
+                  <>
+                    <video src={mediaUrl} className="h-full w-full object-cover" muted playsInline />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-black/10" />
+                    <div className="absolute left-3 top-3 rounded-full bg-black/40 backdrop-blur-md border border-white/10 px-2.5 py-1 text-[10px] font-semibold text-white">
+                      Video
+                    </div>
+                  </>
                 ) : (
-                  <img src={mediaUrl} className="h-full w-full object-cover" alt="Shared post" />
+                  <>
+                    <img src={mediaUrl} className="h-full w-full object-cover" alt="Shared post" />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/45 via-transparent to-black/10" />
+                  </>
                 )
               ) : (
                 <div className="h-full w-full flex items-center justify-center text-xs text-white/70">Post</div>
               )}
             </div>
-            <div className="p-2.5">
+            <div className="p-3">
               <div className="text-xs font-semibold text-white/90">
                 {previewPost?.author?.username ? `@${previewPost.author.username}` : 'Post'}
               </div>
               {previewPost?.content && (
-                <div className="mt-0.5 text-[11px] text-white/70 line-clamp-2">{previewPost.content}</div>
+                <div className="mt-1 text-[12px] leading-snug text-white/75 line-clamp-2">{previewPost.content}</div>
               )}
               {!previewPost && (
-                <div className="mt-0.5 text-[11px] text-white/70">Yuklanmoqda...</div>
+                <div className="mt-1 text-[12px] text-white/70">Yuklanmoqda...</div>
               )}
+            </div>
+          </button>
+        </div>
+      );
+    }
+
+    const sharedShort = extractSharedShort(msg.content);
+    if (sharedShort) {
+      const thumb = `https://i.ytimg.com/vi/${sharedShort.shortId}/hqdefault.jpg`;
+      return (
+        <div className="space-y-2">
+          {sharedShort.messageText && (
+            <p className="text-sm whitespace-pre-wrap break-words">{sharedShort.messageText}</p>
+          )}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              openSharedShortViewer(sharedShort.shortId);
+            }}
+            className={cn(
+              'w-[240px] max-w-[65vw] overflow-hidden rounded-2xl border border-white/10 bg-black/20 backdrop-blur-md text-left',
+              isMine ? 'border-white/20' : 'border-border/20'
+            )}
+          >
+            <div className="w-full aspect-[4/5] bg-black/30">
+              <img src={thumb} className="h-full w-full object-cover" alt="Shared shorts" />
+            </div>
+            <div className="p-2.5">
+              <div className="text-xs font-semibold text-white/90">Shorts</div>
+              <div className="mt-0.5 text-[11px] text-white/70 line-clamp-2">YouTube Shorts</div>
             </div>
           </button>
         </div>
@@ -450,11 +547,13 @@ const Chat = () => {
 
   return (
     <>
-      {postViewerOpen && sharedPosts.length > 0 && (
-        <FullScreenViewer
+      {viewerOpen && (
+        <UnifiedFullScreenViewer
           posts={sharedPosts}
-          initialIndex={postViewerInitialIndex}
-          onClose={() => setPostViewerOpen(false)}
+          shorts={sharedShorts}
+          initialTab={viewerTab}
+          initialIndex={viewerInitialIndex}
+          onClose={() => setViewerOpen(false)}
         />
       )}
 

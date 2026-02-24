@@ -214,5 +214,4 @@ export const FullscreenActions = ({
         postId={postId} />
 
     </>);
-
 };

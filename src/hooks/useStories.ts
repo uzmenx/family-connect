@@ -157,7 +157,10 @@ export const useStories = () => {
     try {
       await supabase
         .from('story_views')
-        .upsert({ story_id: storyId, viewer_id: user.id }, { onConflict: 'story_id,viewer_id' });
+        .upsert(
+          { story_id: storyId, viewer_id: user.id, viewed_at: new Date().toISOString() },
+          { onConflict: 'story_id,viewer_id', ignoreDuplicates: true }
+        );
     } catch (error) {
       console.error('Error recording view:', error);
     }

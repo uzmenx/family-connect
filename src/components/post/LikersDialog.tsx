@@ -19,7 +19,7 @@ interface LikersDialogProps {
 export const LikersDialog = ({ open, onOpenChange, users, likesCount }: LikersDialogProps) => {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm screen-likes">
+      <DialogContent className="max-w-sm screen-likes overflow-hidden">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             Yoqtirishlar
@@ -29,22 +29,27 @@ export const LikersDialog = ({ open, onOpenChange, users, likesCount }: LikersDi
           </DialogTitle>
         </DialogHeader>
         
-        <ScrollArea className="max-h-[400px]">
+        <ScrollArea className="max-h-[440px]">
           {users.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">
               Hozircha yoqtirishlar yo'q
             </p>
           ) : (
-            <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-3 pr-2 pb-2">
               {users.map((user) => (
-                <div key={user.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/50 transition-colors">
-                  <Avatar className="h-10 w-10">
+                <div
+                  key={user.id}
+                  className="group flex items-center gap-3 p-3 rounded-2xl border border-border/60 bg-gradient-to-br from-background/70 to-background/40 backdrop-blur-md shadow-sm hover:shadow-md hover:-translate-y-0.5 transition-all"
+                >
+                  <div className="p-[2px] rounded-2xl bg-gradient-to-br from-primary/35 via-transparent to-primary/20">
+                    <Avatar className="h-10 w-10 shrink-0 rounded-2xl">
                     <AvatarImage src={user.avatar_url || undefined} />
                     <AvatarFallback className="likes-bg-soft likes-accent">
                       {user.name?.charAt(0) || 'U'}
                     </AvatarFallback>
                   </Avatar>
-                  <div className="flex-1 min-w-0">
+                  </div>
+                  <div className="min-w-0">
                     <p className="font-medium text-sm truncate">{user.name || 'Foydalanuvchi'}</p>
                     <p className="text-xs text-muted-foreground truncate">@{user.username || 'user'}</p>
                   </div>

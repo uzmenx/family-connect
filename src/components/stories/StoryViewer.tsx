@@ -60,6 +60,7 @@ export const StoryViewer = ({
   const [showViewers, setShowViewers] = useState(false);
   const [viewers, setViewers] = useState<any[]>([]);
   const [likers, setLikers] = useState<any[]>([]);
+  const [insightsTab, setInsightsTab] = useState<'views' | 'likes'>('views');
   const [isLiked, setIsLiked] = useState(false);
   const [likeAnimKey, setLikeAnimKey] = useState(0);
   const [showLikeAnim, setShowLikeAnim] = useState(false);
@@ -471,18 +472,35 @@ export const StoryViewer = ({
         <div className="absolute bottom-[max(16px,env(safe-area-inset-bottom))] left-4 right-4">
           {isOwnStory ? (
             // Own story: show viewers
-            <Button
-              variant="ghost"
-              className="text-white hover:bg-white/20 gap-2"
-              onClick={(e) => {
-                e.stopPropagation();
-                setShowViewers(true);
-                setIsPaused(true);
-              }}
-            >
-              <Eye className="h-5 w-5" />
-              <span>{viewers.length} ko'rish</span>
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button
+                variant="ghost"
+                className="text-white hover:bg-white/20 gap-2"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setInsightsTab('views');
+                  setShowViewers(true);
+                  setIsPaused(true);
+                }}
+              >
+                <Eye className="h-5 w-5" />
+                <span>{viewers.length} ko'rish</span>
+              </Button>
+
+              <Button
+                variant="ghost"
+                className="text-white hover:bg-white/20 gap-2"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setInsightsTab('likes');
+                  setShowViewers(true);
+                  setIsPaused(true);
+                }}
+              >
+                <Heart className="h-5 w-5" />
+                <span>{likers.length} yoqtirish</span>
+              </Button>
+            </div>
           ) : (
             // Other's story: reply & like
             <div className="flex items-center gap-2">
@@ -581,46 +599,124 @@ export const StoryViewer = ({
         setShowViewers(open);
         if (!open) setIsPaused(false);
       }}>
-        <SheetContent side="bottom" className="h-[60vh]">
-          <SheetHeader>
-            <SheetTitle>Ko'rganlar ({viewers.length})</SheetTitle>
-          </SheetHeader>
-          <ScrollArea className="h-full mt-4">
-            <div className="space-y-3">
-              {viewers.map((viewer) => (
-                <div key={viewer.viewer_id} className="flex items-center gap-3 p-2">
-                  <div className="w-10 h-10 rounded-full overflow-hidden bg-muted">
-                    {viewer.profile?.avatar_url ? (
-                      <img
-                        src={viewer.profile.avatar_url}
-                        alt={viewer.profile.name || 'User'}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center text-muted-foreground">
-                        {(viewer.profile?.name || 'U').charAt(0).toUpperCase()}
-                      </div>
-                    )}
-                  </div>
-                  <div className="flex-1">
-                    <p className="font-medium text-sm">
-                      {viewer.profile?.name || viewer.profile?.username || 'Foydalanuvchi'}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      @{viewer.profile?.username || 'user'}
-                    </p>
-                  </div>
-                  {likers.some(l => l.user_id === viewer.viewer_id) && (
-                    <Heart className="h-4 w-4 text-red-500 fill-current" />
-                  )}
-                </div>
-              ))}
-              {viewers.length === 0 && (
-                <p className="text-center text-muted-foreground py-8">
+        <SheetContent side="bottom" className="h-[70vh] px-0">
+          <div className="px-4">
+            <SheetHeader>
+              <SheetTitle>
+                {insightsTab === 'views'
+                  ? `Ko'rganlar (${viewers.length})`
+                  : `Yoqtirganlar (${likers.length})`}
+              </SheetTitle>
+            </SheetHeader>
+
+            <div className="mt-3 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setInsightsTab('views')}
+                className={cn(
+                  'px-3 py-2 rounded-xl text-sm font-medium border transition-colors',
+                  insightsTab === 'views'
+                    ? 'bg-foreground text-background border-foreground'
+                    : 'bg-background/50 text-foreground border-border hover:bg-muted'
+                )}
+              >
+                Ko'rganlar
+              </button>
+              <button
+                type="button"
+                onClick={() => setInsightsTab('likes')}
+                className={cn(
+                  'px-3 py-2 rounded-xl text-sm font-medium border transition-colors',
+                  insightsTab === 'likes'
+                    ? 'bg-foreground text-background border-foreground'
+                    : 'bg-background/50 text-foreground border-border hover:bg-muted'
+                )}
+              >
+                Yoqtirganlar
+              </button>
+            </div>
+          </div>
+
+          <ScrollArea className="h-[calc(70vh-140px)] mt-4 px-4">
+            {insightsTab === 'views' ? (
+              viewers.length === 0 ? (
+                <p className="text-center text-muted-foreground py-10">
                   Hali hech kim ko'rmagan
                 </p>
-              )}
-            </div>
+              ) : (
+                <div className="grid grid-cols-2 gap-3 pb-6">
+                  {viewers.map((viewer) => (
+                    <div
+                      key={viewer.viewer_id}
+                      className="flex items-center gap-3 p-3 rounded-2xl border border-border/60 bg-background/60 shadow-sm hover:shadow-md transition-shadow"
+                    >
+                      <div className="w-11 h-11 rounded-2xl overflow-hidden bg-muted shrink-0">
+                        {viewer.profile?.avatar_url ? (
+                          <img
+                            src={viewer.profile.avatar_url}
+                            alt={viewer.profile.name || 'User'}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-muted-foreground font-medium">
+                            {(viewer.profile?.name || 'U').charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-sm truncate">
+                          {viewer.profile?.name || viewer.profile?.username || 'Foydalanuvchi'}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          @{viewer.profile?.username || 'user'}
+                        </p>
+                      </div>
+                      {likers.some(l => l.user_id === viewer.viewer_id) && (
+                        <Heart className="h-4 w-4 text-red-500 fill-current" />
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )
+            ) : (
+              likers.length === 0 ? (
+                <p className="text-center text-muted-foreground py-10">
+                  Hali hech kim yoqtirmagan
+                </p>
+              ) : (
+                <div className="grid grid-cols-2 gap-3 pb-6">
+                  {likers.map((like) => (
+                    <div
+                      key={like.user_id}
+                      className="flex items-center gap-3 p-3 rounded-2xl border border-border/60 bg-background/60 shadow-sm hover:shadow-md transition-shadow"
+                    >
+                      <div className="w-11 h-11 rounded-2xl overflow-hidden bg-muted shrink-0">
+                        {like.profile?.avatar_url ? (
+                          <img
+                            src={like.profile.avatar_url}
+                            alt={like.profile.name || 'User'}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center text-muted-foreground font-medium">
+                            {(like.profile?.name || 'U').charAt(0).toUpperCase()}
+                          </div>
+                        )}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-sm truncate">
+                          {like.profile?.name || like.profile?.username || 'Foydalanuvchi'}
+                        </p>
+                        <p className="text-xs text-muted-foreground truncate">
+                          @{like.profile?.username || 'user'}
+                        </p>
+                      </div>
+                      <Heart className="h-4 w-4 text-red-500 fill-current" />
+                    </div>
+                  ))}
+                </div>
+              )
+            )}
           </ScrollArea>
         </SheetContent>
       </Sheet>

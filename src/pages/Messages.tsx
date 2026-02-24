@@ -119,6 +119,29 @@ const Messages = () => {
     return formatDistanceToNow(new Date(dateStr), { addSuffix: false, locale: uz });
   };
 
+  const formatLastMessagePreview = (content: string | null | undefined) => {
+    if (!content) return '';
+    const hasPost = /\[\[POST:[^\]]+\]\]/.test(content);
+    const hasShort = /\[\[SHORT:[^\]]+\]\]/.test(content);
+
+    let cleaned = content
+      .replace(/\[\[(POST|SHORT):[^\]]+\]\]/g, '')
+      .replace(/\n?📎\s*(Post|Shorts):\s*\S+/g, '')
+      .replace(/https?:\/\/\S+/g, '')
+      .trim();
+
+    if (!cleaned) {
+      if (hasPost) return 'Post';
+      if (hasShort) return 'Shorts';
+      return '';
+    }
+
+    // If it contained a marker, keep a short label rather than leaking the marker
+    if (hasPost) return `Post: ${cleaned}`;
+    if (hasShort) return `Shorts: ${cleaned}`;
+    return cleaned;
+  };
+
   const handleUserClick = (userId: string) => {
     navigate(`/chat/${userId}`);
   };
@@ -625,7 +648,7 @@ const Messages = () => {
                       className={`text-sm truncate ${conv.unreadCount > 0 ? "text-foreground font-medium" : "text-muted-foreground"}`}>
 
                             {conv.lastMessage.sender_id === user?.id ? `${t('you')}: ` : ""}
-                            {conv.lastMessage.content}
+                            {formatLastMessagePreview(conv.lastMessage.content)}
                           </p>
                     }
                       </div>

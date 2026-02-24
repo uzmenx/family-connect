@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Play, Pause, ChevronLeft, ChevronRight, Heart, X } from 'lucide-react';
+import { Play, Pause, ChevronLeft, ChevronRight, Heart, X, Send } from 'lucide-react';
 import { Post } from '@/types';
 import { cn } from '@/lib/utils';
 
@@ -18,6 +18,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { supabase } from '@/integrations/supabase/client';
 import { StoryViewer } from '@/components/stories/StoryViewer';
 import type { StoryGroup, Story } from '@/hooks/useStories';
+import { ShareDialog } from '@/components/post/ShareDialog';
 
 type TabType = 'shorts' | 'posts';
 
@@ -50,6 +51,8 @@ export const UnifiedFullScreenViewer = ({
   const [videoPlayerSrc, setVideoPlayerSrc] = useState('');
   const [shortsPlaying, setShortsPlaying] = useState(true);
   const [showPlayIndicator, setShowPlayIndicator] = useState(false);
+
+  const [showShortShare, setShowShortShare] = useState(false);
 
   const [storyViewerOpen, setStoryViewerOpen] = useState(false);
   const [storyViewerGroups, setStoryViewerGroups] = useState<StoryGroup[]>([]);
@@ -375,6 +378,26 @@ export const UnifiedFullScreenViewer = ({
         <div className="absolute right-3 bottom-20 z-[5] bg-white/10 backdrop-blur-md rounded-full px-2 py-0.5 border border-white/10">
           <span className="text-[10px] text-white/70 font-medium">{shortIndex + 1}/{shorts.length}</span>
         </div>
+
+        {/* Shorts Share */}
+        <div className="absolute right-3 bottom-28 z-[6]">
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowShortShare(true);
+            }}
+            className="p-2.5 rounded-full bg-white/10 backdrop-blur-md border border-white/10 hover:bg-white/15 transition-colors"
+          >
+            <Send className="h-5 w-5 text-white" />
+          </button>
+        </div>
+
+        <ShareDialog
+          open={showShortShare}
+          onOpenChange={setShowShortShare}
+          shortId={currentShort.id}
+        />
       </div>
     );
   };
