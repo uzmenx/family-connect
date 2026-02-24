@@ -1,18 +1,18 @@
-import { useState, useRef } from 'react';
-import { motion } from 'framer-motion';
-import { Button } from '@/components/ui/button';
-import { useFollow } from '@/hooks/useFollow';
-import { useAuth } from '@/contexts/AuthContext';
-import { cn } from '@/lib/utils';
-import { Loader2 } from 'lucide-react';
+import { useState, useRef } from "react";
+import { motion } from "framer-motion";
+import { Button } from "@/components/ui/button";
+import { useFollow } from "@/hooks/useFollow";
+import { useAuth } from "@/contexts/AuthContext";
+import { cn } from "@/lib/utils";
+import { Loader2 } from "lucide-react";
 
 interface FollowButtonProps {
   targetUserId: string;
-  size?: 'sm' | 'default' | 'lg';
+  size?: "sm" | "default" | "lg";
   className?: string;
 }
 
-export const FollowButton = ({ targetUserId, size = 'default', className }: FollowButtonProps) => {
+export const FollowButton = ({ targetUserId, size = "default", className }: FollowButtonProps) => {
   const { user } = useAuth();
   const { isFollowing, isLoading, toggleFollow } = useFollow(targetUserId);
   const [ripples, setRipples] = useState<{ x: number; y: number; id: number }[]>([]);
@@ -45,7 +45,7 @@ export const FollowButton = ({ targetUserId, size = 'default', className }: Foll
         isFollowing
           ? "bg-white/10 text-foreground hover:bg-white/15"
           : "bg-white/5 text-foreground hover:bg-white/10 border-white/20",
-        className
+        className,
       )}
     >
       {ripples.map((r) => (
@@ -55,16 +55,10 @@ export const FollowButton = ({ targetUserId, size = 'default', className }: Foll
           style={{ left: r.x, top: r.y, width: 8, height: 8, marginLeft: -4, marginTop: -4 }}
           initial={{ scale: 0, opacity: 1 }}
           animate={{ scale: 25, opacity: 0 }}
-          transition={{ duration: 0.6, ease: 'easeOut' }}
+          transition={{ duration: 0.6, ease: "easeOut" }}
         />
       ))}
-      {isLoading ? (
-        <Loader2 className="h-4 w-4 animate-spin" />
-      ) : isFollowing ? (
-        "Kuzatilmoqda"
-      ) : (
-        "Kuzatish"
-      )}
+      {isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : isFollowing ? "Kuzatasiz" : "Kuzatish"}
     </Button>
   );
 };
