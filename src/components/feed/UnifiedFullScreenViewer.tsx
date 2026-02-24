@@ -49,6 +49,7 @@ export const UnifiedFullScreenViewer = ({
   const [showVideoPlayer, setShowVideoPlayer] = useState(false);
   const [videoPlayerSrc, setVideoPlayerSrc] = useState('');
   const [shortsPlaying, setShortsPlaying] = useState(true);
+  const [showPlayIndicator, setShowPlayIndicator] = useState(false);
 
   const [storyViewerOpen, setStoryViewerOpen] = useState(false);
   const [storyViewerGroups, setStoryViewerGroups] = useState<StoryGroup[]>([]);
@@ -63,7 +64,7 @@ export const UnifiedFullScreenViewer = ({
   const mouseDownRef = useRef(false);
   const mouseStartY = useRef(0);
   const mouseStartX = useRef(0);
-  const lastTapRef = useRef(0);
+  const playIndicatorTimeout = useRef<ReturnType<typeof setTimeout>>();
 
   const currentPost = activeTab === 'posts' ? posts[postIndex] : null;
   const currentShort = activeTab === 'shorts' ? shorts[shortIndex] : null;
@@ -132,9 +133,7 @@ export const UnifiedFullScreenViewer = ({
       if (!mutedMediaRef.current.has(el)) {
         mutedMediaRef.current.set(el, { muted: el.muted, volume: el.volume });
       }
-      try {
-        el.pause();
-      } catch {}
+      try { el.pause(); } catch {}
       el.muted = true;
       el.volume = 0;
     }
@@ -152,10 +151,6 @@ export const UnifiedFullScreenViewer = ({
     document.body.style.overflow = 'hidden';
     return () => { document.body.style.overflow = ''; };
   }, []);
-
-  const itemCount = activeTab === 'posts' ? posts.length : shorts.length;
-  const currentIndex = activeTab === 'posts' ? postIndex : shortIndex;
-  const setCurrentIndex = activeTab === 'posts' ? setPostIndex : setShortIndex;
 
   const smoothNavigate = useCallback((direction: 'up' | 'down') => {
     if (isTransitioning) return;
@@ -176,8 +171,8 @@ export const UnifiedFullScreenViewer = ({
       setTimeout(() => {
         setSlideDirection(null);
         setIsTransitioning(false);
-      }, 250);
-    }, 150);
+      }, 200);
+    }, 100);
   }, [isTransitioning, activeTab, postIndex, shortIndex, posts.length, shorts.length]);
 
   useEffect(() => {
@@ -192,9 +187,7 @@ export const UnifiedFullScreenViewer = ({
       if (Math.abs(e.deltaY) > 20) {
         isScrolling = true;
         smoothNavigate(e.deltaY > 0 ? 'down' : 'up');
-        timeout = setTimeout(() => {
-          isScrolling = false;
-        }, 500);
+        timeout = setTimeout(() => { isScrolling = false; }, 400);
       }
     };
 
@@ -218,10 +211,30 @@ export const UnifiedFullScreenViewer = ({
     const velocityY = Math.abs(diffY) / Math.max(elapsed, 1);
     const threshold = velocityY > 0.5 ? 30 : 60;
 
+    // If it was a tap (small movement, short time), handle play/pause for shorts
+    if (Math.abs(diffY) < 10 && Math.abs(diffX) < 10 && elapsed < 300) {
+      if (activeTab === 'shorts') {
+        handleShortsTap();
+      }
+      return;
+    }
+
     if (Math.abs(diffY) > Math.abs(diffX) && Math.abs(diffY) > threshold) {
       smoothNavigate(diffY > 0 ? 'down' : 'up');
     }
   };
+
+  const handleShortsTap = useCallback(() => {
+    setShortsPlaying((p) => {
+      const next = !p;
+      sendYouTubeCommand(next ? 'playVideo' : 'pauseVideo');
+      // Show play/pause indicator briefly
+      setShowPlayIndicator(true);
+      if (playIndicatorTimeout.current) clearTimeout(playIndicatorTimeout.current);
+      playIndicatorTimeout.current = setTimeout(() => setShowPlayIndicator(false), 800);
+      return next;
+    });
+  }, [sendYouTubeCommand]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
     mouseDownRef.current = true;
@@ -235,8 +248,16 @@ export const UnifiedFullScreenViewer = ({
 
     const diffY = mouseStartY.current - e.clientY;
     const diffX = mouseStartX.current - e.clientX;
-    const threshold = 60;
 
+    // Tap detection for mouse
+    if (Math.abs(diffY) < 5 && Math.abs(diffX) < 5) {
+      if (activeTab === 'shorts') {
+        handleShortsTap();
+        return;
+      }
+    }
+
+    const threshold = 60;
     if (Math.abs(diffY) > Math.abs(diffX) && Math.abs(diffY) > threshold) {
       smoothNavigate(diffY > 0 ? 'down' : 'up');
     }
@@ -252,61 +273,62 @@ export const UnifiedFullScreenViewer = ({
     if (tab === activeTab) return;
     setActiveTab(tab);
     setCurrentMediaIndex(0);
+    // Reset to first item when switching to shorts
+    if (tab === 'shorts') {
+      setShortIndex(0);
+    }
   };
 
+  // Preload next short thumbnails
+  useEffect(() => {
+    if (activeTab !== 'shorts') return;
+    const preloadCount = 3;
+    for (let i = shortIndex + 1; i <= shortIndex + preloadCount && i < shorts.length; i++) {
+      const img = new Image();
+      img.src = shorts[i].thumbnail;
+    }
+  }, [shortIndex, activeTab, shorts]);
+
   const renderShort = () => {
-    if (!currentShort) return null;
+    if (!currentShort) {
+      return (
+        <div className="flex-1 flex items-center justify-center text-white/50 text-sm">
+          Shorts topilmadi
+        </div>
+      );
+    }
     return (
       <div className={cn(
-        "flex-1 flex items-center justify-center relative overflow-hidden z-[1] transition-all duration-300 ease-out",
+        "flex-1 flex items-center justify-center relative overflow-hidden z-[1] transition-all duration-200 ease-out",
         slideDirection === 'down' && "animate-slide-out-up",
         slideDirection === 'up' && "animate-slide-out-down",
         !slideDirection && "animate-slide-in"
       )}>
-        <div className="relative w-full h-full pointer-events-none">
-          {shorts.slice(shortIndex + 1, shortIndex + 4).map((s) => (
-            <iframe
-              key={`preload-${s.id}`}
-              src={`https://www.youtube.com/embed/${s.id}?rel=0&autoplay=0&mute=1&controls=0&modestbranding=1&playsinline=1&loop=1&playlist=${s.id}&showinfo=0&iv_load_policy=3&disablekb=1&fs=0&enablejsapi=1&origin=${encodeURIComponent(ytOrigin)}`}
-              className="absolute inset-0 w-full h-full opacity-0"
-              allow="autoplay; encrypted-media"
-              allowFullScreen
-              title={s.title} />
-          ))}
+        <div className="relative w-full h-full">
           <iframe
             ref={shortsIframeRef}
             src={`https://www.youtube.com/embed/${currentShort.id}?rel=0&autoplay=1&controls=0&modestbranding=1&playsinline=1&loop=1&playlist=${currentShort.id}&showinfo=0&iv_load_policy=3&disablekb=1&fs=0&enablejsapi=1&origin=${encodeURIComponent(ytOrigin)}`}
-            className="w-full h-full"
+            className="w-full h-full pointer-events-none"
             allow="autoplay; encrypted-media"
             allowFullScreen
-            title={currentShort.title} />
+            title={currentShort.title}
+          />
           <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-black via-black/80 to-transparent z-[3] pointer-events-none" />
         </div>
 
-        <div className="absolute inset-0 z-[4] flex items-center justify-center pointer-events-none">
-          <button
-            type="button"
-            onClick={() => {
-              setShortsPlaying((p) => {
-                const next = !p;
-                sendYouTubeCommand(next ? 'playVideo' : 'pauseVideo');
-                return next;
-              });
-            }}
-            className="pointer-events-auto"
-            aria-label={shortsPlaying ? 'Pause' : 'Play'}>
-            <div className={cn(
-              "p-4 rounded-full bg-black/35 backdrop-blur-sm border border-white/10 transition-opacity",
-              shortsPlaying ? "opacity-0" : "opacity-100"
-            )}>
-              {shortsPlaying ?
-                <Pause className="h-8 w-8 text-white" /> :
-                <Play className="h-8 w-8 text-white" />}
-            </div>
-          </button>
+        {/* Play/Pause indicator */}
+        <div className={cn(
+          "absolute inset-0 z-[4] flex items-center justify-center pointer-events-none transition-opacity duration-300",
+          showPlayIndicator ? "opacity-100" : "opacity-0"
+        )}>
+          <div className="p-4 rounded-full bg-black/35 backdrop-blur-sm border border-white/10">
+            {shortsPlaying ?
+              <Play className="h-8 w-8 text-white" /> :
+              <Pause className="h-8 w-8 text-white" />}
+          </div>
         </div>
 
-        <div className="absolute bottom-14 left-0 right-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent px-4 pb-4 pt-16 z-[2]">
+        <div className="absolute bottom-14 left-0 right-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent px-4 pb-4 pt-16 z-[2] pointer-events-none">
           <div className="flex items-end gap-3">
             <div className="flex-1 min-w-0">
               <p className="text-[13px] font-medium text-white leading-snug line-clamp-2 drop-shadow-lg">
@@ -314,8 +336,6 @@ export const UnifiedFullScreenViewer = ({
               </p>
               <p className="text-[11px] text-white/50 mt-1 drop-shadow">{currentShort.channelTitle}</p>
             </div>
-
-            {/* YouTube logo indicator */}
             <div className="shrink-0 flex items-center gap-1 bg-white/10 backdrop-blur-md rounded-full px-2.5 py-1 border border-white/10">
               <svg viewBox="0 0 24 24" className="w-3.5 h-3.5 text-red-500 fill-current">
                 <path d="M23.498 6.186a3.016 3.016 0 0 0-2.122-2.136C19.505 3.545 12 3.545 12 3.545s-7.505 0-9.377.505A3.017 3.017 0 0 0 .502 6.186C0 8.07 0 12 0 12s0 3.93.502 5.814a3.016 3.016 0 0 0 2.122 2.136c1.871.505 9.376.505 9.376.505s7.505 0 9.377-.505a3.015 3.015 0 0 0 2.122-2.136C24 15.93 24 12 24 12s0-3.93-.502-5.814z" />
@@ -326,17 +346,12 @@ export const UnifiedFullScreenViewer = ({
           </div>
         </div>
 
-        {/* Position indicator */}
-        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex flex-col gap-1 z-[3]">
-          {shorts.map((_, i) =>
-            <div key={i} className={cn("w-1 rounded-full transition-all duration-300 opacity-0",
-
-              i === shortIndex ? "h-4 bg-white/80" : "h-1.5 bg-white/20"
-            )} />
-          )}
+        {/* Position counter */}
+        <div className="absolute right-3 bottom-20 z-[3] bg-white/10 backdrop-blur-md rounded-full px-2 py-0.5 border border-white/10">
+          <span className="text-[10px] text-white/70 font-medium">{shortIndex + 1}/{shorts.length}</span>
         </div>
-      </div>);
-
+      </div>
+    );
   };
 
   // ─── RENDER: Posts tab ───
@@ -362,7 +377,6 @@ export const UnifiedFullScreenViewer = ({
                 </div>
               </button>
             </> :
-
             <img src={currentMediaUrl} alt="Post media" className="max-w-full max-h-full object-contain" />
           }
 
@@ -372,7 +386,6 @@ export const UnifiedFullScreenViewer = ({
             </div>
           }
 
-          {/* Multi-media dots */}
           {mediaUrls.length > 1 &&
             <>
               <div className="absolute bottom-20 left-1/2 -translate-x-1/2 flex gap-1.5">
@@ -410,8 +423,8 @@ export const UnifiedFullScreenViewer = ({
               setShowVideoPlayer(true);
               if (videoRef.current) videoRef.current.pause();
               setIsPlaying(false);
-            }} />
-
+            }}
+          />
         </div>
 
         {/* Author info */}
@@ -433,8 +446,8 @@ export const UnifiedFullScreenViewer = ({
           </div>
           {currentPost.content && <PostCaption content={currentPost.content} variant="fullscreen" />}
         </div>
-      </>);
-
+      </>
+    );
   };
 
   const fetchStoryGroupForUser = useCallback(async (targetUserId: string): Promise<StoryGroup | null> => {
@@ -459,18 +472,10 @@ export const UnifiedFullScreenViewer = ({
 
       const [viewsRes, likesRes] = await Promise.all([
         viewerId
-          ? supabase
-            .from('story_views')
-            .select('story_id')
-            .eq('viewer_id', viewerId)
-            .in('story_id', stories.map(s => s.id))
+          ? supabase.from('story_views').select('story_id').eq('viewer_id', viewerId).in('story_id', stories.map(s => s.id))
           : Promise.resolve({ data: [] as any[] }),
         viewerId
-          ? supabase
-            .from('story_likes')
-            .select('story_id')
-            .eq('user_id', viewerId)
-            .in('story_id', stories.map(s => s.id))
+          ? supabase.from('story_likes').select('story_id').eq('user_id', viewerId).in('story_id', stories.map(s => s.id))
           : Promise.resolve({ data: [] as any[] }),
       ]);
 
@@ -481,14 +486,12 @@ export const UnifiedFullScreenViewer = ({
         ...s,
         media_type: s.media_type as 'image' | 'video',
         ring_id: s.ring_id || 'default',
-        author: authorProfile
-          ? {
-            id: authorProfile.id,
-            name: authorProfile.name,
-            username: authorProfile.username,
-            avatar_url: authorProfile.avatar_url,
-          }
-          : undefined,
+        author: authorProfile ? {
+          id: authorProfile.id,
+          name: authorProfile.name,
+          username: authorProfile.username,
+          avatar_url: authorProfile.avatar_url,
+        } : undefined,
         has_viewed: viewerId ? viewedStoryIds.has(s.id) : false,
         has_liked: viewerId ? likedStoryIds.has(s.id) : false,
       }));
@@ -536,28 +539,21 @@ export const UnifiedFullScreenViewer = ({
             <X className="w-4 h-4 text-white" />
           </button>
 
-          {/* Tabs */}
           <div className="flex gap-0.5 bg-white/10 backdrop-blur-md rounded-full p-0.5 border border-white/10 py-[2px] my-[10px]">
             <button
               onClick={() => handleTabSwitch('shorts')}
               className={cn(
                 "px-3.5 py-1 rounded-full text-[11px] font-medium transition-all",
-                activeTab === 'shorts' ?
-                  "bg-white/20 text-white shadow-sm" :
-                  "text-white/50 hover:text-white/70"
+                activeTab === 'shorts' ? "bg-white/20 text-white shadow-sm" : "text-white/50 hover:text-white/70"
               )}>
-
               yt shorts
             </button>
             <button
               onClick={() => handleTabSwitch('posts')}
               className={cn(
                 "px-3.5 py-1 rounded-full text-[11px] font-medium transition-all",
-                activeTab === 'posts' ?
-                  "bg-white/20 text-white shadow-sm" :
-                  "text-white/50 hover:text-white/70"
+                activeTab === 'posts' ? "bg-white/20 text-white shadow-sm" : "text-white/50 hover:text-white/70"
               )}>
-
               postlar
             </button>
           </div>
@@ -574,8 +570,8 @@ export const UnifiedFullScreenViewer = ({
           <SamsungUltraVideoPlayer
             src={videoPlayerSrc}
             title={currentPost?.content?.slice(0, 50) || 'Video'}
-            onClose={() => setShowVideoPlayer(false)} />
-
+            onClose={() => setShowVideoPlayer(false)}
+          />
         </div>,
         document.body
       )}
@@ -587,5 +583,6 @@ export const UnifiedFullScreenViewer = ({
           onClose={() => setStoryViewerOpen(false)}
         />
       )}
-    </>);
+    </>
+  );
 };
