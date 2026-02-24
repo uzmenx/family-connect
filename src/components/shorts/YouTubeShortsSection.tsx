@@ -12,6 +12,7 @@ export interface Short {
 interface YouTubeShortsProps {
   onShortClick?: (shorts: Short[], index: number) => void;
   onSearchClick?: () => void;
+  onShortsChange?: (shorts: Short[]) => void;
 }
 
 const SEEN_KEY = 'yt_shorts_seen_ids';
@@ -56,7 +57,7 @@ function getRandomQuery(): string {
   return SEARCH_QUERIES[Math.floor(Math.random() * SEARCH_QUERIES.length)];
 }
 
-export function YouTubeShortsSection({ onShortClick, onSearchClick }: YouTubeShortsProps) {
+export function YouTubeShortsSection({ onShortClick, onSearchClick, onShortsChange }: YouTubeShortsProps) {
   const [shorts, setShorts] = useState<Short[]>([]);
   const [nextToken, setNextToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -131,8 +132,30 @@ export function YouTubeShortsSection({ onShortClick, onSearchClick }: YouTubeSho
   }, []);
 
   useEffect(() => {
+    onSearchClick;
+  }, [onSearchClick]);
+
+  useEffect(() => {
+    // notify parent about the latest list for caching
+    // (used for UnifiedFullScreenViewer tab switching)
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    (undefined);
+  }, []);
+
+  useEffect(() => {
     fetchShorts();
   }, [fetchShorts]);
+
+  useEffect(() => {
+    onShortsChange?.(shorts);
+  }, [shorts, onShortsChange]);
+
+  useEffect(() => {
+    // keep parent in sync
+    // (prop is optional)
+    // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+    onShortClick;
+  }, [onShortClick]);
 
   useEffect(() => {
     const handler = () => {
@@ -173,6 +196,10 @@ export function YouTubeShortsSection({ onShortClick, onSearchClick }: YouTubeSho
     // Mark clicked + nearby as seen
     const toMark = allShorts.slice(Math.max(0, index - 2), index + 5).map(s => s.id);
     markSeen(toMark);
+    try {
+      const lastId = allShorts[index]?.id;
+      if (lastId) localStorage.setItem('yt_shorts_last_id', lastId);
+    } catch {}
     onShortClick?.(allShorts, index);
   }, [onShortClick]);
 

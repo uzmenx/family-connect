@@ -6,6 +6,7 @@ import { useMessages, Message } from '@/hooks/useMessages';
 import { useConversations } from '@/hooks/useConversations';
 import { useVideoCall } from '@/hooks/useVideoCall';
 import { supabase } from '@/integrations/supabase/client';
+import { Post } from '@/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Check, CheckCheck, Video, Loader2, Clock, MoreVertical, ChevronDown } from 'lucide-react';
@@ -21,6 +22,7 @@ import { MediaFullscreen } from '@/components/chat/MediaFullscreen';
 import { MessageContextMenu } from '@/components/chat/MessageContextMenu';
 import { ForwardMessageDialog } from '@/components/chat/ForwardMessageDialog';
 import { ReplyPreview } from '@/components/chat/ReplyPreview';
+import { FullScreenViewer } from '@/components/feed/FullScreenViewer';
 import ChatWallpaperPicker from '@/components/chat/ChatWallpaperPicker';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { toast } from 'sonner';
@@ -44,6 +46,10 @@ const Chat = () => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const [fullscreenMedia, setFullscreenMedia] = useState<{ url: string; type: 'image' | 'video' } | null>(null);
+  const [sharedPosts, setSharedPosts] = useState<Post[]>([]);
+  const [sharedPostsLoading, setSharedPostsLoading] = useState(false);
+  const [postViewerOpen, setPostViewerOpen] = useState(false);
+  const [postViewerInitialIndex, setPostViewerInitialIndex] = useState(0);
   const [chatWallpaper, setChatWallpaper] = useLocalStorage('chat_wallpaper', 'none');
   const [showWallpaperPicker, setShowWallpaperPicker] = useState(false);
   const [showScrollDown, setShowScrollDown] = useState(false);
@@ -100,9 +106,99 @@ const Chat = () => {
         }
       }
     };
-
     init();
   }, [userId, user?.id, getOrCreateConversation]);
+
+  const extractSharedPost = (content: string | null | undefined) => {
+    if (!content) return null;
+    const markerMatch = content.match(/\[\[POST:([^\]]+)\]\]/);
+    if (!markerMatch) return null;
+    const postId = markerMatch[1];
+    const cleaned = content
+      .replace(markerMatch[0], '')
+      .replace(/\n?📎\s*Post:\s*\S+/g, '')
+      .trim();
+    return { postId, messageText: cleaned };
+  };
+
+  const enrichPostsWithAuthors = async (postsData: any[]): Promise<Post[]> => {
+    if (!postsData || postsData.length === 0) return [];
+    const userIds = [...new Set(postsData.map(p => p.user_id))];
+    const { data: profiles } = await supabase
+      .from('profiles')
+      .select('*')
+      .in('id', userIds);
+    return postsData.map((post: any) => {
+      const profile: any = profiles?.find((p: any) => p.id === post.user_id);
+      return {
+        ...post,
+        media_urls: post.media_urls || [],
+        author: profile ? {
+          id: post.user_id,
+          email: profile.email || '',
+          full_name: profile.name || 'Foydalanuvchi',
+          username: profile.username || 'user',
+          bio: profile.bio || '',
+          avatar_url: profile.avatar_url || '',
+          cover_url: '',
+          instagram: '',
+          telegram: '',
+          followers_count: 0,
+          following_count: 0,
+          relatives_count: 0,
+          created_at: post.created_at,
+        } : undefined
+      } as Post;
+    });
+  };
+
+  const loadSharedPosts = async (): Promise<Post[]> => {
+    if (sharedPosts.length > 0) return sharedPosts;
+    if (sharedPostsLoading) return sharedPosts;
+    setSharedPostsLoading(true);
+    try {
+      const { data: postsData, error } = await supabase
+        .from('posts')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50);
+      if (error) throw error;
+      const enriched = await enrichPostsWithAuthors(postsData || []);
+      setSharedPosts(enriched);
+      return enriched;
+    } catch (e) {
+      console.error('Failed to load posts for shared preview:', e);
+      return [];
+    } finally {
+      setSharedPostsLoading(false);
+    }
+  };
+
+  const openSharedPostViewer = async (postId: string) => {
+    const postsList = await loadSharedPosts();
+
+    let nextPosts = postsList;
+    if (nextPosts.length === 0) {
+      try {
+        const { data: onePost, error } = await supabase
+          .from('posts')
+          .select('*')
+          .eq('id', postId)
+          .maybeSingle();
+        if (error) throw error;
+        const enriched = await enrichPostsWithAuthors(onePost ? [onePost] : []);
+        nextPosts = enriched;
+        setSharedPosts(enriched);
+      } catch (e) {
+        console.error('Failed to load shared post:', e);
+        return;
+      }
+    }
+
+    const idx = nextPosts.findIndex((p) => p.id === postId);
+    setPostViewerInitialIndex(Math.max(0, idx));
+    setPostViewerOpen(true);
+  };
 
   // Real-time online status subscription
   useEffect(() => {
@@ -259,6 +355,55 @@ const Chat = () => {
   };
 
   const renderMessageContent = (msg: Message, isMine: boolean) => {
+    const shared = extractSharedPost(msg.content);
+    if (shared) {
+      const previewPost = sharedPosts.find((p) => p.id === shared.postId);
+      const mediaUrl = previewPost?.media_urls?.[0] || previewPost?.image_url;
+      const isVideo = !!mediaUrl && (mediaUrl.includes('.mp4') || mediaUrl.includes('.mov') || mediaUrl.includes('.webm'));
+
+      return (
+        <div className="space-y-2">
+          {shared.messageText && (
+            <p className="text-sm whitespace-pre-wrap break-words">{shared.messageText}</p>
+          )}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation();
+              openSharedPostViewer(shared.postId);
+            }}
+            className={cn(
+              'w-[240px] max-w-[65vw] overflow-hidden rounded-2xl border border-white/10 bg-black/20 backdrop-blur-md text-left',
+              isMine ? 'border-white/20' : 'border-border/20'
+            )}
+          >
+            <div className="w-full aspect-[4/5] bg-black/30">
+              {mediaUrl ? (
+                isVideo ? (
+                  <video src={mediaUrl} className="h-full w-full object-cover" muted playsInline />
+                ) : (
+                  <img src={mediaUrl} className="h-full w-full object-cover" alt="Shared post" />
+                )
+              ) : (
+                <div className="h-full w-full flex items-center justify-center text-xs text-white/70">Post</div>
+              )}
+            </div>
+            <div className="p-2.5">
+              <div className="text-xs font-semibold text-white/90">
+                {previewPost?.author?.username ? `@${previewPost.author.username}` : 'Post'}
+              </div>
+              {previewPost?.content && (
+                <div className="mt-0.5 text-[11px] text-white/70 line-clamp-2">{previewPost.content}</div>
+              )}
+              {!previewPost && (
+                <div className="mt-0.5 text-[11px] text-white/70">Yuklanmoqda...</div>
+              )}
+            </div>
+          </button>
+        </div>
+      );
+    }
+
     // Voice message
     if (msg.media_type === 'audio' && msg.media_url) {
       return (
@@ -305,6 +450,14 @@ const Chat = () => {
 
   return (
     <>
+      {postViewerOpen && sharedPosts.length > 0 && (
+        <FullScreenViewer
+          posts={sharedPosts}
+          initialIndex={postViewerInitialIndex}
+          onClose={() => setPostViewerOpen(false)}
+        />
+      )}
+
       {/* Fullscreen media viewer */}
       {fullscreenMedia && (
         <MediaFullscreen

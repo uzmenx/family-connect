@@ -61,6 +61,7 @@ export const UnifiedFullScreenViewer = ({
   const touchStartY = useRef(0);
   const touchStartX = useRef(0);
   const touchStartTime = useRef(0);
+  const lastShortsTouchTapTs = useRef(0);
   const mouseDownRef = useRef(false);
   const mouseStartY = useRef(0);
   const mouseStartX = useRef(0);
@@ -214,6 +215,7 @@ export const UnifiedFullScreenViewer = ({
     // If it was a tap (small movement, short time), handle play/pause for shorts
     if (Math.abs(diffY) < 10 && Math.abs(diffX) < 10 && elapsed < 300) {
       if (activeTab === 'shorts') {
+        lastShortsTouchTapTs.current = Date.now();
         handleShortsTap();
       }
       return;
@@ -275,7 +277,15 @@ export const UnifiedFullScreenViewer = ({
     setCurrentMediaIndex(0);
     // Reset to first item when switching to shorts
     if (tab === 'shorts') {
-      setShortIndex(0);
+      let nextIndex = 0;
+      try {
+        const lastId = localStorage.getItem('yt_shorts_last_id');
+        if (lastId) {
+          const idx = shorts.findIndex((s) => s.id === lastId);
+          if (idx >= 0) nextIndex = idx;
+        }
+      } catch {}
+      setShortIndex(nextIndex);
     }
   };
 
@@ -303,7 +313,16 @@ export const UnifiedFullScreenViewer = ({
         slideDirection === 'down' && "animate-slide-out-up",
         slideDirection === 'up' && "animate-slide-out-down",
         !slideDirection && "animate-slide-in"
-      )}>
+      )}
+        onClick={(e) => {
+          if (isTransitioning) return;
+          // Mobile browsers often fire a click after touchend.
+          // We already handle touch taps in handleTouchEnd.
+          if (Date.now() - lastShortsTouchTapTs.current < 450) return;
+          const t = e.target as HTMLElement | null;
+          if (t?.closest('button')) return;
+          handleShortsTap();
+        }}>
         <div className="relative w-full h-full">
           <iframe
             ref={shortsIframeRef}
@@ -313,7 +332,13 @@ export const UnifiedFullScreenViewer = ({
             allowFullScreen
             title={currentShort.title}
           />
-          <div className="absolute top-0 left-0 right-0 h-16 bg-gradient-to-b from-black via-black/80 to-transparent z-[3] pointer-events-none" />
+
+          {/*
+            YouTube player sometimes draws title/hashtags/time overlays inside the iframe.
+            We can't style inside cross-origin iframe, so we mask small areas.
+          */}
+          <div className="absolute top-0 left-0 right-0 h-14 z-[3] pointer-events-none bg-black" />
+          <div className="absolute bottom-0 left-0 right-0 h-28 z-[3] pointer-events-none bg-black" />
         </div>
 
         {/* Play/Pause indicator */}
@@ -328,7 +353,7 @@ export const UnifiedFullScreenViewer = ({
           </div>
         </div>
 
-        <div className="absolute bottom-14 left-0 right-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent px-4 pb-4 pt-16 z-[2] pointer-events-none">
+        <div className="absolute bottom-14 left-0 right-0 px-4 pb-4 pt-16 z-[5] pointer-events-none">
           <div className="flex items-end gap-3">
             <div className="flex-1 min-w-0">
               <p className="text-[13px] font-medium text-white leading-snug line-clamp-2 drop-shadow-lg">
@@ -347,7 +372,7 @@ export const UnifiedFullScreenViewer = ({
         </div>
 
         {/* Position counter */}
-        <div className="absolute right-3 bottom-20 z-[3] bg-white/10 backdrop-blur-md rounded-full px-2 py-0.5 border border-white/10">
+        <div className="absolute right-3 bottom-20 z-[5] bg-white/10 backdrop-blur-md rounded-full px-2 py-0.5 border border-white/10">
           <span className="text-[10px] text-white/70 font-medium">{shortIndex + 1}/{shorts.length}</span>
         </div>
       </div>
@@ -428,7 +453,7 @@ export const UnifiedFullScreenViewer = ({
         </div>
 
         {/* Author info */}
-        <div className="absolute bottom-14 left-0 right-14 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 pt-14 z-[1]">
+        <div className="absolute bottom-14 left-0 right-14 p-4 pt-14 z-[1]">
           <div className="flex items-center mb-2 gap-2">
             <UserAvatar
               userId={currentPost.user_id}

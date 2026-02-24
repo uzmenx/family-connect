@@ -1,9 +1,15 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Link, Copy, Check } from 'lucide-react';
-import { useState } from 'react';
-import { toast } from '@/hooks/use-toast';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { Textarea } from '@/components/ui/textarea';
+import { Check, Search } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 
 interface ShareDialogProps {
   open: boolean;
@@ -12,130 +18,209 @@ interface ShareDialogProps {
 }
 
 export const ShareDialog = ({ open, onOpenChange, postId }: ShareDialogProps) => {
-  const [copied, setCopied] = useState(false);
+  const { user } = useAuth();
+  const navigate = useNavigate();
   const shareUrl = `${window.location.origin}/post/${postId}`;
+  const shareMarker = `[[POST:${postId}]]`;
+  const [searchQuery, setSearchQuery] = useState('');
+  const [messageText, setMessageText] = useState('');
+  const [profiles, setProfiles] = useState<Array<{ id: string; name: string | null; username: string | null; avatar_url: string | null }>>([]);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [isLoading, setIsLoading] = useState(false);
+  const [isSending, setIsSending] = useState(false);
 
-  const copyToClipboard = async () => {
-    try {
-      await navigator.clipboard.writeText(shareUrl);
-      setCopied(true);
-      toast({
-        title: "Nusxalandi!",
-        description: "Havola klipbordga nusxalandi"
-      });
-      setTimeout(() => setCopied(false), 2000);
-    } catch (err) {
-      console.error('Failed to copy:', err);
-    }
+  useEffect(() => {
+    if (!open) return;
+    if (!user?.id) return;
+    setSearchQuery('');
+    setMessageText('');
+    setSelectedIds(new Set());
+    const fetchProfiles = async () => {
+      setIsLoading(true);
+      try {
+        const [followersRes, followingRes] = await Promise.all([
+          supabase.from('follows').select('follower_id').eq('following_id', user.id),
+          supabase.from('follows').select('following_id').eq('follower_id', user.id),
+        ]);
+
+        const followerIds = (followersRes.data || []).map((r: any) => r.follower_id).filter(Boolean);
+        const followingIds = (followingRes.data || []).map((r: any) => r.following_id).filter(Boolean);
+
+        const ids = Array.from(new Set([...followerIds, ...followingIds])).filter((id) => id !== user.id);
+        if (ids.length === 0) {
+          setProfiles([]);
+          return;
+        }
+
+        const { data, error } = await supabase
+          .from('profiles')
+          .select('id, name, username, avatar_url')
+          .in('id', ids);
+
+        if (error) throw error;
+        setProfiles((data || []) as any);
+      } catch (e) {
+        console.error('Failed to fetch share targets:', e);
+        setProfiles([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchProfiles();
+  }, [open, user?.id]);
+
+  const filteredProfiles = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return profiles;
+    return profiles.filter((p) => {
+      const name = (p.name || '').toLowerCase();
+      const username = (p.username || '').toLowerCase();
+      return name.includes(q) || username.includes(q);
+    });
+  }, [profiles, searchQuery]);
+
+  const toggleSelect = (id: string) => {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   };
 
-  const shareOptions = [
-    {
-      name: 'Telegram',
-      icon: (
-        <svg className="h-6 w-6" viewBox="0 0 24 24" fill="#0088cc">
-          <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/>
-        </svg>
-      ),
-      url: `https://t.me/share/url?url=${encodeURIComponent(shareUrl)}`
-    },
-    {
-      name: 'WhatsApp',
-      icon: (
-        <svg className="h-6 w-6" viewBox="0 0 24 24" fill="#25D366">
-          <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z"/>
-        </svg>
-      ),
-      url: `https://wa.me/?text=${encodeURIComponent(shareUrl)}`
-    },
-    {
-      name: 'Facebook',
-      icon: (
-        <svg className="h-6 w-6" viewBox="0 0 24 24" fill="#1877F2">
-          <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-        </svg>
-      ),
-      url: `https://www.facebook.com/sharer/sharer.php?u=${encodeURIComponent(shareUrl)}`
-    },
-    {
-      name: 'X',
-      icon: (
-        <svg className="h-6 w-6" viewBox="0 0 24 24" fill="currentColor">
-          <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
-        </svg>
-      ),
-      url: `https://twitter.com/intent/tweet?url=${encodeURIComponent(shareUrl)}`
-    },
-    {
-      name: 'LinkedIn',
-      icon: (
-        <svg className="h-6 w-6" viewBox="0 0 24 24" fill="#0A66C2">
-          <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z"/>
-        </svg>
-      ),
-      url: `https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`
-    }
-  ];
+  const getInitials = (name?: string | null) => {
+    if (!name) return 'U';
+    return name.split(' ').map((n) => n[0]).join('').toUpperCase().slice(0, 2);
+  };
 
-  const handleShare = (url: string) => {
-    window.open(url, '_blank', 'width=600,height=400');
+  const handleSend = async () => {
+    if (!user?.id) return;
+    if (selectedIds.size === 0) {
+      toast.error('Tanlang');
+      return;
+    }
+    if (isSending) return;
+    setIsSending(true);
+    try {
+      const ids = Array.from(selectedIds);
+      const trimmedMessage = messageText.trim();
+      const contentToSend = trimmedMessage
+        ? `${trimmedMessage}\n\n${shareMarker}\n📎 Post: ${shareUrl}`
+        : `${shareMarker}\n📎 Post: ${shareUrl}`;
+      for (const targetUserId of ids) {
+        const { data: existingConv, error: convErr } = await supabase
+          .from('conversations')
+          .select('id')
+          .or(`and(participant1_id.eq.${user.id},participant2_id.eq.${targetUserId}),and(participant1_id.eq.${targetUserId},participant2_id.eq.${user.id})`)
+          .maybeSingle();
+        if (convErr) throw convErr;
+
+        let conversationId = existingConv?.id as string | undefined;
+        if (!conversationId) {
+          const { data: newConv, error: newConvErr } = await supabase
+            .from('conversations')
+            .insert({ participant1_id: user.id, participant2_id: targetUserId })
+            .select('id')
+            .single();
+          if (newConvErr) throw newConvErr;
+          conversationId = newConv?.id;
+        }
+
+        if (conversationId) {
+          const { error: msgErr } = await supabase
+            .from('messages')
+            .insert({
+              conversation_id: conversationId,
+              sender_id: user.id,
+              content: contentToSend,
+              status: 'sent'
+            });
+          if (msgErr) throw msgErr;
+        }
+      }
+
+      toast.success('Yuborildi');
+      onOpenChange(false);
+      navigate('/messages');
+    } catch (e) {
+      console.error('Failed to send post:', e);
+      toast.error('Xatolik yuz berdi');
+    } finally {
+      setIsSending(false);
+    }
   };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-sm">
+      <DialogContent className="sm:max-w-lg rounded-3xl p-4">
         <DialogHeader>
-          <div className="flex flex-col items-center gap-4 pb-4">
-            <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center">
-              <Link className="h-7 w-7 text-muted-foreground" />
-            </div>
-            <div className="text-center">
-              <DialogTitle className="text-xl">Do'stlar bilan ulashing</DialogTitle>
-              <p className="text-sm text-muted-foreground mt-1">
-                Post havolasini ulashing!
-              </p>
-            </div>
-          </div>
+          <DialogTitle>Yuborish</DialogTitle>
         </DialogHeader>
-        
-        {/* Copy link */}
-        <div className="space-y-4">
-          <div>
-            <label className="text-sm font-medium">Havolani nusxalash</label>
-            <div className="flex items-center gap-2 mt-1.5">
-              <Input 
-                value={shareUrl} 
-                readOnly 
-                className="bg-muted text-sm"
-              />
-              <Button 
-                variant="outline" 
-                size="icon"
-                onClick={copyToClipboard}
-              >
-                {copied ? <Check className="h-4 w-4 text-primary" /> : <Copy className="h-4 w-4" />}
-              </Button>
+
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Qidirish..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="pl-10 rounded-2xl"
+          />
+        </div>
+
+        <ScrollArea className="h-[380px]">
+          {isLoading ? (
+            <div className="py-10 text-center text-muted-foreground">Yuklanmoqda...</div>
+          ) : filteredProfiles.length === 0 ? (
+            <div className="py-10 text-center text-muted-foreground">Topilmadi</div>
+          ) : (
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-3 pr-3">
+              {filteredProfiles.map((p) => {
+                const selected = selectedIds.has(p.id);
+                return (
+                  <button
+                    key={p.id}
+                    type="button"
+                    onClick={() => toggleSelect(p.id)}
+                    className="flex flex-col items-center text-center gap-2 p-2 rounded-2xl hover:bg-muted/60 transition-colors"
+                  >
+                    <div className="relative">
+                      <Avatar className="h-16 w-16">
+                        <AvatarImage src={p.avatar_url || undefined} />
+                        <AvatarFallback>{getInitials(p.name)}</AvatarFallback>
+                      </Avatar>
+                      {selected && (
+                        <div className="absolute -bottom-1 -right-1 h-6 w-6 rounded-full bg-primary text-primary-foreground flex items-center justify-center">
+                          <Check className="h-4 w-4" />
+                        </div>
+                      )}
+                    </div>
+                    <div className="w-full">
+                      <div className="text-sm font-semibold truncate">{p.username ? `@${p.username}` : (p.name || 'User')}</div>
+                    </div>
+                  </button>
+                );
+              })}
             </div>
-          </div>
-          
-          {/* Share buttons */}
-          <div>
-            <label className="text-sm font-medium">Ulashish</label>
-            <div className="flex items-center justify-center gap-4 mt-3 pb-2">
-              {shareOptions.map((option) => (
-                <button
-                  key={option.name}
-                  onClick={() => handleShare(option.url)}
-                  className="flex flex-col items-center gap-1.5 transition-transform hover:scale-110"
-                >
-                  <div className="h-12 w-12 rounded-full bg-muted flex items-center justify-center">
-                    {option.icon}
-                  </div>
-                  <span className="text-xs text-muted-foreground">{option.name}</span>
-                </button>
-              ))}
-            </div>
-          </div>
+          )}
+        </ScrollArea>
+
+        <div className="space-y-2">
+          <Textarea
+            value={messageText}
+            onChange={(e) => setMessageText(e.target.value)}
+            placeholder="Xabar yozing..."
+            className="min-h-[70px] rounded-2xl"
+          />
+        </div>
+
+        <div className="flex justify-end gap-2">
+          <Button variant="outline" onClick={() => onOpenChange(false)}>
+            Bekor qilish
+          </Button>
+          <Button onClick={handleSend} disabled={selectedIds.size === 0 || isSending}>
+            {isSending ? 'Yuborilmoqda...' : `Yuborish (${selectedIds.size})`}
+          </Button>
         </div>
       </DialogContent>
     </Dialog>

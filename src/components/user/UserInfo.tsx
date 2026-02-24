@@ -36,10 +36,10 @@ export const UserInfo = ({
         )}
         onClick={handleClick}>
 
-        <p className="font-semibold text-sm text-white hover:underline my-0">
+        <p className="font-semibold text-sm text-foreground hover:underline my-0">
           {name || 'Foydalanuvchi'}
         </p>
-        <p className="text-xs text-white/70">@{username || 'user'}</p>
+        <p className="text-xs text-muted-foreground">@{username || 'user'}</p>
       </div>);
 
   }

@@ -58,6 +58,10 @@ const Home = () => {
     setViewerOpen(true);
   };
 
+  const handleShortsChange = useCallback((shorts: Short[]) => {
+    setCachedShorts(shorts);
+  }, []);
+
   const openStoryViewer = (groupIndex: number) => {
     setStoryGroupIndex(groupIndex);
     setStoryViewerOpen(true);
@@ -133,7 +137,11 @@ const Home = () => {
         <StoriesRow onStoryClick={openStoryViewer} />
 
         {/* YouTube Shorts - compact */}
-        <YouTubeShortsSection onShortClick={openShortsViewer} onSearchClick={() => setSearchOpen(true)} />
+        <YouTubeShortsSection
+          onShortClick={openShortsViewer}
+          onShortsChange={handleShortsChange}
+          onSearchClick={() => setSearchOpen(true)}
+        />
 
         <PullToRefresh onRefresh={handleRefresh}>
           {isLoading ?
