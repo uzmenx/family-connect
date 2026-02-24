@@ -298,8 +298,8 @@ export const FamilyTreeV2 = () => {
       </div>
       
       {/* Canvas */}
-      <div className={cn("flex-1 container mx-auto px-1 pb-2", isMergeMode && "pt-16")}>
-        <div className="h-[calc(100vh-230px)] min-h-[420px]">
+      <div className={cn("flex-1 px-0 pb-0", isMergeMode && "pt-16")}>
+        <div className="h-[calc(100vh-160px)] min-h-[500px]">
           <FamilyTreeCanvas
             members={members}
             positions={positions}
