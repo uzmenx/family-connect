@@ -68,6 +68,18 @@ export function YouTubeShortsSection({ onShortClick, onSearchClick, onShortsChan
   const currentQueryRef = useRef(getRandomQuery());
   const retriesRef = useRef(0);
 
+  const isLikelyMusic = useCallback((s: Short) => {
+    const t = (s.title || '').toLowerCase();
+    const c = (s.channelTitle || '').toLowerCase();
+    if (c.endsWith(' - topic')) return true;
+    if (t.includes('official video')) return true;
+    if (t.includes('music video')) return true;
+    if (t.includes('lyrics')) return true;
+    if (t.includes('audio')) return true;
+    if (t.includes('youtube music')) return true;
+    return false;
+  }, []);
+
   const fetchShorts = useCallback(async (pageToken?: string) => {
     if (fetchingRef.current) return;
     fetchingRef.current = true;
@@ -96,7 +108,7 @@ export function YouTubeShortsSection({ onShortClick, onSearchClick, onShortsChan
       );
       if (!res.ok) throw new Error('Failed to fetch');
       const data = await res.json();
-      const newShorts: Short[] = data?.shorts || [];
+      const newShorts: Short[] = (data?.shorts || []).filter((s: Short) => !isLikelyMusic(s));
       const newToken: string | null = data?.nextPageToken || null;
 
       // Filter out already-seen shorts

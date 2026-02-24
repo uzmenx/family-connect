@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Grid3X3, Bookmark, Users, AtSign, ChevronDown, ChevronUp } from 'lucide-react';
+import { ArrowLeft, Grid3X3, Bookmark, Users, AtSign, ChevronDown, ChevronUp, Grid2X2, LayoutList, Columns2 } from 'lucide-react';
 import { SocialLinksList } from '@/components/profile';
 import { SocialLink } from '@/components/profile/SocialLinksEditor';
 import { useStoryHighlights } from '@/hooks/useStoryHighlights';
@@ -31,6 +31,20 @@ import { useActiveStories } from '@/hooks/useActiveStories';
 import { getStoryRingGradient } from '@/components/stories/storyRings';
 import { StoryViewer } from '@/components/stories/StoryViewer';
 import type { StoryGroup, Story } from '@/hooks/useStories';
+import { Post } from '@/types';
+
+const UserProfileMasonryItem = ({ post }: { post: Post }) => {
+  const thumb = ((post.media_urls && post.media_urls.length > 0 ? post.media_urls[0] : (post.image_url || '')) || '') as string;
+  return (
+    <div className="relative aspect-[3/4] rounded-xl overflow-hidden bg-muted">
+      {thumb ? (
+        <img src={thumb} alt="" className="w-full h-full object-cover" />
+      ) : (
+        <div className="w-full h-full bg-muted" />
+      )}
+    </div>
+  );
+};
 
 interface UserProfile {
   id: string;
@@ -53,6 +67,7 @@ const UserProfilePage = () => {
   const { posts, isLoading: postsLoading, postsCount, refetch } = useUserPosts(userId);
   const { followersCount, followingCount } = useFollow(userId);
   const [activeTab, setActiveTab] = useState<'posts' | 'saved' | 'mentions'>('posts');
+  const [postsLayout, setPostsLayout] = useState<'pinterest2' | 'pinterest1' | 'list'>('pinterest2');
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
   const [showPostsStats, setShowPostsStats] = useState(false);
@@ -67,6 +82,10 @@ const UserProfilePage = () => {
   const { highlights } = useStoryHighlights(userId);
   const { collections, selectedCollectionId, setSelectedCollectionId, collectionPosts } = usePostCollections(userId);
   const { mentionedPosts: userMentionedPosts, collabPosts: userCollabPosts } = useMentionsCollabs(userId);
+
+  const cyclePostsLayout = useCallback(() => {
+    setPostsLayout((prev) => (prev === 'pinterest2' ? 'pinterest1' : prev === 'pinterest1' ? 'list' : 'pinterest2'));
+  }, []);
 
   // Family tree states
   const { members, addMember, sendInvitation } = useFamilyTree();
@@ -483,6 +502,26 @@ const UserProfilePage = () => {
             >
               <AtSign className="h-5 w-5" />
             </button>
+
+            {activeTab === 'posts' && (
+              <button
+                type="button"
+                onClick={cyclePostsLayout}
+                className={cn(
+                  'py-2 px-3 flex items-center justify-center border-b-2 transition-colors',
+                  'border-transparent text-muted-foreground hover:text-foreground'
+                )}
+                aria-label="Toggle posts layout"
+              >
+                {postsLayout === 'list' ? (
+                  <LayoutList className="h-5 w-5" />
+                ) : postsLayout === 'pinterest1' ? (
+                  <Columns2 className="h-5 w-5" />
+                ) : (
+                  <Grid2X2 className="h-5 w-5" />
+                )}
+              </button>
+            )}
           </div>
         </div>
 
@@ -500,13 +539,54 @@ const UserProfilePage = () => {
                 <Grid3X3 className="h-12 w-12 mx-auto mb-3 text-muted-foreground/50" />
                 <p className="text-muted-foreground">{selectedCollectionId ? "Bu ro'yxatda postlar yo'q" : "Hozircha postlar yo'q"}</p>
               </div>
-            ) : (
+            ) : postsLayout === 'list' ? (
               <div className="space-y-4 px-0 md:px-4">
                 {displayPosts.map((post, index) => (
                   <div key={post.id} onClick={() => openViewer(index)} className="cursor-pointer">
                     <PostCard post={post} />
                   </div>
                 ))}
+                <EndOfFeed />
+              </div>
+            ) : postsLayout === 'pinterest1' ? (
+              <div className="pb-20 px-px">
+                <div className="flex flex-col gap-1 p-1">
+                  {displayPosts.map((post, idx) => (
+                    <div key={post.id} onClick={() => openViewer(idx)} className="cursor-pointer">
+                      <UserProfileMasonryItem post={post} />
+                    </div>
+                  ))}
+                </div>
+                <EndOfFeed />
+              </div>
+            ) : (
+              <div className="pb-20 px-px">
+                <div className="flex gap-1 p-1">
+                  <div className="flex-1 flex flex-col gap-1">
+                    {displayPosts
+                      .filter((_, i) => i % 2 === 0)
+                      .map((post) => {
+                        const idx = displayPosts.findIndex((p) => p.id === post.id);
+                        return (
+                          <div key={post.id} onClick={() => openViewer(idx)} className="cursor-pointer">
+                            <UserProfileMasonryItem post={post} />
+                          </div>
+                        );
+                      })}
+                  </div>
+                  <div className="flex-1 flex flex-col gap-1">
+                    {displayPosts
+                      .filter((_, i) => i % 2 === 1)
+                      .map((post) => {
+                        const idx = displayPosts.findIndex((p) => p.id === post.id);
+                        return (
+                          <div key={post.id} onClick={() => openViewer(idx)} className="cursor-pointer">
+                            <UserProfileMasonryItem post={post} />
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
                 <EndOfFeed />
               </div>
             )}

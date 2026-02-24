@@ -8,7 +8,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { AtSign, Bell, Bookmark, Check, ChevronDown, ChevronUp, Edit, Grid3X3, Settings, Trash2, Users } from 'lucide-react';
+import { AtSign, Bell, Bookmark, Check, ChevronDown, ChevronUp, Edit, Grid3X3, Settings, Trash2, Users, Grid2X2, LayoutList, Columns2 } from 'lucide-react';
 import { SocialLinksList } from '@/components/profile';
 import { useUserPosts } from '@/hooks/useUserPosts';
 import { useSavedPosts } from '@/hooks/useSavedPosts';
@@ -39,6 +39,21 @@ import { formatCount } from '@/lib/formatCount';
 import { getStoryRingGradient } from '@/components/stories/storyRings';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import { Post } from '@/types';
+
+const ProfileMasonryItem = ({ post }: { post: Post }) => {
+  const thumb = ((post.media_urls && post.media_urls.length > 0 ? post.media_urls[0] : (post.image_url || '')) || '') as string;
+
+  return (
+    <div className="relative aspect-[3/4] rounded-xl overflow-hidden bg-muted">
+      {thumb ? (
+        <img src={thumb} alt="" className="w-full h-full object-cover" />
+      ) : (
+        <div className="w-full h-full bg-muted" />
+      )}
+    </div>
+  );
+};
 
 const Profile = () => {
 
@@ -68,6 +83,7 @@ const Profile = () => {
   const { storyGroups } = useStories();
   const [profileStoryGroups, setProfileStoryGroups] = useState<typeof storyGroups>([]);
   const [activeTab, setActiveTab] = useState<'posts' | 'saved' | 'mentions'>('posts');
+  const [postsLayout, setPostsLayout] = useState<'pinterest2' | 'pinterest1' | 'list'>('pinterest2');
 
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
@@ -87,6 +103,10 @@ const Profile = () => {
   const [collectionTab, setCollectionTab] = useState<'selected' | 'all'>('selected');
   const [selectedPostIds, setSelectedPostIds] = useState<Set<string>>(new Set());
   const [isSavingCollection, setIsSavingCollection] = useState(false);
+
+  const cyclePostsLayout = useCallback(() => {
+    setPostsLayout((prev) => (prev === 'pinterest2' ? 'pinterest1' : prev === 'pinterest1' ? 'list' : 'pinterest2'));
+  }, []);
 
   const collectionThemes = useMemo(
     () => [
@@ -522,6 +542,26 @@ const Profile = () => {
                 </Badge>
               </button>
               }
+
+            {activeTab === 'posts' && (
+              <button
+                type="button"
+                onClick={cyclePostsLayout}
+                className={cn(
+                  'py-2 px-3 flex items-center justify-center border-b-2 transition-colors',
+                  'border-transparent text-muted-foreground hover:text-foreground'
+                )}
+                aria-label="Toggle posts layout"
+              >
+                {postsLayout === 'list' ? (
+                  <LayoutList className="h-5 w-5" />
+                ) : postsLayout === 'pinterest1' ? (
+                  <Columns2 className="h-5 w-5" />
+                ) : (
+                  <Grid2X2 className="h-5 w-5" />
+                )}
+              </button>
+            )}
           </div>
         </div>
 
@@ -547,18 +587,73 @@ const Profile = () => {
                 </p>
               </div> :
 
-            <div ref={scrollContainerRef} className="smooth-scroll-container space-y-4 px-0 md:px-4">
-                {displayPosts.map((post, index) =>
-              <div
-                key={post.id}
-                onClick={() => openViewer(index, displayPosts)}
-                className="cursor-pointer smooth-scroll-item scroll-transition">
-
+            postsLayout === 'list' ? (
+              <div ref={scrollContainerRef} className="smooth-scroll-container space-y-4 px-0 md:px-4">
+                {displayPosts.map((post, index) => (
+                  <div
+                    key={post.id}
+                    onClick={() => openViewer(index, displayPosts)}
+                    className="cursor-pointer smooth-scroll-item scroll-transition"
+                  >
                     <PostCard post={post} onDelete={() => removePost(post.id)} />
                   </div>
-              )}
+                ))}
                 <EndOfFeed />
               </div>
+            ) : postsLayout === 'pinterest1' ? (
+              <div ref={scrollContainerRef} className="smooth-scroll-container pb-20 px-px">
+                <div className="flex flex-col gap-1 p-1">
+                  {displayPosts.map((post, idx) => (
+                    <div
+                      key={post.id}
+                      onClick={() => openViewer(idx, displayPosts)}
+                      className="cursor-pointer smooth-scroll-item scroll-transition"
+                    >
+                      <ProfileMasonryItem post={post} />
+                    </div>
+                  ))}
+                </div>
+                <EndOfFeed />
+              </div>
+            ) : (
+              <div ref={scrollContainerRef} className="smooth-scroll-container pb-20 px-px">
+                <div className="flex gap-1 p-1">
+                  <div className="flex-1 flex flex-col gap-1">
+                    {displayPosts
+                      .filter((_, i) => i % 2 === 0)
+                      .map((post) => {
+                        const idx = displayPosts.findIndex((p) => p.id === post.id);
+                        return (
+                          <div
+                            key={post.id}
+                            onClick={() => openViewer(idx, displayPosts)}
+                            className="cursor-pointer smooth-scroll-item scroll-transition"
+                          >
+                            <ProfileMasonryItem post={post} />
+                          </div>
+                        );
+                      })}
+                  </div>
+                  <div className="flex-1 flex flex-col gap-1">
+                    {displayPosts
+                      .filter((_, i) => i % 2 === 1)
+                      .map((post) => {
+                        const idx = displayPosts.findIndex((p) => p.id === post.id);
+                        return (
+                          <div
+                            key={post.id}
+                            onClick={() => openViewer(idx, displayPosts)}
+                            className="cursor-pointer smooth-scroll-item scroll-transition"
+                          >
+                            <ProfileMasonryItem post={post} />
+                          </div>
+                        );
+                      })}
+                  </div>
+                </div>
+                <EndOfFeed />
+              </div>
+            )
             }
           </PullToRefresh>
           }

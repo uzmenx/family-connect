@@ -7,22 +7,22 @@ const corsHeaders = {
 };
 
 const FALLBACK_SHORTS = [
-  { id: "dQw4w9WgXcQ", title: "Amazing Family Moments", thumbnail: "https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg", channelTitle: "Family Vlog" },
-  { id: "9bZkp7q19f0", title: "Gangnam Style", thumbnail: "https://img.youtube.com/vi/9bZkp7q19f0/hqdefault.jpg", channelTitle: "PSY" },
-  { id: "JGwWNGJdvx8", title: "Shape of You", thumbnail: "https://img.youtube.com/vi/JGwWNGJdvx8/hqdefault.jpg", channelTitle: "Ed Sheeran" },
-  { id: "kJQP7kiw5Fk", title: "Despacito", thumbnail: "https://img.youtube.com/vi/kJQP7kiw5Fk/hqdefault.jpg", channelTitle: "Luis Fonsi" },
-  { id: "RgKAFK5djSk", title: "See You Again", thumbnail: "https://img.youtube.com/vi/RgKAFK5djSk/hqdefault.jpg", channelTitle: "Wiz Khalifa" },
-  { id: "OPf0YbXqDm0", title: "Uptown Funk", thumbnail: "https://img.youtube.com/vi/OPf0YbXqDm0/hqdefault.jpg", channelTitle: "Mark Ronson" },
-  { id: "fRh_vgS2dFE", title: "Sorry", thumbnail: "https://img.youtube.com/vi/fRh_vgS2dFE/hqdefault.jpg", channelTitle: "Justin Bieber" },
-  { id: "CevxZvSJLk8", title: "Roar", thumbnail: "https://img.youtube.com/vi/CevxZvSJLk8/hqdefault.jpg", channelTitle: "Katy Perry" },
-  { id: "YqeW9_5kURI", title: "Summer Hit", thumbnail: "https://img.youtube.com/vi/YqeW9_5kURI/hqdefault.jpg", channelTitle: "Music Mix" },
-  { id: "hT_nvWreIhg", title: "Counting Stars", thumbnail: "https://img.youtube.com/vi/hT_nvWreIhg/hqdefault.jpg", channelTitle: "OneRepublic" },
-  { id: "pRpeEdMmmQ0", title: "Shake It Off", thumbnail: "https://img.youtube.com/vi/pRpeEdMmmQ0/hqdefault.jpg", channelTitle: "Taylor Swift" },
-  { id: "lp-EO5I60KA", title: "Blinding Lights", thumbnail: "https://img.youtube.com/vi/lp-EO5I60KA/hqdefault.jpg", channelTitle: "The Weeknd" },
-  { id: "60ItHLz5WEA", title: "Alan Walker - Faded", thumbnail: "https://img.youtube.com/vi/60ItHLz5WEA/hqdefault.jpg", channelTitle: "Alan Walker" },
-  { id: "bo_efYhYU2A", title: "Believer", thumbnail: "https://img.youtube.com/vi/bo_efYhYU2A/hqdefault.jpg", channelTitle: "Imagine Dragons" },
-  { id: "SlPhMPnQ58k", title: "Happier", thumbnail: "https://img.youtube.com/vi/SlPhMPnQ58k/hqdefault.jpg", channelTitle: "Marshmello" },
+  { id: "fQ3Uvs2OPDk", title: "Viral Shorts", thumbnail: "https://img.youtube.com/vi/fQ3Uvs2OPDk/hqdefault.jpg", channelTitle: "Shorts" },
+  { id: "SlPhMPnQ58k", title: "Funny Shorts", thumbnail: "https://img.youtube.com/vi/SlPhMPnQ58k/hqdefault.jpg", channelTitle: "Shorts" },
+  { id: "bo_efYhYU2A", title: "Trending Shorts", thumbnail: "https://img.youtube.com/vi/bo_efYhYU2A/hqdefault.jpg", channelTitle: "Shorts" },
+  { id: "60ItHLz5WEA", title: "Short Clip", thumbnail: "https://img.youtube.com/vi/60ItHLz5WEA/hqdefault.jpg", channelTitle: "Shorts" },
+  { id: "dQw4w9WgXcQ", title: "Short Clip", thumbnail: "https://img.youtube.com/vi/dQw4w9WgXcQ/hqdefault.jpg", channelTitle: "Shorts" },
 ];
+
+function parseIsoDurationToSeconds(duration: string): number {
+  // ISO 8601 duration, e.g. PT59S, PT1M2S
+  const match = duration.match(/^PT(?:(\d+)H)?(?:(\d+)M)?(?:(\d+)S)?$/);
+  if (!match) return Number.POSITIVE_INFINITY;
+  const hours = match[1] ? Number(match[1]) : 0;
+  const minutes = match[2] ? Number(match[2]) : 0;
+  const seconds = match[3] ? Number(match[3]) : 0;
+  return hours * 3600 + minutes * 60 + seconds;
+}
 
 serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
@@ -31,7 +31,10 @@ serve(async (req: Request) => {
 
   try {
     const url = new URL(req.url);
-    const query = url.searchParams.get("q") || "shorts trending viral funny";
+    const rawQuery = url.searchParams.get("q") || "shorts trending viral funny";
+    const query = rawQuery.includes('-music')
+      ? rawQuery
+      : `${rawQuery} -music -"official video" -lyrics -"music video"`;
     const pageToken = url.searchParams.get("pageToken") || "";
     const maxResults = url.searchParams.get("maxResults") || "20";
 
@@ -48,6 +51,7 @@ serve(async (req: Request) => {
       part: "snippet",
       type: "video",
       videoDuration: "short",
+      videoEmbeddable: "true",
       q: query,
       maxResults,
       order: "relevance",
@@ -95,14 +99,60 @@ serve(async (req: Request) => {
       })
       .filter((s: { id: string }) => s.id);
 
-    console.log(`Returned ${shorts.length} shorts, nextPageToken: ${data.nextPageToken || "none"}`);
+    const likelyMusic = (title?: string, channelTitle?: string) => {
+      const t = (title || '').toLowerCase();
+      const c = (channelTitle || '').toLowerCase();
+      if (c.endsWith(' - topic')) return true;
+      if (t.includes('official video')) return true;
+      if (t.includes('music video')) return true;
+      if (t.includes('lyrics')) return true;
+      if (t.includes('audio')) return true;
+      return false;
+    };
+
+    // Enforce Shorts-like durations (<= 60s) to avoid YouTube Music / regular videos
+    const ids = shorts.map((s: { id: string }) => s.id).filter(Boolean);
+    let durationFiltered = shorts;
+    if (ids.length > 0) {
+      const detailsParams = new URLSearchParams({
+        part: "contentDetails",
+        id: ids.join(','),
+        key: apiKey,
+      });
+
+      const detailsUrl = `https://www.googleapis.com/youtube/v3/videos?${detailsParams.toString()}`;
+      const detailsRes = await fetch(detailsUrl, {
+        headers: {
+          Referer: "https://id-preview--a3e75228-4721-4d5e-89be-d93e66feadcd.lovable.app/",
+        },
+      });
+
+      if (detailsRes.ok) {
+        const details = await detailsRes.json();
+        const secondsById = new Map<string, number>();
+        for (const item of details.items || []) {
+          const vid = item?.id as string;
+          const dur = item?.contentDetails?.duration as string;
+          if (vid && dur) secondsById.set(vid, parseIsoDurationToSeconds(dur));
+        }
+
+        durationFiltered = shorts.filter((s: { id: string; title?: string; channelTitle?: string }) => {
+          const sec = secondsById.get(s.id);
+          if (typeof sec !== 'number' || sec > 60) return false;
+          if (likelyMusic(s.title, s.channelTitle)) return false;
+          return true;
+        });
+      }
+    }
+
+    console.log(`Returned ${durationFiltered.length} shorts (after duration filter), nextPageToken: ${data.nextPageToken || "none"}`);
 
     // If API returned too few results, supplement with fallbacks
-    let finalShorts = shorts;
-    if (shorts.length < 5) {
-      const existingIds = new Set(shorts.map((s: { id: string }) => s.id));
+    let finalShorts = durationFiltered;
+    if (durationFiltered.length < 5) {
+      const existingIds = new Set(durationFiltered.map((s: { id: string }) => s.id));
       const extras = FALLBACK_SHORTS.filter(f => !existingIds.has(f.id));
-      finalShorts = [...shorts, ...extras];
+      finalShorts = [...durationFiltered, ...extras];
     }
 
     return new Response(

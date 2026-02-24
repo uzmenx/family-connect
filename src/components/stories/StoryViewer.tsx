@@ -66,6 +66,7 @@ export const StoryViewer = ({
   const [showLikeAnim, setShowLikeAnim] = useState(false);
   const [showDeleteDialog, setShowDeleteDialog] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showCaption, setShowCaption] = useState(false);
   
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -462,9 +463,19 @@ export const StoryViewer = ({
         {/* Caption */}
         {currentStory.caption && (
           <div className="absolute bottom-[max(80px,calc(64px+env(safe-area-inset-bottom)))] left-4 right-4">
-            <p className="text-white text-center text-sm bg-black/40 px-3 py-2 rounded-lg">
-              {currentStory.caption}
-            </p>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowCaption(true);
+                setIsPaused(true);
+              }}
+              className="w-full"
+            >
+              <p className="text-white text-center text-sm bg-black/40 px-3 py-2 rounded-lg line-clamp-2">
+                {currentStory.caption}
+              </p>
+            </button>
           </div>
         )}
 
@@ -717,6 +728,27 @@ export const StoryViewer = ({
                 </div>
               )
             )}
+          </ScrollArea>
+        </SheetContent>
+      </Sheet>
+
+      <Sheet
+        open={showCaption}
+        onOpenChange={(open) => {
+          setShowCaption(open);
+          if (!open) setIsPaused(false);
+        }}
+      >
+        <SheetContent side="bottom" className="h-[50vh] px-0">
+          <div className="px-4">
+            <SheetHeader>
+              <SheetTitle>Izoh</SheetTitle>
+            </SheetHeader>
+          </div>
+          <ScrollArea className="h-[calc(50vh-56px)] px-4">
+            <div className="py-3 text-sm whitespace-pre-wrap break-words">
+              {currentStory?.caption}
+            </div>
           </ScrollArea>
         </SheetContent>
       </Sheet>
