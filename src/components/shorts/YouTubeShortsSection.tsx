@@ -14,53 +14,43 @@ interface YouTubeShortsProps {
   onSearchClick?: () => void;
 }
 
-const CACHE_KEY = 'yt_shorts_cache_v2';
-const TOKEN_KEY = 'shorts_next_token_v2';
-const CACHE_TTL = 1800000; // 30 min
+const SEEN_KEY = 'yt_shorts_seen_ids';
+const SEEN_MAX = 200;
 
-interface CacheData {
-  shorts: Short[];
-  nextPageToken: string | null;
-  timestamp: number;
+function getSeenIds(): Set<string> {
+  try {
+    const raw = localStorage.getItem(SEEN_KEY);
+    if (!raw) return new Set();
+    return new Set(JSON.parse(raw));
+  } catch { return new Set(); }
 }
 
-function loadCache(): CacheData | null {
+function markSeen(ids: string[]) {
   try {
-    const raw = localStorage.getItem(CACHE_KEY);
-    if (!raw) return null;
-    const parsed: CacheData = JSON.parse(raw);
-    if (Date.now() - parsed.timestamp > CACHE_TTL) {
-      localStorage.removeItem(CACHE_KEY);
-      localStorage.removeItem(TOKEN_KEY);
-      return null;
-    }
-    return parsed;
-  } catch {return null;}
-}
-
-function saveCache(shorts: Short[], nextPageToken: string | null) {
-  try {
-    const data: CacheData = { shorts, nextPageToken, timestamp: Date.now() };
-    localStorage.setItem(CACHE_KEY, JSON.stringify(data));
-    if (nextPageToken) {
-      localStorage.setItem(TOKEN_KEY, nextPageToken);
-    } else {
-      localStorage.removeItem(TOKEN_KEY);
-    }
+    const seen = getSeenIds();
+    ids.forEach(id => seen.add(id));
+    // Keep only last SEEN_MAX
+    const arr = [...seen];
+    if (arr.length > SEEN_MAX) arr.splice(0, arr.length - SEEN_MAX);
+    localStorage.setItem(SEEN_KEY, JSON.stringify(arr));
   } catch {}
 }
 
-// Rotating search queries for variety — Uzbekistan + world trends
+// Rotating search queries for variety
 const SEARCH_QUERIES = [
-'uzbekistan shorts trending',
-'uzbek viral shorts',
-'trending shorts worldwide',
-'shorts viral funny trending',
-'toshkent shorts',
-'world trending shorts 2025',
-'uzbekistan funny shorts',
-'shorts comedy viral'];
-
+  'uzbekistan shorts trending',
+  'uzbek viral shorts',
+  'trending shorts worldwide',
+  'shorts viral funny trending',
+  'toshkent shorts',
+  'world trending shorts 2025',
+  'uzbekistan funny shorts',
+  'shorts comedy viral',
+  'shorts music dance trending',
+  'trending reels shorts new',
+  'funny moments shorts viral',
+  'shorts challenge trending',
+];
 
 function getRandomQuery(): string {
   return SEARCH_QUERIES[Math.floor(Math.random() * SEARCH_QUERIES.length)];
@@ -75,6 +65,7 @@ export function YouTubeShortsSection({ onShortClick, onSearchClick }: YouTubeSho
   const loaderRef = useRef<HTMLDivElement>(null);
   const fetchingRef = useRef(false);
   const currentQueryRef = useRef(getRandomQuery());
+  const retriesRef = useRef(0);
 
   const fetchShorts = useCallback(async (pageToken?: string) => {
     if (fetchingRef.current) return;
@@ -83,8 +74,8 @@ export function YouTubeShortsSection({ onShortClick, onSearchClick }: YouTubeSho
     const isFirstLoad = !pageToken;
     if (isFirstLoad) {
       setIsLoading(true);
-      // Pick a new random query on each fresh load
       currentQueryRef.current = getRandomQuery();
+      retriesRef.current = 0;
     } else {
       setIsLoadingMore(true);
     }
@@ -94,7 +85,7 @@ export function YouTubeShortsSection({ onShortClick, onSearchClick }: YouTubeSho
       const anonKey = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY;
       const params = new URLSearchParams({
         q: currentQueryRef.current,
-        maxResults: '20'
+        maxResults: '30'
       });
       if (pageToken) params.set('pageToken', pageToken);
 
@@ -107,19 +98,29 @@ export function YouTubeShortsSection({ onShortClick, onSearchClick }: YouTubeSho
       const newShorts: Short[] = data?.shorts || [];
       const newToken: string | null = data?.nextPageToken || null;
 
+      // Filter out already-seen shorts
+      const seen = getSeenIds();
+      const freshShorts = newShorts.filter(s => !seen.has(s.id));
+
       setShorts((prev) => {
-        const combined = isFirstLoad ? newShorts : [...prev, ...newShorts];
-        // Deduplicate by id
-        const seen = new Set<string>();
+        const combined = isFirstLoad ? freshShorts : [...prev, ...freshShorts];
+        const seenSet = new Set<string>();
         const unique = combined.filter((s) => {
-          if (seen.has(s.id)) return false;
-          seen.add(s.id);
+          if (seenSet.has(s.id)) return false;
+          seenSet.add(s.id);
           return true;
         });
-        saveCache(unique, newToken);
         return unique;
       });
       setNextToken(newToken);
+
+      // If we got too few fresh results and have a token, auto-fetch more
+      if (freshShorts.length < 5 && newToken && retriesRef.current < 3) {
+        retriesRef.current++;
+        fetchingRef.current = false;
+        fetchShorts(newToken);
+        return;
+      }
     } catch (err) {
       console.error('Failed to fetch shorts:', err);
     } finally {
@@ -129,12 +130,10 @@ export function YouTubeShortsSection({ onShortClick, onSearchClick }: YouTubeSho
     }
   }, []);
 
-  // Always fetch fresh shorts on mount (no cache on initial load)
   useEffect(() => {
     fetchShorts();
   }, [fetchShorts]);
 
-  // Expose a refresh method via a custom event so parent can trigger refresh
   useEffect(() => {
     const handler = () => {
       setShorts([]);
@@ -169,6 +168,14 @@ export function YouTubeShortsSection({ onShortClick, onSearchClick }: YouTubeSho
     });
   }, []);
 
+  // Mark shorts as seen when user clicks to view them
+  const handleShortClick = useCallback((allShorts: Short[], index: number) => {
+    // Mark clicked + nearby as seen
+    const toMark = allShorts.slice(Math.max(0, index - 2), index + 5).map(s => s.id);
+    markSeen(toMark);
+    onShortClick?.(allShorts, index);
+  }, [onShortClick]);
+
   if (isLoading) {
     return (
       <div className="px-3 pt-1 pb-2">
@@ -178,11 +185,11 @@ export function YouTubeShortsSection({ onShortClick, onSearchClick }: YouTubeSho
         </div>
         <div className="flex gap-2 overflow-hidden">
           {[...Array(4)].map((_, i) =>
-          <div key={i} className="w-[110px] h-[196px] rounded-2xl bg-muted/30 animate-pulse shrink-0" />
+            <div key={i} className="w-[110px] h-[196px] rounded-2xl bg-muted/30 animate-pulse shrink-0" />
           )}
         </div>
-      </div>);
-
+      </div>
+    );
   }
 
   if (shorts.length === 0) return null;
@@ -194,7 +201,6 @@ export function YouTubeShortsSection({ onShortClick, onSearchClick }: YouTubeSho
         <div className="flex items-center gap-1.5 flex-shrink-0">
           <Flame className="w-3.5 h-3.5 text-destructive" />
           <span className="font-semibold text-xs text-foreground">Shorts</span>
-          
         </div>
         <div className="flex-1 px-2">
           <div className="relative">
@@ -207,54 +213,47 @@ export function YouTubeShortsSection({ onShortClick, onSearchClick }: YouTubeSho
                 e.currentTarget.blur();
                 onSearchClick?.();
               }}
-              className="h-7 rounded-full pl-8 pr-3 bg-background/30 border-white/10 backdrop-blur-xl text-xs focus-visible:ring-1 focus-visible:ring-primary/40" />
-
+              className="h-7 rounded-full pl-8 pr-3 bg-background/30 border-white/10 backdrop-blur-xl text-xs focus-visible:ring-1 focus-visible:ring-primary/40"
+            />
           </div>
         </div>
         <div className="flex gap-0.5 flex-shrink-0">
           <button
             onClick={() => scroll('left')}
             className="w-6 h-6 rounded-full bg-background/60 backdrop-blur-sm flex items-center justify-center border border-border/20">
-
             <ChevronLeft className="w-3 h-3 text-muted-foreground" />
           </button>
           <button
             onClick={() => scroll('right')}
             className="w-6 h-6 rounded-full bg-background/60 backdrop-blur-sm flex items-center justify-center border border-border/20">
-
             <ChevronRight className="w-3 h-3 text-muted-foreground" />
           </button>
         </div>
       </div>
 
       {/* Carousel */}
-      {/* Hide scrollbar CSS */}
       <style>{`.shorts-carousel::-webkit-scrollbar{display:none}`}</style>
       <div
         ref={scrollRef}
         className="shorts-carousel flex gap-2 overflow-x-auto px-3 snap-x snap-mandatory shadow-md"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', WebkitOverflowScrolling: 'touch' }}>
-
         {shorts.map((short, index) =>
-        <div
-          key={`${short.id}-${index}`}
-          className="relative w-[110px] h-[196px] rounded-2xl overflow-hidden shrink-0 snap-start cursor-pointer group"
-          onClick={() => onShortClick?.(shorts, index)}>
-
+          <div
+            key={`${short.id}-${index}`}
+            className="relative w-[110px] h-[196px] rounded-2xl overflow-hidden shrink-0 snap-start cursor-pointer group"
+            onClick={() => handleShortClick(shorts, index)}>
             <img
-            src={short.thumbnail}
-            alt={short.title}
-            className="absolute inset-0 w-full h-full object-cover"
-            loading="lazy" />
-
+              src={short.thumbnail}
+              alt={short.title}
+              className="absolute inset-0 w-full h-full object-cover"
+              loading="lazy"
+            />
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-black/10" />
-            
             <div className="absolute inset-0 flex items-center justify-center opacity-80 group-hover:opacity-100 transition-opacity">
               <div className="w-8 h-8 rounded-full bg-background/20 backdrop-blur-md flex items-center justify-center border border-border/20">
                 <Play className="w-3.5 h-3.5 text-primary-foreground fill-primary-foreground ml-0.5" />
               </div>
             </div>
-
             <div className="absolute bottom-0 left-0 right-0 p-1.5 z-10">
               <p className="text-[10px] font-medium leading-tight line-clamp-2 drop-shadow-lg bg-inherit text-gray-300">
                 {short.title}
@@ -266,17 +265,16 @@ export function YouTubeShortsSection({ onShortClick, onSearchClick }: YouTubeSho
           </div>
         )}
 
-        {/* Loader sentinel for infinite scroll */}
+        {/* Loader sentinel */}
         <div ref={loaderRef} className="flex items-center justify-center shrink-0 w-[60px]">
           {isLoadingMore ?
-          <Loader2 className="w-5 h-5 text-muted-foreground animate-spin" /> :
-          nextToken ?
-          <div className="w-5 h-5 rounded-full border-2 border-muted-foreground/30" /> :
-
-          <p className="text-[9px] text-muted-foreground whitespace-nowrap">Hammasi ✓</p>
+            <Loader2 className="w-5 h-5 text-muted-foreground animate-spin" /> :
+            nextToken ?
+              <div className="w-5 h-5 rounded-full border-2 border-muted-foreground/30" /> :
+              <p className="text-[9px] text-muted-foreground whitespace-nowrap">Hammasi ✓</p>
           }
         </div>
       </div>
-    </div>);
-
+    </div>
+  );
 }
