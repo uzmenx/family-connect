@@ -166,7 +166,8 @@ export const UnifiedFullScreenViewer = ({
     setIsTransitioning(true);
     setSlideDirection(direction);
 
-    setTimeout(() => {
+    // Faster transition for smoother feel
+    requestAnimationFrame(() => {
       if (activeTab === 'posts') {
         setPostIndex((prev) => direction === 'down' ? prev + 1 : prev - 1);
       } else {
@@ -175,8 +176,8 @@ export const UnifiedFullScreenViewer = ({
       setTimeout(() => {
         setSlideDirection(null);
         setIsTransitioning(false);
-      }, 200);
-    }, 100);
+      }, 150);
+    });
   }, [isTransitioning, activeTab, postIndex, shortIndex, posts.length, shorts.length]);
 
   useEffect(() => {
@@ -213,9 +214,10 @@ export const UnifiedFullScreenViewer = ({
     const diffX = touchStartX.current - e.changedTouches[0].clientX;
     const elapsed = Date.now() - touchStartTime.current;
     const velocityY = Math.abs(diffY) / Math.max(elapsed, 1);
-    const threshold = velocityY > 0.5 ? 30 : 60;
+    // Lower threshold for faster swipes — feels more responsive
+    const threshold = velocityY > 0.3 ? 20 : 50;
 
-    // If it was a tap (small movement, short time), handle play/pause for shorts
+    // Tap detection for play/pause
     if (Math.abs(diffY) < 10 && Math.abs(diffX) < 10 && elapsed < 300) {
       if (activeTab === 'shorts') {
         lastShortsTouchTapTs.current = Date.now();
@@ -302,6 +304,13 @@ export const UnifiedFullScreenViewer = ({
     }
   }, [shortIndex, activeTab, shorts]);
 
+  // Preload upcoming shorts iframes by keeping adjacent ones in DOM
+  const PRELOAD_COUNT = 2;
+  const preloadRange = Array.from(
+    { length: PRELOAD_COUNT * 2 + 1 },
+    (_, i) => shortIndex - PRELOAD_COUNT + i
+  ).filter(i => i >= 0 && i < shorts.length);
+
   const renderShort = () => {
     if (!currentShort) {
       return (
@@ -319,27 +328,34 @@ export const UnifiedFullScreenViewer = ({
       )}
         onClick={(e) => {
           if (isTransitioning) return;
-          // Mobile browsers often fire a click after touchend.
-          // We already handle touch taps in handleTouchEnd.
           if (Date.now() - lastShortsTouchTapTs.current < 450) return;
           const t = e.target as HTMLElement | null;
           if (t?.closest('button')) return;
           handleShortsTap();
         }}>
         <div className="relative w-full h-full">
-          <iframe
-            ref={shortsIframeRef}
-            src={`https://www.youtube.com/embed/${currentShort.id}?rel=0&autoplay=1&controls=0&modestbranding=1&playsinline=1&loop=1&playlist=${currentShort.id}&showinfo=0&iv_load_policy=3&disablekb=1&fs=0&enablejsapi=1&origin=${encodeURIComponent(ytOrigin)}`}
-            className="w-full h-full pointer-events-none"
-            allow="autoplay; encrypted-media"
-            allowFullScreen
-            title={currentShort.title}
-          />
+          {/* Render current + adjacent iframes for instant switching */}
+          {preloadRange.map((idx) => {
+            const s = shorts[idx];
+            if (!s) return null;
+            const isCurrent = idx === shortIndex;
+            return (
+              <iframe
+                key={s.id}
+                ref={isCurrent ? shortsIframeRef : undefined}
+                src={`https://www.youtube.com/embed/${s.id}?rel=0&autoplay=${isCurrent ? '1' : '0'}&controls=0&modestbranding=1&playsinline=1&loop=1&playlist=${s.id}&showinfo=0&iv_load_policy=3&disablekb=1&fs=0&enablejsapi=1&origin=${encodeURIComponent(ytOrigin)}`}
+                className={cn(
+                  "absolute inset-0 w-full h-full pointer-events-none transition-opacity duration-150",
+                  isCurrent ? "opacity-100 z-[2]" : "opacity-0 z-[1]"
+                )}
+                allow="autoplay; encrypted-media"
+                allowFullScreen
+                title={s.title}
+              />
+            );
+          })}
 
-          {/*
-            YouTube player sometimes draws title/hashtags/time overlays inside the iframe.
-            We can't style inside cross-origin iframe, so we mask small areas.
-          */}
+          {/* Mask YouTube UI overlays */}
           <div className="absolute top-0 left-0 right-0 h-14 z-[3] pointer-events-none bg-black" />
           <div className="absolute bottom-0 left-0 right-0 h-28 z-[3] pointer-events-none bg-black" />
         </div>
