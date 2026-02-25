@@ -68,15 +68,16 @@ export function YouTubeShortsSection({ onShortClick, onSearchClick, onShortsChan
   const currentQueryRef = useRef(getRandomQuery());
   const retriesRef = useRef(0);
 
+  const MUSIC_KEYWORDS = ['official video', 'music video', 'lyrics', 'lyric video', 'audio',
+    'official audio', 'karaoke', 'remix', 'full album', 'playlist', 'mv', 'song', 'album',
+    'concert', 'live performance', 'cover song', 'acoustic version', 'instrumental'];
+  const MUSIC_CHANNEL_PATTERNS = [' - topic', 'vevo', 'records', 'music'];
+
   const isLikelyMusic = useCallback((s: Short) => {
     const t = (s.title || '').toLowerCase();
     const c = (s.channelTitle || '').toLowerCase();
-    if (c.endsWith(' - topic')) return true;
-    if (t.includes('official video')) return true;
-    if (t.includes('music video')) return true;
-    if (t.includes('lyrics')) return true;
-    if (t.includes('audio')) return true;
-    if (t.includes('youtube music')) return true;
+    if (MUSIC_CHANNEL_PATTERNS.some(p => c.includes(p))) return true;
+    if (MUSIC_KEYWORDS.some(k => t.includes(k))) return true;
     return false;
   }, []);
 

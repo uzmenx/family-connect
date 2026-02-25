@@ -34,7 +34,8 @@ serve(async (req: Request) => {
     const rawQuery = url.searchParams.get("q") || "shorts trending viral funny";
     const query = rawQuery.includes('-music')
       ? rawQuery
-      : `${rawQuery} -music -"official video" -lyrics -"music video"`;
+      : `${rawQuery} -music -"official video" -lyrics -"music video" -"official audio" -karaoke -remix -"lyric video" -"full album" -playlist -"topic"`;
+
     const pageToken = url.searchParams.get("pageToken") || "";
     const maxResults = url.searchParams.get("maxResults") || "20";
 
@@ -99,14 +100,19 @@ serve(async (req: Request) => {
       })
       .filter((s: { id: string }) => s.id);
 
+    const MUSIC_KEYWORDS = [
+      'official video', 'music video', 'lyrics', 'lyric video', 'audio',
+      'official audio', 'karaoke', 'remix', 'full album', 'playlist',
+      'mv', 'song', 'album', 'concert', 'live performance', 'cover song',
+      'acoustic version', 'instrumental',
+    ];
+    const MUSIC_CHANNEL_PATTERNS = [' - topic', 'vevo', 'records', 'music'];
+
     const likelyMusic = (title?: string, channelTitle?: string) => {
       const t = (title || '').toLowerCase();
       const c = (channelTitle || '').toLowerCase();
-      if (c.endsWith(' - topic')) return true;
-      if (t.includes('official video')) return true;
-      if (t.includes('music video')) return true;
-      if (t.includes('lyrics')) return true;
-      if (t.includes('audio')) return true;
+      if (MUSIC_CHANNEL_PATTERNS.some(p => c.includes(p))) return true;
+      if (MUSIC_KEYWORDS.some(k => t.includes(k))) return true;
       return false;
     };
 
