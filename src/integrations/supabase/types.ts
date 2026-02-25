@@ -1046,6 +1046,48 @@ export type Database = {
           },
         ]
       }
+      tree_posts: {
+        Row: {
+          caption: string | null
+          created_at: string
+          id: string
+          is_personal: boolean
+          is_published: boolean
+          overlays: Json
+          positions_data: Json
+          title: string | null
+          tree_data: Json
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          caption?: string | null
+          created_at?: string
+          id?: string
+          is_personal?: boolean
+          is_published?: boolean
+          overlays?: Json
+          positions_data?: Json
+          title?: string | null
+          tree_data?: Json
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          caption?: string | null
+          created_at?: string
+          id?: string
+          is_personal?: boolean
+          is_published?: boolean
+          overlays?: Json
+          positions_data?: Json
+          title?: string | null
+          tree_data?: Json
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       typing_indicators: {
         Row: {
           conversation_id: string
