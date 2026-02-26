@@ -14,6 +14,8 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useStories } from "@/hooks/useStories";
 import { usePostsCache } from "@/hooks/usePostsCache";
 import { useSmoothScroll } from "@/hooks/useSmoothScroll";
+import { useTreeFeed } from "@/hooks/useTreeFeed";
+import { TreePostCard } from "@/components/feed/TreePostCard";
 import { useNotifications } from "@/hooks/useNotifications";
 import { Grid2X2, LayoutList, Bell, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -28,6 +30,7 @@ const Home = () => {
   const { t } = useLanguage();
   const { storyGroups, refetch: refetchStories } = useStories();
   const { posts, isLoading, isRefreshing, isLoadingMore, hasMore, fetchPosts, loadMore } = usePostsCache();
+  const { treePosts, refetch: refetchTrees } = useTreeFeed();
   const { unreadCount } = useNotifications();
   const [gridLayout, setGridLayout] = useState<GridLayout>(1);
   const [searchOpen, setSearchOpen] = useState(false);
@@ -90,7 +93,7 @@ const Home = () => {
   const handleRefresh = async () => {
     // Also refresh shorts
     window.dispatchEvent(new Event('refresh-shorts'));
-    await Promise.all([fetchPosts(true), refetchStories()]);
+    await Promise.all([fetchPosts(true), refetchStories(), refetchTrees()]);
   };
 
   const toggleGridLayout = () => setGridLayout((prev) => prev === 1 ? 2 : 1);
@@ -155,6 +158,12 @@ const Home = () => {
             </div> :
           gridLayout === 1 ?
           <div ref={scrollContainerRef} className="smooth-scroll-container space-y-3 pb-20 px-[5px]">
+              {/* Tree posts from community */}
+              {treePosts.map((tp, i) => (
+                <div key={`tree-${tp.id}`} className="smooth-scroll-item scroll-transition">
+                  <TreePostCard post={tp} author={tp.author} index={i} />
+                </div>
+              ))}
               {posts.map((post, index) =>
             <div key={post.id} className="smooth-scroll-item scroll-transition">
               <PostCard post={post} onMediaClick={() => openPostViewer(index)} index={index} />

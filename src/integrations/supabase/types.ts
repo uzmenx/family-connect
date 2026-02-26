@@ -1046,6 +1046,35 @@ export type Database = {
           },
         ]
       }
+      tree_post_likes: {
+        Row: {
+          created_at: string
+          id: string
+          tree_post_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          tree_post_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          tree_post_id?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "tree_post_likes_tree_post_id_fkey"
+            columns: ["tree_post_id"]
+            isOneToOne: false
+            referencedRelation: "tree_posts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       tree_posts: {
         Row: {
           caption: string | null
