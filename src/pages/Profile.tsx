@@ -8,7 +8,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { AtSign, Bell, Bookmark, Check, ChevronDown, ChevronUp, Edit, Grid3X3, Settings, Trash2, Users, Grid2X2, LayoutList, Columns2 } from 'lucide-react';
+import { AtSign, Bell, Bookmark, Check, ChevronDown, ChevronUp, Edit, Grid3X3, Settings, Trash2, Users, Grid2X2, LayoutList, Columns2, TreeDeciduous } from 'lucide-react';
 import { SocialLinksList } from '@/components/profile';
 import { useUserPosts } from '@/hooks/useUserPosts';
 import { useSavedPosts } from '@/hooks/useSavedPosts';
@@ -82,7 +82,8 @@ const Profile = () => {
   const { getStoryInfo } = useActiveStories();
   const { storyGroups } = useStories();
   const [profileStoryGroups, setProfileStoryGroups] = useState<typeof storyGroups>([]);
-  const [activeTab, setActiveTab] = useState<'posts' | 'saved' | 'mentions'>('posts');
+  const [activeTab, setActiveTab] = useState<'posts' | 'saved' | 'mentions' | 'tree'>('posts');
+  const [familyMemberCount, setFamilyMemberCount] = useState(0);
   const [postsLayout, setPostsLayout] = useState<'pinterest2' | 'pinterest1' | 'list'>('pinterest2');
 
   const [viewerOpen, setViewerOpen] = useState(false);
@@ -224,6 +225,13 @@ const Profile = () => {
   }, [profile?.bio]);
   const scrollContainerRef = useSmoothScroll(true, true);
 
+  // Load family tree member count
+  useEffect(() => {
+    if (!user?.id) return;
+    supabase.from('family_tree_members').select('id', { count: 'exact', head: true }).eq('owner_id', user.id)
+      .then(({ count }) => setFamilyMemberCount(count || 0));
+  }, [user?.id]);
+
   const hideHighlights = (profile as any)?.hide_highlights === true;
   const hideCollections = (profile as any)?.hide_collections === true;
 
@@ -258,7 +266,6 @@ const Profile = () => {
               src={(profile as any).cover_url}
               alt="Cover"
               className="w-full h-full object-cover" /> :
-
 
             <div className="w-full h-full bg-gradient-to-br from-primary via-accent to-primary/60" />
             }
@@ -528,6 +535,17 @@ const Profile = () => {
 
               <AtSign className="h-5 w-5" />
             </button>
+            <button
+                onClick={() => setActiveTab('tree')}
+                className={cn(
+                  'flex-1 py-2 flex items-center justify-center border-b-2 transition-colors gap-1',
+                  activeTab === 'tree' ?
+                  'border-primary text-primary' :
+                  'border-transparent text-muted-foreground'
+                )}>
+              <TreeDeciduous className="h-5 w-5" />
+              <span className="text-xs font-bold">{familyMemberCount}</span>
+            </button>
             {pendingCollabs.length > 0 &&
               <button
                 onClick={() => setShowCollabRequests(true)}
@@ -719,6 +737,18 @@ const Profile = () => {
             }
           </div>
           }
+
+        {/* ═══════════════════════════════════════
+                  TREE TAB
+               ═══════════════════════════════════════ */}
+        {activeTab === 'tree' &&
+          <div className="text-center py-8 px-4">
+            <TreeDeciduous className="h-16 w-16 mx-auto mb-3 text-primary/40" />
+            <p className="text-2xl font-extrabold text-foreground">{familyMemberCount}</p>
+            <p className="text-sm text-muted-foreground mt-1">Oila daraxti a'zolari</p>
+            <p className="text-xs text-muted-foreground mt-2">Shaxsiy daraxtingizdagi yaratilgan profillar soni</p>
+          </div>
+        }
 
         {/* ═══════════════════════════════════════
                   MODALS
