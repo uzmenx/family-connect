@@ -603,7 +603,7 @@ export const UnifiedFullScreenViewer = ({
             <X className="w-4 h-4 text-white" />
           </button>
 
-          <div className="flex gap-0.5 bg-white/10 backdrop-blur-md rounded-full p-0.5 border border-white/10 py-[2px] my-[10px]">
+          <div className="flex gap-0.5 bg-white/10 backdrop-blur-md rounded-full p-0.5 border border-white/10 py-[2px] my-[23px]">
             <button
               onClick={() => handleTabSwitch('shorts')}
               className={cn(
