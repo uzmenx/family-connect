@@ -5,7 +5,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Grid3X3, Bookmark, Users, AtSign, ChevronDown, ChevronUp, Grid2X2, LayoutList, Columns2 } from 'lucide-react';
-import { SocialLinksList } from '@/components/profile';
+import { FollowListSheet, SocialLinksList } from '@/components/profile';
 import { SocialLink } from '@/components/profile/SocialLinksEditor';
 import { useStoryHighlights } from '@/hooks/useStoryHighlights';
 import { usePostCollections } from '@/hooks/usePostCollections';
@@ -90,6 +90,9 @@ const UserProfilePage = () => {
   const [showPostsStats, setShowPostsStats] = useState(false);
   const [storyViewerOpen, setStoryViewerOpen] = useState(false);
   const [profileStoryGroups, setProfileStoryGroups] = useState<StoryGroup[]>([]);
+
+  const [followSheetOpen, setFollowSheetOpen] = useState(false);
+  const [followSheetMode, setFollowSheetMode] = useState<'followers' | 'following'>('followers');
   
   // Bio expand/collapse states
   const [bioExpanded, setBioExpanded] = useState(false);
@@ -306,17 +309,24 @@ const UserProfilePage = () => {
         {/* Profile Info */}
         <div className="px-4 -mt-10 relative z-10">
           {/* ROW 1: Followers | Avatar | Postlar */}
-          <div className="flex items-end justify-between gap-1 mb-2">
+          <div className="flex items-end justify-between gap-1 mb-1">
 
             {/* LEFT: Followers */}
-            <div className="flex-1 flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-2 py-2 shadow-lg min-w-0">
+            <button
+              type="button"
+              onClick={() => {
+                setFollowSheetMode('followers');
+                setFollowSheetOpen(true);
+              }}
+              className="flex-1 flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-2 py-1.5 shadow-lg min-w-0"
+            >
               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
                 Kuzatuvchilar
               </span>
               <span className="text-xl font-extrabold text-foreground leading-none">
                 {formatCount(followersCount)}
               </span>
-            </div>
+            </button>
 
             {/* CENTER: Avatar (with story ring when user has active story) */}
             <div className="flex-shrink-0 flex flex-col items-center">
@@ -355,7 +365,7 @@ const UserProfilePage = () => {
             </div>
 
             {/* RIGHT: Postlar */}
-            <div className="flex-1 flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-2 py-2 shadow-lg min-w-0 relative">
+            <div className="flex-1 flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-2 py-1.5 shadow-lg min-w-0 relative">
               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
                 Postlar
               </span>
@@ -384,17 +394,31 @@ const UserProfilePage = () => {
 
           {/* ROW 3: Kuzatilmoqda — centered */}
           {showPostsStats && (
-            <div className="flex justify-center mb-2">
-              <div className="flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-6 py-2 shadow-lg">
+            <div className="flex justify-center mb-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setFollowSheetMode('following');
+                  setFollowSheetOpen(true);
+                }}
+                className="flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-6 py-1.5 shadow-lg"
+              >
                 <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
                   Kuzatilmoqda
                 </span>
                 <span className="text-xl font-extrabold text-foreground leading-none">
                   {formatCount(followingCount)}
                 </span>
-              </div>
+              </button>
             </div>
           )}
+
+          <FollowListSheet
+            open={followSheetOpen}
+            onOpenChange={setFollowSheetOpen}
+            userId={userId}
+            mode={followSheetMode}
+          />
 
           {/* Bio */}
           {profile.bio && (

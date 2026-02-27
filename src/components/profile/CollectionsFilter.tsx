@@ -46,7 +46,10 @@ export function CollectionsFilter({ collections, selectedId, onSelect, isOwner, 
 
   return (
     <>
-      <div className="flex gap-2 overflow-x-auto py-2 px-4 mb-3" style={{ scrollbarWidth: 'none' }}>
+      <div
+        className="flex gap-1.5 overflow-x-auto py-0.5 px-2 mb-1 cf-scroll"
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as any}
+      >
         {collections.map((c, idx) => {
           const themeIndex = Number.isFinite((c as any).theme) ? ((c as any).theme as number) : (idx % colorThemes.length);
           const theme = colorThemes[((themeIndex % colorThemes.length) + colorThemes.length) % colorThemes.length];
@@ -87,7 +90,7 @@ export function CollectionsFilter({ collections, selectedId, onSelect, isOwner, 
                 onSelect(isActive ? null : c.id);
               }}
               className={cn(
-                'flex-shrink-0 relative rounded-full px-3.5 py-2 text-sm font-semibold',
+                'flex-shrink-0 relative rounded-full px-3 py-1.5 text-[13px] font-semibold',
                 'border border-white/10 backdrop-blur-xl shadow-sm',
                 'transition-all duration-200 active:scale-[0.98]',
                 isActive
@@ -96,7 +99,7 @@ export function CollectionsFilter({ collections, selectedId, onSelect, isOwner, 
               )}
             >
               <span className="flex items-center gap-2">
-                <span className="max-w-[10rem] truncate">{c.name}</span>
+                <span className="max-w-[8rem] truncate">{c.name}</span>
                 {postsCount > 0 && (
                   <span
                     className={cn(
@@ -116,7 +119,7 @@ export function CollectionsFilter({ collections, selectedId, onSelect, isOwner, 
           <button
             onClick={() => setShowCreate(true)}
             className={cn(
-              'flex-shrink-0 rounded-full px-3.5 py-2 text-sm font-semibold',
+              'flex-shrink-0 rounded-full px-3 py-1.5 text-[13px] font-semibold',
               'border border-dashed border-white/20 text-muted-foreground',
               'bg-white/6 hover:bg-white/10 backdrop-blur-xl',
               'flex items-center gap-1.5 transition-colors'
@@ -127,6 +130,10 @@ export function CollectionsFilter({ collections, selectedId, onSelect, isOwner, 
           </button>
         )}
       </div>
+
+      <style>{`
+        .cf-scroll::-webkit-scrollbar { display: none; width: 0; height: 0; }
+      `}</style>
 
       <Dialog open={showCreate} onOpenChange={setShowCreate}>
         <DialogContent className="max-w-sm">

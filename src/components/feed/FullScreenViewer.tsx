@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Play, Pause, ChevronLeft, ChevronRight, Heart } from 'lucide-react';
+import { Play, Pause, ChevronLeft, ChevronRight, Heart, X } from 'lucide-react';
 import { Post } from '@/types';
 import { cn } from '@/lib/utils';
 import { useColorExtractor } from '@/hooks/useColorExtractor';
@@ -266,9 +266,14 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose }: FullScreenVie
         />
 
         {/* Header */}
-        <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between p-4 bg-gradient-to-b from-black/50 to-transparent">
-          <button onClick={onClose} className="p-2 rounded-full bg-black/30 backdrop-blur-sm opacity-100 mx-px text-center">
-            {/* Intentionally blank - icon rendered via CSS in existing styles */}
+        <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between p-4 bg-transparent">
+          <button
+            onClick={onClose}
+            className="p-3.5 rounded-full bg-white/10 backdrop-blur-md border border-white/10 opacity-100 mx-px text-center"
+            aria-label="Close"
+            type="button"
+          >
+            <X className="h-6 w-6 text-white" />
           </button>
 
           {/* Post counter */}
@@ -383,7 +388,7 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose }: FullScreenVie
         </div>
 
         {/* Author info */}
-        <div className="absolute bottom-14 left-0 right-14 bg-gradient-to-t from-black/80 via-black/40 to-transparent p-4 pt-14 z-[1]">
+        <div className="absolute bottom-14 left-0 right-14 bg-transparent p-4 pt-14 z-[1]">
           <div className="flex items-center mb-2 gap-2">
             <UserAvatar userId={currentPost.user_id} avatarUrl={currentPost.author?.avatar_url} name={currentPost.author?.full_name} size="lg" className="border-2 border-white/20 ring-0" />
             <UserInfo userId={currentPost.user_id} name={currentPost.author?.full_name} username={currentPost.author?.username} variant="fullscreen" />

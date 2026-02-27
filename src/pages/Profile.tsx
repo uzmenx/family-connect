@@ -9,16 +9,19 @@ import { Button } from '@/components/ui/button';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { AtSign, Bell, Bookmark, Check, ChevronDown, ChevronUp, Edit, Grid3X3, Settings, Trash2, Users, Grid2X2, LayoutList, Columns2 } from 'lucide-react';
-import { SocialLinksList } from '@/components/profile';
+import { FollowListSheet, SocialLinksList } from '@/components/profile';
+
 import { useUserPosts } from '@/hooks/useUserPosts';
 import { useSavedPosts } from '@/hooks/useSavedPosts';
 import { useFollow } from '@/hooks/useFollow';
 import { useNotifications } from '@/hooks/useNotifications';
 import { useStoryHighlights } from '@/hooks/useStoryHighlights';
 import { useMentionsCollabs } from '@/hooks/useMentionsCollabs';
+
 import { type PostCollection, usePostCollections } from '@/hooks/usePostCollections';
 import { useSmoothScroll } from '@/hooks/useSmoothScroll';
 import { useActiveStories } from '@/hooks/useActiveStories';
+
 import { useStories } from '@/hooks/useStories';
 import { PostCard } from '@/components/feed/PostCard';
 import { FullScreenViewer } from '@/components/feed/FullScreenViewer';
@@ -122,6 +125,9 @@ const Profile = () => {
   const [collectionTab, setCollectionTab] = useState<'selected' | 'all'>('selected');
   const [selectedPostIds, setSelectedPostIds] = useState<Set<string>>(new Set());
   const [isSavingCollection, setIsSavingCollection] = useState(false);
+
+  const [followSheetOpen, setFollowSheetOpen] = useState(false);
+  const [followSheetMode, setFollowSheetMode] = useState<'followers' | 'following'>('followers');
 
   const cyclePostsLayout = useCallback(() => {
     setPostsLayout((prev) => (prev === 'pinterest2' ? 'pinterest1' : prev === 'pinterest1' ? 'list' : 'pinterest2'));
@@ -334,17 +340,24 @@ const Profile = () => {
         <div className="px-4 -mt-10 relative z-10">
 
           {/* ROW 1: Followers | Avatar | Postlar */}
-          <div className="flex items-end justify-between gap-1 mb-2">
+          <div className="flex items-end justify-between gap-1 mb-1">
 
             {/* LEFT: Followers */}
-            <div className="flex-1 flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-2 py-2 shadow-lg min-w-0">
+            <button
+              type="button"
+              onClick={() => {
+                setFollowSheetMode('followers');
+                setFollowSheetOpen(true);
+              }}
+              className="flex-1 flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-2 py-1.5 shadow-lg min-w-0"
+            >
               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
                 {t('followers')}
               </span>
               <span className="text-xl font-extrabold text-foreground leading-none">
                 {formatCount(followersCount)}
               </span>
-            </div>
+            </button>
 
             {/* CENTER: Avatar with story ring */}
             <div className="flex-shrink-0 flex flex-col items-center">
@@ -390,7 +403,7 @@ const Profile = () => {
             </div>
 
             {/* RIGHT: Postlar */}
-            <div className="flex-1 flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-2 py-2 shadow-lg min-w-0 relative">
+            <div className="flex-1 flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-2 py-1.5 shadow-lg min-w-0 relative">
               <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
                 {t('posts')}
               </span>
@@ -419,19 +432,26 @@ const Profile = () => {
 
           {/* ROW 3: Kuzatilmoqda | (spacer) | Oila a'zolari */}
           {showPostsStats && (
-            <div className="flex items-end justify-between gap-1 mb-2">
-              <div className="flex-1 flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-2 py-2 shadow-lg min-w-0">
+            <div className="flex items-end justify-between gap-1 mb-1">
+              <button
+                type="button"
+                onClick={() => {
+                  setFollowSheetMode('following');
+                  setFollowSheetOpen(true);
+                }}
+                className="flex-1 flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-2 py-1.5 shadow-lg min-w-0"
+              >
                 <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
                   {t('following')}
                 </span>
                 <span className="text-xl font-extrabold text-foreground leading-none">
                   {formatCount(followingCount)}
                 </span>
-              </div>
+              </button>
 
               <div className="flex-shrink-0 w-20" aria-hidden="true" />
 
-              <div className="flex-1 flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-2 py-2 shadow-lg min-w-0">
+              <div className="flex-1 flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-1.5 py-1 shadow-lg min-w-0">
                 <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
                   Oila a'zolari
                 </span>
@@ -530,7 +550,7 @@ const Profile = () => {
                   TABS
                ═══════════════════════════════════════ */}
         <div className="px-4">
-          <div className="flex border-b border-border mb-2">
+          <div className="flex border-b border-border mb-1">
             <button
                 onClick={() => {
                   const now = Date.now();
@@ -552,7 +572,7 @@ const Profile = () => {
                   lastPostsTabTapTsRef.current = now;
                 }}
                 className={cn(
-                  'flex-1 py-2 flex items-center justify-center border-b-2 transition-colors',
+                  'flex-1 py-1.5 flex items-center justify-center border-b-2 transition-colors',
                   activeTab === 'posts' ?
                   'border-primary text-primary' :
                   'border-transparent text-muted-foreground'
@@ -563,7 +583,7 @@ const Profile = () => {
             <button
                 onClick={() => setActiveTab('saved')}
                 className={cn(
-                  'flex-1 py-2 flex items-center justify-center border-b-2 transition-colors',
+                  'flex-1 py-1.5 flex items-center justify-center border-b-2 transition-colors',
                   activeTab === 'saved' ?
                   'border-primary text-primary' :
                   'border-transparent text-muted-foreground'
@@ -574,7 +594,7 @@ const Profile = () => {
             <button
                 onClick={() => setActiveTab('mentions')}
                 className={cn(
-                  'flex-1 py-2 flex items-center justify-center border-b-2 transition-colors',
+                  'flex-1 py-1.5 flex items-center justify-center border-b-2 transition-colors',
                   activeTab === 'mentions' ?
                   'border-primary text-primary' :
                   'border-transparent text-muted-foreground'
@@ -585,7 +605,7 @@ const Profile = () => {
             {pendingCollabs.length > 0 &&
               <button
                 onClick={() => setShowCollabRequests(true)}
-                className="py-3 px-3 flex items-center justify-center border-b-2 border-transparent text-muted-foreground relative">
+                className="py-2 px-3 flex items-center justify-center border-b-2 border-transparent text-muted-foreground relative">
 
                 <Users className="h-5 w-5" />
                 <Badge
@@ -620,6 +640,13 @@ const Profile = () => {
         </div>
 
         <NotificationsSheet open={notificationsOpen} onOpenChange={setNotificationsOpen} />
+
+        <FollowListSheet
+          open={followSheetOpen}
+          onOpenChange={setFollowSheetOpen}
+          userId={user?.id}
+          mode={followSheetMode}
+        />
 
         {/* ═══════════════════════════════════════
                   POSTS TAB
@@ -875,12 +902,13 @@ const Profile = () => {
               </div>
 
               <ScrollArea className="h-[52vh] pr-2">
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-3 gap-1.5">
                   {(collectionTab === 'selected'
                     ? posts.filter(p => selectedPostIds.has(p.id))
                     : posts
                   ).map((p) => {
                     const thumb = (p.media_urls && p.media_urls.length > 0 ? p.media_urls[0] : (p.image_url || '')) as string;
+                    const isVideo = !!thumb && (thumb.includes('.mp4') || thumb.includes('.mov') || thumb.includes('.webm'));
                     const isSelected = selectedPostIds.has(p.id);
                     return (
                       <button
@@ -893,10 +921,23 @@ const Profile = () => {
                           isSelected && 'ring-2 ring-primary'
                         )}
                       >
-                        {thumb ? (
-                          <img src={thumb} alt="" className="w-full h-full object-cover" />
+                        {isVideo ? (
+                          <video
+                            src={thumb}
+                            className="w-full h-full object-cover"
+                            muted
+                            playsInline
+                            preload="metadata"
+                          />
                         ) : (
-                          <div className="w-full h-full bg-muted" />
+                          <img
+                            src={thumb || '/placeholder.svg'}
+                            alt=""
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              (e.currentTarget as HTMLImageElement).src = '/placeholder.svg';
+                            }}
+                          />
                         )}
                         <div className={cn(
                           'absolute top-2 right-2 h-5 w-5 rounded-full border flex items-center justify-center',

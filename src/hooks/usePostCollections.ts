@@ -89,19 +89,57 @@ export const usePostCollections = (userId?: string) => {
 
   const createCollection = async (name: string, theme?: number) => {
     if (!user) return null;
-    const { data, error } = await supabase
+
+    const sort_order = collections.length;
+    const themeValue = Number.isFinite(theme as number) ? (theme as number) : (collections.length % 6);
+
+    const attemptWithTheme = await supabase
       .from('post_collections')
-      .insert({ user_id: user.id, name, sort_order: collections.length, theme: Number.isFinite(theme as number) ? (theme as number) : (collections.length % 6) })
+      .insert({ user_id: user.id, name, sort_order, theme: themeValue })
       .select()
       .single();
-    if (error) { console.error(error); return null; }
-    await fetchCollections();
-    return data;
+
+    if (!attemptWithTheme.error) {
+      await fetchCollections();
+      return attemptWithTheme.data;
+    }
+
+    const msg = (attemptWithTheme.error as any)?.message || String(attemptWithTheme.error);
+    if (/theme/i.test(msg) && /(column|field)/i.test(msg)) {
+      const attemptWithoutTheme = await supabase
+        .from('post_collections')
+        .insert({ user_id: user.id, name, sort_order })
+        .select()
+        .single();
+      if (attemptWithoutTheme.error) {
+        console.error(attemptWithoutTheme.error);
+        return null;
+      }
+      await fetchCollections();
+      return attemptWithoutTheme.data;
+    }
+
+    console.error(attemptWithTheme.error);
+    return null;
   };
 
   const updateCollection = async (id: string, updates: { name?: string; cover_url?: string | null; theme?: number | null }) => {
     const { error } = await supabase.from('post_collections').update(updates).eq('id', id);
-    if (!error) await fetchCollections();
+    if (!error) {
+      await fetchCollections();
+      return;
+    }
+
+    const msg = (error as any)?.message || String(error);
+    if ('theme' in updates && /theme/i.test(msg) && /(column|field)/i.test(msg)) {
+      const { theme: _theme, ...rest } = updates;
+      const retry = await supabase.from('post_collections').update(rest).eq('id', id);
+      if (!retry.error) await fetchCollections();
+      else console.error(retry.error);
+      return;
+    }
+
+    console.error(error);
   };
 
   const deleteCollection = async (id: string) => {
