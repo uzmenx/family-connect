@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback } from 'react';
+import { useState, useRef, useCallback, useEffect } from 'react';
 import { Mic, MicOff, Send, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { cn } from '@/lib/utils';
@@ -10,6 +10,9 @@ interface VoiceMessage {
   isUser: boolean;
 }
 
+const SILENCE_THRESHOLD = 10; // average volume below this = silence
+const SILENCE_DURATION = 2000; // ms of silence before auto-stop
+
 const AIVoiceView = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -20,14 +23,44 @@ const AIVoiceView = () => {
   const animFrameRef = useRef<number | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
+  const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const isSpeakingRef = useRef(false);
 
   const updateVolume = useCallback(() => {
     if (!analyserRef.current) return;
     const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
     analyserRef.current.getByteFrequencyData(dataArray);
     const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length / 255;
+    const scaledAvg = avg * 100;
+    
     setVolume(prev => prev * 0.7 + avg * 0.3);
+
+    // Auto-stop on silence detection
+    if (scaledAvg > SILENCE_THRESHOLD) {
+      isSpeakingRef.current = true;
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = null;
+      }
+    } else if (isSpeakingRef.current && !silenceTimerRef.current) {
+      // User was speaking but now silent — start countdown
+      silenceTimerRef.current = setTimeout(() => {
+        stopRecordingAndProcess();
+      }, SILENCE_DURATION);
+    }
+
     animFrameRef.current = requestAnimationFrame(updateVolume);
+  }, []);
+
+  const stopRecordingAndProcess = useCallback(() => {
+    if (mediaRecorderRef.current?.state === 'recording') {
+      mediaRecorderRef.current.stop();
+    }
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+    isSpeakingRef.current = false;
   }, []);
 
   const startRecording = async () => {
@@ -48,15 +81,19 @@ const AIVoiceView = () => {
 
       recorder.ondataavailable = (e) => chunksRef.current.push(e.data);
       recorder.onstop = () => {
-        // Process recorded audio - send as text query since we can't transcribe client-side
         setIsRecording(false);
         if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
         setVolume(0);
         stream.getTracks().forEach(t => t.stop());
+        
+        // Since we can't transcribe audio client-side, prompt user to type
+        // In a real app, you'd send audio to a transcription service
+        toast.info("Ovoz yozildi. Iltimos, matningizni yozing.");
       };
 
       recorder.start();
       setIsRecording(true);
+      isSpeakingRef.current = false;
       updateVolume();
     } catch (err) {
       console.error('Mic error:', err);
@@ -65,10 +102,17 @@ const AIVoiceView = () => {
   };
 
   const stopRecording = () => {
-    if (mediaRecorderRef.current?.state === 'recording') {
-      mediaRecorderRef.current.stop();
-    }
+    stopRecordingAndProcess();
   };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+      streamRef.current?.getTracks().forEach(t => t.stop());
+    };
+  }, []);
 
   const sendTextQuery = async (text: string) => {
     if (!text.trim() || isProcessing) return;
@@ -115,14 +159,15 @@ const AIVoiceView = () => {
             const parsed = JSON.parse(json);
             const c = parsed.choices?.[0]?.delta?.content;
             if (c) result += c;
-          } catch { break; }
+          } catch { /* partial json, skip */ }
         }
       }
 
       if (result) {
         setHistory(prev => [...prev, { text: result, isUser: false }]);
-        // Try speech synthesis
+        // Speech synthesis
         if ('speechSynthesis' in window) {
+          speechSynthesis.cancel(); // Cancel any ongoing speech
           const utterance = new SpeechSynthesisUtterance(result);
           utterance.lang = 'uz-UZ';
           utterance.rate = 1;
@@ -175,7 +220,7 @@ const AIVoiceView = () => {
 
         {isRecording && (
           <div className="text-sm font-medium tracking-wider uppercase text-primary/80 animate-pulse">
-            Tinglayapman...
+            Tinglayapman... (sukut bo'lganda to'xtaydi)
           </div>
         )}
         {isProcessing && (
@@ -204,7 +249,7 @@ const AIVoiceView = () => {
         <div className="absolute bottom-0 left-0 right-0 h-5 bg-gradient-to-t from-card/80 to-transparent z-10" />
       </div>
 
-      {/* Text Input for Voice Tab */}
+      {/* Text Input */}
       <div className="w-full max-w-md bg-card/50 backdrop-blur-2xl border border-border/50 rounded-[28px] flex items-center p-1.5">
         <input value={textInput} onChange={(e) => setTextInput(e.target.value)}
           onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); sendTextQuery(textInput); setTextInput(''); } }}
@@ -216,7 +261,7 @@ const AIVoiceView = () => {
           disabled={!textInput.trim() || isProcessing}
           className={cn(
             'w-9 h-9 rounded-full flex items-center justify-center transition-all',
-            textInput.trim() ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white' : 'bg-muted text-muted-foreground opacity-50'
+            textInput.trim() ? 'bg-gradient-to-r from-[hsl(217,91%,60%)] to-[hsl(263,70%,50%)] text-white' : 'bg-muted text-muted-foreground opacity-50'
           )}>
           <Send className="h-4 w-4" />
         </button>

@@ -32,6 +32,7 @@ Deno.serve(async (req: Request) => {
             content: prompt,
           },
         ],
+        modalities: ["image", "text"],
       }),
     });
 
@@ -48,69 +49,81 @@ Deno.serve(async (req: Request) => {
       }
       const t = await response.text();
       console.error("Image gen error:", response.status, t);
-      return new Response(JSON.stringify({ error: "Rasm yaratishda xatolik" }), {
+      return new Response(JSON.stringify({ error: "Rasm yaratishda xatolik", details: t.slice(0, 500) }), {
         status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const data = await response.json();
+    console.log("AI response keys:", JSON.stringify(Object.keys(data)));
 
+    // Method 1: Check choices[].message.images[] (Lovable gateway format)
+    const messageImages = data?.choices?.[0]?.message?.images;
+    if (Array.isArray(messageImages) && messageImages.length > 0) {
+      const imgUrl = messageImages[0]?.image_url?.url;
+      if (imgUrl) {
+        return new Response(JSON.stringify({ content: imgUrl }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+    }
+
+    // Method 2: Check data[].url or data[].b64_json (OpenAI images format)
     const fromImagesApi = (data as any)?.data?.[0];
     const imgUrl = fromImagesApi?.url as string | undefined;
     const b64 = fromImagesApi?.b64_json as string | undefined;
 
-    let content: string | undefined;
-
     if (imgUrl) {
-      content = imgUrl;
-    } else if (b64) {
-      content = `data:image/png;base64,${b64}`;
-    } else {
-      const msgContent = (data as any)?.choices?.[0]?.message?.content as string | undefined;
-      if (typeof msgContent === 'string') {
-        const trimmed = msgContent.trim();
-        const dataUrlMatch = trimmed.match(/data:image\/(png|jpeg|jpg|webp);base64,[A-Za-z0-9+/=]+/i);
-        if (dataUrlMatch) {
-          content = dataUrlMatch[0];
-        } else {
-          const base64OnlyMatch = trimmed.match(/^[A-Za-z0-9+/=]{200,}$/);
-          if (base64OnlyMatch) {
-            content = `data:image/png;base64,${base64OnlyMatch[0]}`;
-          } else {
-            const urlMatch = trimmed.match(/https?:\/\/[^\s)\]]+/);
-            if (urlMatch) content = urlMatch[0];
-          }
-        }
+      return new Response(JSON.stringify({ content: imgUrl }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+    if (b64) {
+      return new Response(JSON.stringify({ content: `data:image/png;base64,${b64}` }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // Method 3: Check choices[].message.content for inline data or URL
+    const msgContent = data?.choices?.[0]?.message?.content as string | undefined;
+    if (typeof msgContent === 'string') {
+      const trimmed = msgContent.trim();
+      const dataUrlMatch = trimmed.match(/data:image\/(png|jpeg|jpg|webp);base64,[A-Za-z0-9+/=]+/i);
+      if (dataUrlMatch) {
+        return new Response(JSON.stringify({ content: dataUrlMatch[0] }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const base64OnlyMatch = trimmed.match(/^[A-Za-z0-9+/=]{200,}$/);
+      if (base64OnlyMatch) {
+        return new Response(JSON.stringify({ content: `data:image/png;base64,${base64OnlyMatch[0]}` }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
+      }
+      const urlMatch = trimmed.match(/https?:\/\/[^\s)\]]+/);
+      if (urlMatch) {
+        return new Response(JSON.stringify({ content: urlMatch[0] }), {
+          headers: { ...corsHeaders, "Content-Type": "application/json" },
+        });
       }
     }
 
-    if (!content) {
-      const safeSnapshot = (() => {
-        try {
-          const raw = JSON.stringify(data);
-          return raw.length > 2000 ? raw.slice(0, 2000) + '…' : raw;
-        } catch {
-          return 'snapshot_failed';
-        }
-      })();
+    // Nothing found
+    const safeSnapshot = (() => {
+      try {
+        const raw = JSON.stringify(data);
+        return raw.length > 2000 ? raw.slice(0, 2000) + '…' : raw;
+      } catch { return 'snapshot_failed'; }
+    })();
 
-      return new Response(
-        JSON.stringify({
-          error: "Rasm topilmadi",
-          provider: "lovable_gateway",
-          hint: "Provider rasm qaytarmadi yoki format mos emas. Response snapshot ni tekshiring.",
-          snapshot: safeSnapshot,
-        }),
-        {
-          status: 502,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        }
-      );
-    }
-
-    return new Response(JSON.stringify({ content }), {
-      headers: { ...corsHeaders, "Content-Type": "application/json" },
-    });
+    return new Response(
+      JSON.stringify({
+        error: "Rasm topilmadi",
+        hint: "Provider rasm qaytarmadi yoki format mos emas.",
+        snapshot: safeSnapshot,
+      }),
+      { status: 502, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   } catch (e) {
     console.error("ai-image-gen error:", e);
     return new Response(JSON.stringify({ error: e instanceof Error ? e.message : "Noma'lum xato" }), {

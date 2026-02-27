@@ -3,13 +3,6 @@ import { Wand2, Download, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 
 const IMAGE_GEN_URL = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/ai-image-gen`;
-const GEMINI_API_KEY = import.meta.env.VITE_GEMINI_API_KEY as string | undefined;
-const GEMINI_MODEL = (import.meta.env.VITE_GEMINI_IMAGE_MODEL as string | undefined) || 'gemini-2.5-flash-image';
-
-const geminiEndpoint = (model: string, apiKey: string) => {
-  const base = 'https://generativelanguage.googleapis.com/v1beta/models';
-  return `${base}/${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
-};
 
 const normalizeImageSrc = (value: unknown): string | null => {
   if (typeof value !== 'string') return null;
@@ -22,76 +15,45 @@ const normalizeImageSrc = (value: unknown): string | null => {
   return null;
 };
 
-const parseGeminiImage = (payload: any): string | null => {
-  const parts = payload?.candidates?.[0]?.content?.parts;
-  if (!Array.isArray(parts)) return null;
-  for (const p of parts) {
-    const data = p?.inlineData?.data;
-    const mime = p?.inlineData?.mimeType;
-    if (typeof data === 'string' && data) {
-      const m = typeof mime === 'string' && mime ? mime : 'image/png';
-      return `data:${m};base64,${data}`;
-    }
-  }
-  return null;
-};
-
 const AIImageView = () => {
   const [prompt, setPrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [resultImage, setResultImage] = useState<string | null>(null);
+  const [errorDetail, setErrorDetail] = useState<string | null>(null);
 
   const handleGenerate = async () => {
     if (!prompt.trim() || isGenerating) return;
     setIsGenerating(true);
     setResultImage(null);
+    setErrorDetail(null);
     try {
-      let src: string | null = null;
+      const resp = await fetch(IMAGE_GEN_URL, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
+        },
+        body: JSON.stringify({ prompt }),
+      });
 
-      if (GEMINI_API_KEY) {
-        const resp = await fetch(geminiEndpoint(GEMINI_MODEL, GEMINI_API_KEY), {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            contents: [
-              {
-                role: 'user',
-                parts: [{ text: prompt }],
-              },
-            ],
-          }),
-        });
+      if (resp.status === 429) { toast.error("So'rovlar limiti oshdi"); return; }
+      if (resp.status === 402) { toast.error("Kredit yetarli emas"); return; }
 
-        if (!resp.ok) {
-          const t = await resp.text().catch(() => '');
-          throw new Error(t || 'Gemini image generation failed');
-        }
+      const data = await resp.json();
 
-        const data = await resp.json();
-        src = parseGeminiImage(data);
-      } else {
-        const resp = await fetch(IMAGE_GEN_URL, {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-            Authorization: `Bearer ${import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY}`,
-          },
-          body: JSON.stringify({ prompt }),
-        });
-
-        if (resp.status === 429) { toast.error("So'rovlar limiti oshdi"); return; }
-        if (resp.status === 402) { toast.error("Kredit yetarli emas"); return; }
-        if (!resp.ok) throw new Error('Rasm yaratishda xatolik');
-
-        const data = await resp.json();
-        src = normalizeImageSrc(data.content);
+      if (!resp.ok) {
+        console.error('Image gen error:', data);
+        const detail = data.snapshot || data.details || data.error || 'Unknown error';
+        setErrorDetail(typeof detail === 'string' ? detail.slice(0, 200) : JSON.stringify(detail).slice(0, 200));
+        toast.error(data.error || 'Rasm yaratishda xatolik');
+        return;
       }
 
+      const src = normalizeImageSrc(data.content);
       if (src) {
         setResultImage(src);
       } else {
+        console.error('Could not parse image from response:', data);
         toast.error("Rasm yaratilmadi, qayta urinib ko'ring");
       }
     } catch (error) {
@@ -130,6 +92,9 @@ const AIImageView = () => {
             <p className="text-xs font-medium opacity-60">
               {isGenerating ? 'Rasm yaratilmoqda...' : 'Art maydoni'}
             </p>
+            {errorDetail && (
+              <p className="text-[10px] text-destructive/70 px-4 text-center max-w-[250px] break-all">{errorDetail}</p>
+            )}
           </div>
         )}
       </div>
@@ -146,7 +111,7 @@ const AIImageView = () => {
           <button onClick={handleGenerate} disabled={!prompt.trim() || isGenerating}
             className={`px-5 py-2 rounded-full font-semibold text-sm transition-all ${
               prompt.trim() && !isGenerating
-                ? 'bg-gradient-to-r from-indigo-500 to-purple-500 text-white hover:scale-105 shadow-lg shadow-purple-500/30'
+                ? 'bg-gradient-to-r from-[hsl(217,91%,60%)] to-[hsl(263,70%,50%)] text-white hover:scale-105 shadow-lg shadow-primary/30'
                 : 'bg-muted text-muted-foreground'
             }`}>
             Yaratish
