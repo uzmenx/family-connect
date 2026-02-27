@@ -30,13 +30,6 @@ export const TreePostHeader = ({
         <Button variant="ghost" size="icon" onClick={onCreateNew} className="h-9 w-9">
           <Plus className="h-5 w-5" />
         </Button>
-      </div>
-
-      {/* Right side */}
-      <div className="flex items-center gap-2">
-        <Button variant="ghost" size="icon" onClick={onFullscreen} className="h-9 w-9">
-          <Maximize2 className="h-5 w-5" />
-        </Button>
         {hasCurrentPost && (
           <Button
             variant="ghost"
@@ -48,6 +41,13 @@ export const TreePostHeader = ({
             <Save className="h-5 w-5" />
           </Button>
         )}
+      </div>
+
+      {/* Right side */}
+      <div className="flex items-center gap-2">
+        <Button variant="ghost" size="icon" onClick={onFullscreen} className="h-9 w-9">
+          <Maximize2 className="h-5 w-5" />
+        </Button>
         <Button
           size="sm"
           onClick={onPublish}
