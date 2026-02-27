@@ -60,7 +60,7 @@ export const UnifiedFullScreenViewer = ({
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
   const shortsIframeRef = useRef<HTMLIFrameElement>(null);
-  const mutedMediaRef = useRef(new Map<HTMLMediaElement, { muted: boolean; volume: number }>());
+  const mutedMediaRef = useRef(new Map<HTMLMediaElement, {muted: boolean;volume: number;}>());
   const touchStartY = useRef(0);
   const touchStartX = useRef(0);
   const touchStartTime = useRef(0);
@@ -86,8 +86,8 @@ export const UnifiedFullScreenViewer = ({
   );
 
   const bgStyle = activeTab === 'posts' && dominantColor ?
-    { background: `linear-gradient(135deg, ${dominantColor} 0%, ${secondaryColor} 50%, ${dominantColor} 100%)` } :
-    { background: '#000' };
+  { background: `linear-gradient(135deg, ${dominantColor} 0%, ${secondaryColor} 50%, ${dominantColor} 100%)` } :
+  { background: '#000' };
 
   const ytOrigin = typeof window !== 'undefined' ? window.location.origin : '';
 
@@ -137,7 +137,7 @@ export const UnifiedFullScreenViewer = ({
       if (!mutedMediaRef.current.has(el)) {
         mutedMediaRef.current.set(el, { muted: el.muted, volume: el.volume });
       }
-      try { el.pause(); } catch {}
+      try {el.pause();} catch {}
       el.muted = true;
       el.volume = 0;
     }
@@ -153,7 +153,7 @@ export const UnifiedFullScreenViewer = ({
 
   useEffect(() => {
     document.body.style.overflow = 'hidden';
-    return () => { document.body.style.overflow = ''; };
+    return () => {document.body.style.overflow = '';};
   }, []);
 
   const smoothNavigate = useCallback((direction: 'up' | 'down') => {
@@ -192,7 +192,7 @@ export const UnifiedFullScreenViewer = ({
       if (Math.abs(e.deltaY) > 20) {
         isScrolling = true;
         smoothNavigate(e.deltaY > 0 ? 'down' : 'up');
-        timeout = setTimeout(() => { isScrolling = false; }, 400);
+        timeout = setTimeout(() => {isScrolling = false;}, 400);
       }
     };
 
@@ -309,15 +309,15 @@ export const UnifiedFullScreenViewer = ({
   const preloadRange = Array.from(
     { length: PRELOAD_COUNT * 2 + 1 },
     (_, i) => shortIndex - PRELOAD_COUNT + i
-  ).filter(i => i >= 0 && i < shorts.length);
+  ).filter((i) => i >= 0 && i < shorts.length);
 
   const renderShort = () => {
     if (!currentShort) {
       return (
         <div className="flex-1 flex items-center justify-center text-white/50 text-sm">
           Shorts topilmadi
-        </div>
-      );
+        </div>);
+
     }
     return (
       <div className={cn(
@@ -326,13 +326,13 @@ export const UnifiedFullScreenViewer = ({
         slideDirection === 'up' && "animate-slide-out-down",
         !slideDirection && "animate-slide-in"
       )}
-        onClick={(e) => {
-          if (isTransitioning) return;
-          if (Date.now() - lastShortsTouchTapTs.current < 450) return;
-          const t = e.target as HTMLElement | null;
-          if (t?.closest('button')) return;
-          handleShortsTap();
-        }}>
+      onClick={(e) => {
+        if (isTransitioning) return;
+        if (Date.now() - lastShortsTouchTapTs.current < 450) return;
+        const t = e.target as HTMLElement | null;
+        if (t?.closest('button')) return;
+        handleShortsTap();
+      }}>
         <div className="relative w-full h-full">
           {/* Render current + adjacent iframes for instant switching */}
           {preloadRange.map((idx) => {
@@ -350,9 +350,9 @@ export const UnifiedFullScreenViewer = ({
                 )}
                 allow="autoplay; encrypted-media"
                 allowFullScreen
-                title={s.title}
-              />
-            );
+                title={s.title} />);
+
+
           })}
 
           {/* Mask YouTube UI overlays */}
@@ -367,8 +367,8 @@ export const UnifiedFullScreenViewer = ({
         )}>
           <div className="p-4 rounded-full bg-black/35 backdrop-blur-sm border border-white/10">
             {shortsPlaying ?
-              <Play className="h-8 w-8 text-white" /> :
-              <Pause className="h-8 w-8 text-white" />}
+            <Play className="h-8 w-8 text-white" /> :
+            <Pause className="h-8 w-8 text-white" />}
           </div>
         </div>
 
@@ -391,7 +391,7 @@ export const UnifiedFullScreenViewer = ({
         </div>
 
         {/* Position counter */}
-        <div className="absolute right-3 bottom-20 z-[5] bg-white/10 backdrop-blur-md rounded-full px-2 py-0.5 border border-white/10">
+        <div className="absolute right-3 bottom-20 z-[5] bg-white/10 backdrop-blur-md rounded-full px-2 py-0.5 border border-white/10 opacity-0">
           <span className="text-[10px] text-white/70 font-medium">{shortIndex + 1}/{shorts.length}</span>
         </div>
 
@@ -403,8 +403,8 @@ export const UnifiedFullScreenViewer = ({
               e.stopPropagation();
               setShowShortShare(true);
             }}
-            className="p-2.5 rounded-full bg-white/10 backdrop-blur-md border border-white/10 hover:bg-white/15 transition-colors"
-          >
+            className="p-2.5 rounded-full bg-white/10 backdrop-blur-md border border-white/10 hover:bg-white/15 transition-colors">
+
             <Send className="h-5 w-5 text-white" />
           </button>
         </div>
@@ -412,10 +412,10 @@ export const UnifiedFullScreenViewer = ({
         <ShareDialog
           open={showShortShare}
           onOpenChange={setShowShortShare}
-          shortId={currentShort.id}
-        />
-      </div>
-    );
+          shortId={currentShort.id} />
+
+      </div>);
+
   };
 
   // ─── RENDER: Posts tab ───
@@ -433,43 +433,43 @@ export const UnifiedFullScreenViewer = ({
           onClick={handleMediaClick}>
 
           {isVideo(currentMediaUrl) ?
-            <>
+          <>
               <video ref={videoRef} src={currentMediaUrl} className="max-w-full max-h-full object-contain" loop playsInline autoPlay />
-              <button onClick={(e) => { e.stopPropagation(); setIsPlaying((p) => !p); }} className="absolute inset-0 flex items-center justify-center">
+              <button onClick={(e) => {e.stopPropagation();setIsPlaying((p) => !p);}} className="absolute inset-0 flex items-center justify-center">
                 <div className={cn("p-4 rounded-full bg-black/30 backdrop-blur-sm transition-opacity", isPlaying ? "opacity-0" : "opacity-100")}>
                   {isPlaying ? <Pause className="h-8 w-8 text-white" /> : <Play className="h-8 w-8 text-white" />}
                 </div>
               </button>
             </> :
-            <img src={currentMediaUrl} alt="Post media" className="max-w-full max-h-full object-contain" />
+          <img src={currentMediaUrl} alt="Post media" className="max-w-full max-h-full object-contain" />
           }
 
           {showDoubleTapHeart &&
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
               <Heart className="h-24 w-24 text-white fill-white drop-shadow-lg animate-heartBurst" />
             </div>
           }
 
           {mediaUrls.length > 1 &&
-            <>
+          <>
               <div className="absolute bottom-20 left-1/2 -translate-x-1/2 flex gap-1.5">
                 {mediaUrls.map((_, i) =>
-                  <button key={i} onClick={(e) => { e.stopPropagation(); setCurrentMediaIndex(i); }}
-                    className={cn("w-1.5 h-1.5 rounded-full transition-colors", currentMediaIndex === i ? "bg-white" : "bg-white/30")} />
-                )}
+              <button key={i} onClick={(e) => {e.stopPropagation();setCurrentMediaIndex(i);}}
+              className={cn("w-1.5 h-1.5 rounded-full transition-colors", currentMediaIndex === i ? "bg-white" : "bg-white/30")} />
+              )}
               </div>
               {currentMediaIndex > 0 &&
-                <button onClick={(e) => { e.stopPropagation(); setCurrentMediaIndex((p) => p - 1); }}
-                  className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 bg-black/20 backdrop-blur-sm rounded-full">
+            <button onClick={(e) => {e.stopPropagation();setCurrentMediaIndex((p) => p - 1);}}
+            className="absolute left-2 top-1/2 -translate-y-1/2 p-1.5 bg-black/20 backdrop-blur-sm rounded-full">
                   <ChevronLeft className="h-4 w-4 text-white" />
                 </button>
-              }
+            }
               {currentMediaIndex < mediaUrls.length - 1 &&
-                <button onClick={(e) => { e.stopPropagation(); setCurrentMediaIndex((p) => p + 1); }}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-black/20 backdrop-blur-sm rounded-full">
+            <button onClick={(e) => {e.stopPropagation();setCurrentMediaIndex((p) => p + 1);}}
+            className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 bg-black/20 backdrop-blur-sm rounded-full">
                   <ChevronRight className="h-4 w-4 text-white" />
                 </button>
-              }
+            }
             </>
           }
         </div>
@@ -487,8 +487,8 @@ export const UnifiedFullScreenViewer = ({
               setShowVideoPlayer(true);
               if (videoRef.current) videoRef.current.pause();
               setIsPlaying(false);
-            }}
-          />
+            }} />
+
         </div>
 
         {/* Author info */}
@@ -503,45 +503,45 @@ export const UnifiedFullScreenViewer = ({
               hasStory={!!getStoryInfo(currentPost.user_id)}
               storyRingId={getStoryInfo(currentPost.user_id)?.ring_id}
               hasUnviewedStory={getStoryInfo(currentPost.user_id)?.has_unviewed}
-              onStoryClick={() => openStoriesForUser(currentPost.user_id)}
-            />
+              onStoryClick={() => openStoriesForUser(currentPost.user_id)} />
+
             <UserInfo userId={currentPost.user_id} name={currentPost.author?.full_name} username={currentPost.author?.username} variant="fullscreen" />
             <FollowButton targetUserId={currentPost.user_id} size="sm" />
           </div>
           {currentPost.content && <PostCaption content={currentPost.content} variant="fullscreen" />}
         </div>
-      </>
-    );
+      </>);
+
   };
 
   const fetchStoryGroupForUser = useCallback(async (targetUserId: string): Promise<StoryGroup | null> => {
     try {
-      const { data: stories, error } = await supabase
-        .from('stories')
-        .select('*')
-        .eq('user_id', targetUserId)
-        .gt('expires_at', new Date().toISOString())
-        .order('created_at', { ascending: true });
+      const { data: stories, error } = await supabase.
+      from('stories').
+      select('*').
+      eq('user_id', targetUserId).
+      gt('expires_at', new Date().toISOString()).
+      order('created_at', { ascending: true });
 
       if (error) throw error;
       if (!stories || stories.length === 0) return null;
 
-      const { data: profiles } = await supabase
-        .from('profiles')
-        .select('id, name, username, avatar_url')
-        .in('id', [targetUserId]);
+      const { data: profiles } = await supabase.
+      from('profiles').
+      select('id, name, username, avatar_url').
+      in('id', [targetUserId]);
 
-      const authorProfile = profiles?.find(p => p.id === targetUserId);
+      const authorProfile = profiles?.find((p) => p.id === targetUserId);
       const viewerId = user?.id;
 
       const [viewsRes, likesRes] = await Promise.all([
-        viewerId
-          ? supabase.from('story_views').select('story_id').eq('viewer_id', viewerId).in('story_id', stories.map(s => s.id))
-          : Promise.resolve({ data: [] as any[] }),
-        viewerId
-          ? supabase.from('story_likes').select('story_id').eq('user_id', viewerId).in('story_id', stories.map(s => s.id))
-          : Promise.resolve({ data: [] as any[] }),
-      ]);
+      viewerId ?
+      supabase.from('story_views').select('story_id').eq('viewer_id', viewerId).in('story_id', stories.map((s) => s.id)) :
+      Promise.resolve({ data: [] as any[] }),
+      viewerId ?
+      supabase.from('story_likes').select('story_id').eq('user_id', viewerId).in('story_id', stories.map((s) => s.id)) :
+      Promise.resolve({ data: [] as any[] })]
+      );
 
       const viewedStoryIds = new Set((viewsRes as any)?.data?.map((v: any) => v.story_id) || []);
       const likedStoryIds = new Set((likesRes as any)?.data?.map((l: any) => l.story_id) || []);
@@ -554,17 +554,17 @@ export const UnifiedFullScreenViewer = ({
           id: authorProfile.id,
           name: authorProfile.name,
           username: authorProfile.username,
-          avatar_url: authorProfile.avatar_url,
+          avatar_url: authorProfile.avatar_url
         } : undefined,
         has_viewed: viewerId ? viewedStoryIds.has(s.id) : false,
-        has_liked: viewerId ? likedStoryIds.has(s.id) : false,
+        has_liked: viewerId ? likedStoryIds.has(s.id) : false
       }));
 
       return {
         user_id: targetUserId,
         user: authorProfile || { id: targetUserId, name: null, username: null, avatar_url: null },
         stories: normalizedStories,
-        has_unviewed: normalizedStories.some(s => !s.has_viewed),
+        has_unviewed: normalizedStories.some((s) => !s.has_viewed)
       };
     } catch (err) {
       console.error('Error fetching user stories:', err);
@@ -591,10 +591,10 @@ export const UnifiedFullScreenViewer = ({
         onMouseUp={handleMouseUp}>
 
         {activeTab === 'posts' && dominantColor &&
-          <div className="absolute inset-0 z-0" style={{
-            background: `radial-gradient(ellipse at center, transparent 0%, ${dominantColor} 70%)`,
-            backdropFilter: 'blur(20px)'
-          }} />
+        <div className="absolute inset-0 z-0" style={{
+          background: `radial-gradient(ellipse at center, transparent 0%, ${dominantColor} 70%)`,
+          backdropFilter: 'blur(20px)'
+        }} />
         }
 
         {/* Top bar with tabs */}
@@ -634,19 +634,19 @@ export const UnifiedFullScreenViewer = ({
           <SamsungUltraVideoPlayer
             src={videoPlayerSrc}
             title={currentPost?.content?.slice(0, 50) || 'Video'}
-            onClose={() => setShowVideoPlayer(false)}
-          />
+            onClose={() => setShowVideoPlayer(false)} />
+
         </div>,
         document.body
       )}
 
-      {storyViewerOpen && storyViewerGroups.length > 0 && (
-        <StoryViewer
-          storyGroups={storyViewerGroups}
-          initialGroupIndex={0}
-          onClose={() => setStoryViewerOpen(false)}
-        />
-      )}
-    </>
-  );
+      {storyViewerOpen && storyViewerGroups.length > 0 &&
+      <StoryViewer
+        storyGroups={storyViewerGroups}
+        initialGroupIndex={0}
+        onClose={() => setStoryViewerOpen(false)} />
+
+      }
+    </>);
+
 };
