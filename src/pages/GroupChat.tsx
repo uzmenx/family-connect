@@ -5,8 +5,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { ArrowLeft, Users, Megaphone, MoreVertical, Send, X } from 'lucide-react';
-import { Input } from '@/components/ui/input';
+import { ArrowLeft, Users, Megaphone, MoreVertical, Send, X, Smile } from 'lucide-react';
 import { toast } from 'sonner';
 import { ChatMediaPicker } from '@/components/chat/ChatMediaPicker';
 import { VoiceRecorderButton } from '@/components/chat/VoiceRecorderButton';
@@ -19,6 +18,12 @@ import { MessageContextMenu } from '@/components/chat/MessageContextMenu';
 import { ForwardMessageDialog } from '@/components/chat/ForwardMessageDialog';
 import { ReplyPreview } from '@/components/chat/ReplyPreview';
 import { uploadMedia, uploadToR2 } from '@/lib/r2Upload';
+import { cn } from '@/lib/utils';
+import { format, isToday, isYesterday, isSameDay } from 'date-fns';
+import { uz } from 'date-fns/locale';
+import { useLocalStorage } from '@/hooks/useLocalStorage';
+import ChatWallpaperPicker from '@/components/chat/ChatWallpaperPicker';
+
 interface MediaFile {
   file: File;
   preview: string;
@@ -81,6 +86,9 @@ const GroupChat = () => {
   // Deleted messages (local storage for "delete for me")
   const [deletedMessageIds, setDeletedMessageIds] = useState<Set<string>>(new Set());
 
+  // Wallpaper
+  const [chatWallpaper] = useLocalStorage('group_chat_wallpaper', 'none');
+
   const formatDuration = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
@@ -89,40 +97,23 @@ const GroupChat = () => {
 
   const fetchGroupInfo = useCallback(async () => {
     if (!groupId) return;
-
     try {
       const { data: group, error } = await supabase
-        .from('group_chats')
-        .select('*')
-        .eq('id', groupId)
-        .single();
-
+        .from('group_chats').select('*').eq('id', groupId).single();
       if (error) throw error;
 
       const { count: memberCount } = await supabase
-        .from('group_members')
-        .select('*', { count: 'exact', head: true })
-        .eq('group_id', groupId);
+        .from('group_members').select('*', { count: 'exact', head: true }).eq('group_id', groupId);
 
-      setGroupInfo({
-        ...group,
-        memberCount: (memberCount || 0) + 1
-      });
+      setGroupInfo({ ...group, memberCount: (memberCount || 0) + 1 });
 
-      // Check if user can send messages
       if (group.owner_id === user?.id) {
         setCanSend(true);
       } else if (group.type === 'group') {
-        // In groups, all members can send
         const { data: membership } = await supabase
-          .from('group_members')
-          .select('id')
-          .eq('group_id', groupId)
-          .eq('user_id', user?.id)
-          .maybeSingle();
+          .from('group_members').select('id').eq('group_id', groupId).eq('user_id', user?.id).maybeSingle();
         setCanSend(!!membership);
       } else {
-        // In channels, only owner can send
         setCanSend(group.owner_id === user?.id);
       }
     } catch (error) {
@@ -134,29 +125,17 @@ const GroupChat = () => {
 
   const fetchMessages = useCallback(async () => {
     if (!groupId) return;
-
     try {
       const { data: messagesData, error } = await supabase
-        .from('group_messages')
-        .select('*')
-        .eq('group_id', groupId)
-        .order('created_at', { ascending: true });
-
+        .from('group_messages').select('*').eq('group_id', groupId).order('created_at', { ascending: true });
       if (error) throw error;
 
       if (messagesData && messagesData.length > 0) {
         const senderIds = [...new Set(messagesData.map(m => m.sender_id))];
         const { data: profiles } = await supabase
-          .from('profiles')
-          .select('id, name, username, avatar_url')
-          .in('id', senderIds);
-
+          .from('profiles').select('id, name, username, avatar_url').in('id', senderIds);
         const profileMap = new Map(profiles?.map(p => [p.id, p]) || []);
-
-        setMessages(messagesData.map(m => ({
-          ...m,
-          sender: profileMap.get(m.sender_id)
-        })));
+        setMessages(messagesData.map(m => ({ ...m, sender: profileMap.get(m.sender_id) })));
       } else {
         setMessages([]);
       }
@@ -170,100 +149,56 @@ const GroupChat = () => {
   useEffect(() => {
     fetchGroupInfo();
     fetchMessages();
-
-    // Load deleted messages from localStorage
     const stored = localStorage.getItem(`deleted_group_messages_${groupId}`);
-    if (stored) {
-      setDeletedMessageIds(new Set(JSON.parse(stored)));
-    }
+    if (stored) setDeletedMessageIds(new Set(JSON.parse(stored)));
   }, [fetchGroupInfo, fetchMessages, groupId]);
 
-  // Realtime subscription
+  // Realtime
   useEffect(() => {
     if (!groupId) return;
-
     const channel = supabase
       .channel(`group-messages-${groupId}`)
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'group_messages',
-          filter: `group_id=eq.${groupId}`
-        },
+      .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'group_messages', filter: `group_id=eq.${groupId}` },
         async (payload) => {
           const newMsg = payload.new as any;
-          
-          // Fetch sender profile
-          const { data: profile } = await supabase
-            .from('profiles')
-            .select('id, name, username, avatar_url')
-            .eq('id', newMsg.sender_id)
-            .single();
-
+          const { data: profile } = await supabase.from('profiles').select('id, name, username, avatar_url').eq('id', newMsg.sender_id).single();
           setMessages(prev => [...prev, { ...newMsg, sender: profile }]);
-        }
-      )
-      .on(
-        'postgres_changes',
-        {
-          event: 'DELETE',
-          schema: 'public',
-          table: 'group_messages',
-          filter: `group_id=eq.${groupId}`
-        },
+        })
+      .on('postgres_changes', { event: 'DELETE', schema: 'public', table: 'group_messages', filter: `group_id=eq.${groupId}` },
         (payload) => {
-          const deletedId = (payload.old as any).id;
-          setMessages(prev => prev.filter(m => m.id !== deletedId));
-        }
-      )
+          setMessages(prev => prev.filter(m => m.id !== (payload.old as any).id));
+        })
       .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    return () => { supabase.removeChannel(channel); };
   }, [groupId]);
 
-  // Scroll to bottom on new messages
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages]);
 
   const handleSendMessage = async () => {
     if (!groupId || !user?.id || (!newMessage.trim() && !selectedMedia && !voiceRecorder.audioBlob)) return;
     if (isSending) return;
-
     setIsSending(true);
-
     try {
       let mediaUrl: string | null = null;
       let mediaType: string | null = null;
       let content = newMessage.trim();
 
-      // Add reply prefix if replying
       if (replyTo) {
-        const replyPreview = replyTo.content.length > 30 
-          ? replyTo.content.substring(0, 30) + '...'
-          : replyTo.content;
+        const replyPreview = replyTo.content.length > 30 ? replyTo.content.substring(0, 30) + '...' : replyTo.content;
         content = `↩️ "${replyPreview}"\n${content}`;
         setReplyTo(null);
       }
 
-      // Handle voice message
       if (voiceRecorder.audioBlob) {
-        const audioFile = new File([voiceRecorder.audioBlob], `voice_${Date.now()}.webm`, {
-          type: 'audio/webm'
-        });
+        const audioFile = new File([voiceRecorder.audioBlob], `voice_${Date.now()}.webm`, { type: 'audio/webm' });
         mediaUrl = await uploadToR2(audioFile, `group-messages/${user.id}`);
         mediaType = 'audio';
         content = content || '🎤 Ovozli xabar';
         voiceRecorder.cancelRecording();
       }
 
-      // Handle media (image/video)
       if (selectedMedia) {
         mediaUrl = await uploadMedia(selectedMedia.file, 'group-messages', user.id);
         mediaType = selectedMedia.type;
@@ -271,18 +206,11 @@ const GroupChat = () => {
         setSelectedMedia(null);
       }
 
-      const { error } = await supabase
-        .from('group_messages')
-        .insert({
-          group_id: groupId,
-          sender_id: user.id,
-          content: content || 'Xabar',
-          media_url: mediaUrl,
-          media_type: mediaType
-        });
-
+      const { error } = await supabase.from('group_messages').insert({
+        group_id: groupId, sender_id: user.id, content: content || 'Xabar',
+        media_url: mediaUrl, media_type: mediaType
+      });
       if (error) throw error;
-
       setNewMessage('');
     } catch (error) {
       console.error('Error sending message:', error);
@@ -292,19 +220,11 @@ const GroupChat = () => {
     }
   };
 
-  const handleReply = (messageId: string, content: string) => {
-    setReplyTo({ id: messageId, content });
-  };
-
+  const handleReply = (messageId: string, content: string) => setReplyTo({ id: messageId, content });
   const handleForward = (messageId: string, content: string) => {
     const msg = messages.find(m => m.id === messageId);
-    setForwardMessage({
-      content,
-      mediaUrl: msg?.media_url,
-      mediaType: msg?.media_type
-    });
+    setForwardMessage({ content, mediaUrl: msg?.media_url, mediaType: msg?.media_type });
   };
-
   const handleDeleteForMe = (messageId: string) => {
     const newDeleted = new Set(deletedMessageIds);
     newDeleted.add(messageId);
@@ -312,20 +232,12 @@ const GroupChat = () => {
     localStorage.setItem(`deleted_group_messages_${groupId}`, JSON.stringify([...newDeleted]));
     toast.success('Xabar o\'chirildi');
   };
-
   const handleDeleteForAll = async (messageId: string) => {
     try {
-      const { error } = await supabase
-        .from('group_messages')
-        .delete()
-        .eq('id', messageId);
-
+      const { error } = await supabase.from('group_messages').delete().eq('id', messageId);
       if (error) throw error;
       toast.success('Xabar barcha uchun o\'chirildi');
-    } catch (error) {
-      console.error('Error deleting message:', error);
-      toast.error('Xatolik yuz berdi');
-    }
+    } catch { toast.error('Xatolik yuz berdi'); }
   };
 
   const getInitials = (name: string | null | undefined) => {
@@ -333,184 +245,192 @@ const GroupChat = () => {
     return name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2);
   };
 
-  const formatMessageTime = (dateStr: string) => {
-    return new Date(dateStr).toLocaleTimeString('uz-UZ', { 
-      hour: '2-digit', 
-      minute: '2-digit' 
-    });
+  const formatMessageTime = (dateStr: string) =>
+    new Date(dateStr).toLocaleTimeString('uz-UZ', { hour: '2-digit', minute: '2-digit' });
+
+  const formatDateLabel = (dateStr: string) => {
+    const d = new Date(dateStr);
+    if (isToday(d)) return 'Bugun';
+    if (isYesterday(d)) return 'Kecha';
+    return format(d, 'd MMMM', { locale: uz });
   };
 
   const renderMessageContent = (message: GroupMessage) => {
     const isOwn = message.sender_id === user?.id;
-
-    if (message.media_type === 'audio' && message.media_url) {
+    if (message.media_type === 'audio' && message.media_url)
       return <VoiceMessage audioUrl={message.media_url} isMine={isOwn} />;
-    }
-
-    if ((message.media_type === 'image' || message.media_type === 'video') && message.media_url) {
-      return (
-        <MediaMessage
-          mediaUrl={message.media_url}
-          mediaType={message.media_type as 'image' | 'video'}
-          isMine={isOwn}
-          onFullscreen={() => setFullscreenMedia({ url: message.media_url!, type: message.media_type as 'image' | 'video' })}
-        />
-      );
-    }
-
-    return <p className="break-words">{message.content}</p>;
+    if ((message.media_type === 'image' || message.media_type === 'video') && message.media_url)
+      return <MediaMessage mediaUrl={message.media_url} mediaType={message.media_type as 'image' | 'video'} isMine={isOwn}
+        onFullscreen={() => setFullscreenMedia({ url: message.media_url!, type: message.media_type as 'image' | 'video' })} />;
+    return <p className="break-words whitespace-pre-wrap">{message.content}</p>;
   };
 
-  // Filter out deleted messages
   const visibleMessages = messages.filter(m => !deletedMessageIds.has(m.id));
+
+  const wallpaperStyle = chatWallpaper !== 'none' ? {
+    backgroundImage: `url(/wallpapers/${chatWallpaper})`,
+    backgroundSize: 'cover', backgroundPosition: 'center',
+  } : {};
 
   if (isLoading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
-        <p className="text-muted-foreground">Yuklanmoqda...</p>
+        <div className="flex flex-col items-center gap-3">
+          <div className="w-10 h-10 rounded-full border-2 border-primary border-t-transparent animate-spin" />
+          <p className="text-muted-foreground text-sm">Yuklanmoqda...</p>
+        </div>
       </div>
     );
   }
 
   return (
     <div className="min-h-screen bg-background flex flex-col">
-      {/* Header */}
-      <div className="sticky top-0 z-40 bg-background/95 backdrop-blur-sm border-b border-border">
-        <div className="px-4 py-3 flex items-center gap-3">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/messages')}>
+      {/* Premium Header */}
+      <div className="sticky top-0 z-40 bg-background/50 backdrop-blur-xl border-b border-border/50">
+        <div className="px-3 py-2.5 flex items-center gap-3">
+          <Button variant="ghost" size="icon" onClick={() => navigate('/messages')} className="h-9 w-9 rounded-xl">
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <Avatar className="h-10 w-10 cursor-pointer" onClick={() => setSettingsOpen(true)}>
-            <AvatarImage src={groupInfo?.avatar_url || undefined} />
-            <AvatarFallback className="bg-primary/10">
-              {groupInfo?.type === 'group' ? (
-                <Users className="h-5 w-5 text-primary" />
-              ) : (
-                <Megaphone className="h-5 w-5 text-primary" />
-              )}
-            </AvatarFallback>
-          </Avatar>
-          <div className="flex-1 min-w-0 cursor-pointer" onClick={() => setSettingsOpen(true)}>
-            <h1 className="font-semibold truncate">{groupInfo?.name}</h1>
-            <p className="text-xs text-muted-foreground">
-              {groupInfo?.memberCount} a'zo
-            </p>
+          <div className="flex items-center gap-3 flex-1 min-w-0 cursor-pointer" onClick={() => setSettingsOpen(true)}>
+            <Avatar className="h-10 w-10 ring-2 ring-primary/20">
+              <AvatarImage src={groupInfo?.avatar_url || undefined} />
+              <AvatarFallback className="bg-gradient-to-br from-primary/30 to-primary/10">
+                {groupInfo?.type === 'group' ? (
+                  <Users className="h-5 w-5 text-primary" />
+                ) : (
+                  <Megaphone className="h-5 w-5 text-primary" />
+                )}
+              </AvatarFallback>
+            </Avatar>
+            <div className="flex-1 min-w-0">
+              <h1 className="font-semibold truncate text-[15px]">{groupInfo?.name}</h1>
+              <p className="text-xs text-muted-foreground">
+                {groupInfo?.memberCount} a'zo · {groupInfo?.type === 'group' ? 'Guruh' : 'Kanal'}
+              </p>
+            </div>
           </div>
-          <Button variant="ghost" size="icon" onClick={() => setSettingsOpen(true)}>
+          <Button variant="ghost" size="icon" onClick={() => setSettingsOpen(true)} className="h-9 w-9 rounded-xl">
             <MoreVertical className="h-5 w-5" />
           </Button>
         </div>
       </div>
 
-      {/* Messages */}
-      <ScrollArea ref={scrollRef} className="flex-1 p-4">
-        <div className="space-y-4">
+      {/* Messages Area */}
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-3" style={wallpaperStyle}>
+        <div className="space-y-1 max-w-2xl mx-auto">
           {visibleMessages.length === 0 ? (
-            <div className="text-center py-12">
-              <p className="text-muted-foreground">Hozircha xabarlar yo'q</p>
+            <div className="text-center py-16">
+              <div className="w-16 h-16 mx-auto rounded-full bg-primary/10 flex items-center justify-center mb-4">
+                {groupInfo?.type === 'group' ? <Users className="h-8 w-8 text-primary/60" /> : <Megaphone className="h-8 w-8 text-primary/60" />}
+              </div>
+              <p className="text-muted-foreground font-medium">Hozircha xabarlar yo'q</p>
+              <p className="text-xs text-muted-foreground mt-1">Birinchi xabarni yuboring!</p>
             </div>
           ) : (
             visibleMessages.map((message, index) => {
               const isOwn = message.sender_id === user?.id;
-              const showSender = !isOwn && (
-                index === 0 || visibleMessages[index - 1].sender_id !== message.sender_id
-              );
+              const showSender = !isOwn && (index === 0 || visibleMessages[index - 1].sender_id !== message.sender_id);
+              const showDate = index === 0 || !isSameDay(new Date(message.created_at), new Date(visibleMessages[index - 1].created_at));
 
               return (
-                <div
-                  key={message.id}
-                  className={`flex ${isOwn ? 'justify-end' : 'justify-start'}`}
-                >
-                  <MessageContextMenu
-                    messageContent={message.content}
-                    messageId={message.id}
-                    isMine={isOwn}
-                    isPrivateChat={false}
-                    onReply={handleReply}
-                    onForward={handleForward}
-                    onDeleteForMe={handleDeleteForMe}
-                    onDeleteForAll={isOwn || groupInfo?.owner_id === user?.id ? handleDeleteForAll : undefined}
-                  >
-                    <div className={`max-w-[80%] ${isOwn ? 'items-end' : 'items-start'}`}>
-                      {showSender && (
-                        <div className="flex items-center gap-2 mb-1">
-                          <Avatar className="h-6 w-6">
-                            <AvatarImage src={message.sender?.avatar_url || undefined} />
-                            <AvatarFallback className="text-xs">
-                              {getInitials(message.sender?.name)}
-                            </AvatarFallback>
-                          </Avatar>
-                          <span className="text-xs font-medium text-primary">
-                            {message.sender?.name || message.sender?.username || 'Foydalanuvchi'}
-                          </span>
-                        </div>
-                      )}
-                      <div
-                        className={`rounded-2xl px-4 py-2 ${
-                          isOwn
-                            ? 'bg-primary text-primary-foreground rounded-tr-md'
-                            : 'bg-muted rounded-tl-md'
-                        }`}
-                      >
-                        {renderMessageContent(message)}
-                        <p className={`text-xs mt-1 ${isOwn ? 'text-primary-foreground/70' : 'text-muted-foreground'}`}>
-                          {formatMessageTime(message.created_at)}
-                        </p>
-                      </div>
+                <div key={message.id}>
+                  {showDate && (
+                    <div className="flex justify-center my-3">
+                      <span className="text-[11px] text-muted-foreground bg-background/60 backdrop-blur-md px-3 py-1 rounded-full border border-border/30">
+                        {formatDateLabel(message.created_at)}
+                      </span>
                     </div>
-                  </MessageContextMenu>
+                  )}
+                  <div className={cn('flex mb-0.5', isOwn ? 'justify-end' : 'justify-start')}>
+                    <MessageContextMenu
+                      messageContent={message.content}
+                      messageId={message.id}
+                      isMine={isOwn}
+                      isPrivateChat={false}
+                      onReply={handleReply}
+                      onForward={handleForward}
+                      onDeleteForMe={handleDeleteForMe}
+                      onDeleteForAll={isOwn || groupInfo?.owner_id === user?.id ? handleDeleteForAll : undefined}
+                    >
+                      <div className={cn('max-w-[80%]', isOwn ? 'items-end' : 'items-start')}>
+                        {showSender && (
+                          <div className="flex items-center gap-2 mb-1 ml-1">
+                            <Avatar className="h-5 w-5">
+                              <AvatarImage src={message.sender?.avatar_url || undefined} />
+                              <AvatarFallback className="text-[9px]">{getInitials(message.sender?.name)}</AvatarFallback>
+                            </Avatar>
+                            <span className="text-[11px] font-semibold text-primary">
+                              {message.sender?.name || message.sender?.username || 'Foydalanuvchi'}
+                            </span>
+                          </div>
+                        )}
+                        <div className={cn(
+                          'rounded-2xl px-3.5 py-2 shadow-sm',
+                          isOwn
+                            ? 'bg-gradient-to-br from-[hsl(217,91%,60%)] to-[hsl(263,70%,50%)] text-white rounded-tr-md'
+                            : 'bg-muted/80 backdrop-blur-md rounded-tl-md'
+                        )}>
+                          {renderMessageContent(message)}
+                          <p className={cn('text-[10px] mt-1', isOwn ? 'text-white/60' : 'text-muted-foreground')}>
+                            {formatMessageTime(message.created_at)}
+                          </p>
+                        </div>
+                      </div>
+                    </MessageContextMenu>
+                  </div>
                 </div>
               );
             })
           )}
         </div>
-      </ScrollArea>
+      </div>
 
       {/* Reply Preview */}
-      {replyTo && (
-        <ReplyPreview
-          replyToContent={replyTo.content}
-          onCancel={() => setReplyTo(null)}
-        />
-      )}
+      {replyTo && <ReplyPreview replyToContent={replyTo.content} onCancel={() => setReplyTo(null)} />}
 
-      {/* Input */}
+      {/* Premium Input Bar */}
       {canSend ? (
-        <div className="sticky bottom-0 bg-background border-t border-border p-4">
-          {/* Voice recording */}
+        <div className="sticky bottom-0 bg-background/50 backdrop-blur-xl border-t border-border/50 p-2">
           {voiceRecorder.isRecording && (
-            <div className="mb-3 flex items-center gap-3 p-3 bg-destructive/10 rounded-lg">
-              <div className="h-3 w-3 rounded-full bg-destructive animate-pulse" />
-              <span className="text-sm">Yozib olinmoqda... {formatDuration(voiceRecorder.duration)}</span>
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={voiceRecorder.cancelRecording}
-              >
-                Bekor qilish
+            <div className="mb-2 flex items-center gap-3 px-4 py-2 bg-destructive/10 rounded-2xl mx-1">
+              <div className="h-2.5 w-2.5 rounded-full bg-destructive animate-pulse" />
+              <span className="text-sm flex-1">Yozib olinmoqda... {formatDuration(voiceRecorder.duration)}</span>
+              <Button variant="ghost" size="sm" onClick={voiceRecorder.cancelRecording} className="h-7 text-xs rounded-xl">
+                Bekor
               </Button>
             </div>
           )}
-
-          <div className="flex items-center gap-2">
-            <ChatMediaPicker
-              selectedMedia={selectedMedia}
-              onMediaSelect={setSelectedMedia}
-            />
-
+          {selectedMedia && (
+            <div className="mb-2 mx-1 relative">
+              <div className="h-20 w-20 rounded-2xl overflow-hidden border border-border/50">
+                {selectedMedia.type === 'image' ? (
+                  <img src={selectedMedia.preview} alt="" className="w-full h-full object-cover" />
+                ) : (
+                  <video src={selectedMedia.preview} className="w-full h-full object-cover" />
+                )}
+              </div>
+              <button onClick={() => setSelectedMedia(null)}
+                className="absolute -top-1 -right-1 w-5 h-5 bg-destructive text-white rounded-full flex items-center justify-center">
+                <X className="h-3 w-3" />
+              </button>
+            </div>
+          )}
+          <div className="flex items-center gap-1.5 bg-card/50 backdrop-blur-md border border-border/50 rounded-[24px] px-2 py-1">
+            <ChatMediaPicker selectedMedia={selectedMedia} onMediaSelect={setSelectedMedia} />
             {!voiceRecorder.isRecording && !voiceRecorder.audioBlob ? (
               <>
-                <Input
+                <input
                   placeholder="Xabar yozing..."
                   value={newMessage}
                   onChange={(e) => setNewMessage(e.target.value)}
-                  onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
-                  className="flex-1"
+                  onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSendMessage()}
+                  className="flex-1 bg-transparent border-none focus:outline-none text-foreground placeholder:text-muted-foreground h-9 text-sm px-1"
                 />
                 {newMessage.trim() || selectedMedia ? (
-                  <Button size="icon" onClick={handleSendMessage} disabled={isSending}>
-                    <Send className="h-5 w-5" />
-                  </Button>
+                  <button onClick={handleSendMessage} disabled={isSending}
+                    className="w-9 h-9 rounded-full bg-gradient-to-r from-[hsl(217,91%,60%)] to-[hsl(263,70%,50%)] flex items-center justify-center text-white shadow-lg shadow-primary/30 transition-transform active:scale-90">
+                    <Send className="h-4 w-4" />
+                  </button>
                 ) : (
                   <VoiceRecorderButton
                     isRecording={voiceRecorder.isRecording}
@@ -541,41 +461,24 @@ const GroupChat = () => {
           </div>
         </div>
       ) : (
-        <div className="sticky bottom-0 bg-muted/50 border-t border-border p-4 text-center">
+        <div className="sticky bottom-0 bg-muted/30 backdrop-blur-xl border-t border-border/50 p-4 text-center">
           <p className="text-sm text-muted-foreground">
             Faqat kanal egasi xabar yuborishi mumkin
           </p>
         </div>
       )}
 
-      {/* Fullscreen media */}
       {fullscreenMedia && (
-        <MediaFullscreen
-          mediaUrl={fullscreenMedia.url}
-          mediaType={fullscreenMedia.type}
-          onClose={() => setFullscreenMedia(null)}
-        />
+        <MediaFullscreen mediaUrl={fullscreenMedia.url} mediaType={fullscreenMedia.type} onClose={() => setFullscreenMedia(null)} />
       )}
 
-      {/* Group Settings Sheet */}
       {groupInfo && (
-        <GroupSettingsSheet
-          open={settingsOpen}
-          onOpenChange={setSettingsOpen}
-          groupInfo={groupInfo}
-          onGroupUpdated={fetchGroupInfo}
-        />
+        <GroupSettingsSheet open={settingsOpen} onOpenChange={setSettingsOpen} groupInfo={groupInfo} onGroupUpdated={fetchGroupInfo} />
       )}
 
-      {/* Forward Dialog */}
       {forwardMessage && (
-        <ForwardMessageDialog
-          open={!!forwardMessage}
-          onOpenChange={(open) => !open && setForwardMessage(null)}
-          messageContent={forwardMessage.content}
-          mediaUrl={forwardMessage.mediaUrl}
-          mediaType={forwardMessage.mediaType}
-        />
+        <ForwardMessageDialog open={!!forwardMessage} onOpenChange={(open) => !open && setForwardMessage(null)}
+          messageContent={forwardMessage.content} mediaUrl={forwardMessage.mediaUrl} mediaType={forwardMessage.mediaType} />
       )}
     </div>
   );
