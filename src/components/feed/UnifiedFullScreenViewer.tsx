@@ -59,11 +59,13 @@ export const UnifiedFullScreenViewer = ({
 
   const containerRef = useRef<HTMLDivElement>(null);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const ambientVideoRef = useRef<HTMLVideoElement>(null);
   const shortsIframeRef = useRef<HTMLIFrameElement>(null);
   const mutedMediaRef = useRef(new Map<HTMLMediaElement, {muted: boolean;volume: number;}>());
   const touchStartY = useRef(0);
   const touchStartX = useRef(0);
   const touchStartTime = useRef(0);
+
   const lastShortsTouchTapTs = useRef(0);
   const mouseDownRef = useRef(false);
   const mouseStartY = useRef(0);
@@ -75,6 +77,12 @@ export const UnifiedFullScreenViewer = ({
 
   const mediaUrls = currentPost?.media_urls || (currentPost?.image_url ? [currentPost.image_url] : []);
   const currentMediaUrl = mediaUrls[currentMediaIndex];
+
+  const ambientUrl = activeTab === 'posts'
+    ? currentMediaUrl
+    : currentShort
+    ? `https://img.youtube.com/vi/${currentShort.id}/hqdefault.jpg`
+    : undefined;
 
   const { isLiked, toggleLike } = usePostLikes(currentPost?.id || '');
 
@@ -111,6 +119,71 @@ export const UnifiedFullScreenViewer = ({
       isPlaying ? videoRef.current.play().catch(() => {}) : videoRef.current.pause();
     }
   }, [isPlaying, currentMediaIndex, postIndex]);
+
+  useEffect(() => {
+    if (activeTab !== 'posts') return;
+    if (!currentMediaUrl) return;
+    if (!isVideo(currentMediaUrl)) return;
+
+    const main = videoRef.current;
+    const ambient = ambientVideoRef.current;
+    if (!main || !ambient) return;
+
+    let raf = 0;
+
+    const sync = () => {
+      if (!main || !ambient) return;
+
+      // keep playbackRate in sync
+      if (ambient.playbackRate !== main.playbackRate) {
+        ambient.playbackRate = main.playbackRate;
+      }
+
+      // keep time in sync (avoid constant seeking)
+      const diff = Math.abs((ambient.currentTime || 0) - (main.currentTime || 0));
+      if (diff > 0.18) {
+        try {
+          ambient.currentTime = main.currentTime;
+        } catch {
+          // ignore
+        }
+      }
+
+      // keep play/pause in sync
+      if (main.paused) {
+        if (!ambient.paused) ambient.pause();
+      } else {
+        if (ambient.paused) {
+          const p = ambient.play();
+          if (p && typeof (p as any).catch === 'function') (p as any).catch(() => {});
+        }
+      }
+    };
+
+    const tick = () => {
+      sync();
+      raf = window.requestAnimationFrame(tick);
+    };
+
+    const handleLoaded = () => {
+      try {
+        ambient.currentTime = main.currentTime || 0;
+      } catch {
+        // ignore
+      }
+      sync();
+    };
+
+    ambient.muted = true;
+    ambient.volume = 0;
+    ambient.addEventListener('loadedmetadata', handleLoaded);
+    raf = window.requestAnimationFrame(tick);
+
+    return () => {
+      ambient.removeEventListener('loadedmetadata', handleLoaded);
+      if (raf) window.cancelAnimationFrame(raf);
+    };
+  }, [activeTab, currentMediaUrl]);
 
   useEffect(() => {
     if (activeTab === 'shorts') {
@@ -589,6 +662,45 @@ export const UnifiedFullScreenViewer = ({
         onTouchEnd={handleTouchEnd}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}>
+
+        {ambientUrl && (
+          <div className="absolute inset-0 z-0 overflow-hidden">
+            <div className="absolute inset-0 scale-[1.25]">
+              {activeTab === 'posts' && isVideo(ambientUrl) ? (
+                <video
+                  key={ambientUrl}
+                  ref={ambientVideoRef}
+                  src={ambientUrl}
+                  className="absolute inset-0 w-full h-full object-cover"
+                  style={{
+                    filter: 'blur(52px) saturate(165%) brightness(0.82) contrast(1.08)',
+                    transform: 'scale(1.18)',
+                    opacity: 0.95
+                  }}
+                  muted
+                  playsInline
+                  autoPlay
+                  loop
+                />
+              ) : (
+                <img
+                  key={ambientUrl}
+                  src={ambientUrl}
+                  alt=""
+                  className="absolute inset-0 w-full h-full object-cover"
+                  style={{
+                    filter: 'blur(52px) saturate(165%) brightness(0.82) contrast(1.08)',
+                    transform: 'scale(1.18)',
+                    opacity: 0.95
+                  }}
+                />
+              )}
+              <div className="absolute inset-0 bg-black/35" />
+              <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/15 to-black/65" />
+              <div className="absolute inset-0" style={{ boxShadow: 'inset 0 0 170px rgba(0,0,0,0.85)' }} />
+            </div>
+          </div>
+        )}
 
         {activeTab === 'posts' && dominantColor &&
         <div className="absolute inset-0 z-0" style={{
