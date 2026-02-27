@@ -8,7 +8,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { AtSign, Bell, Bookmark, Check, ChevronDown, ChevronUp, Edit, Grid3X3, Settings, Trash2, Users, Grid2X2, LayoutList, Columns2, TreeDeciduous } from 'lucide-react';
+import { AtSign, Bell, Bookmark, Check, ChevronDown, ChevronUp, Edit, Grid3X3, Settings, Trash2, Users, Grid2X2, LayoutList, Columns2 } from 'lucide-react';
 import { SocialLinksList } from '@/components/profile';
 import { useUserPosts } from '@/hooks/useUserPosts';
 import { useSavedPosts } from '@/hooks/useSavedPosts';
@@ -40,14 +40,30 @@ import { getStoryRingGradient } from '@/components/stories/storyRings';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { Post } from '@/types';
+import { useAutoPreviewVideo } from '@/hooks/useAutoPreviewVideo';
 
 const ProfileMasonryItem = ({ post }: { post: Post }) => {
-  const thumb = ((post.media_urls && post.media_urls.length > 0 ? post.media_urls[0] : (post.image_url || '')) || '') as string;
+  const mediaUrl = ((post.media_urls && post.media_urls.length > 0 ? post.media_urls[0] : (post.image_url || '')) || '') as string;
+  const isVideo = !!mediaUrl && (mediaUrl.includes('.mp4') || mediaUrl.includes('.mov') || mediaUrl.includes('.webm'));
+  const videoRef = useRef<HTMLVideoElement>(null);
+  useAutoPreviewVideo(videoRef, { enabled: isVideo, delayMs: 3000, threshold: 0.6 });
 
   return (
-    <div className="relative aspect-[3/4] rounded-xl overflow-hidden bg-muted">
-      {thumb ? (
-        <img src={thumb} alt="" className="w-full h-full object-cover" />
+    <div className="relative aspect-[3/4] rounded-[20px] overflow-hidden bg-muted/80 shadow-xl shadow-black/20 border border-white/10">
+      {mediaUrl ? (
+        isVideo ? (
+          <video
+            ref={videoRef}
+            src={mediaUrl}
+            className="w-full h-full object-cover"
+            muted
+            playsInline
+            loop
+            preload="metadata"
+          />
+        ) : (
+          <img src={mediaUrl} alt="" className="w-full h-full object-cover" />
+        )
       ) : (
         <div className="w-full h-full bg-muted" />
       )}
@@ -82,16 +98,18 @@ const Profile = () => {
   const { getStoryInfo } = useActiveStories();
   const { storyGroups } = useStories();
   const [profileStoryGroups, setProfileStoryGroups] = useState<typeof storyGroups>([]);
-  const [activeTab, setActiveTab] = useState<'posts' | 'saved' | 'mentions' | 'tree'>('posts');
+  const [activeTab, setActiveTab] = useState<'posts' | 'saved' | 'mentions'>('posts');
   const [familyMemberCount, setFamilyMemberCount] = useState(0);
   const [postsLayout, setPostsLayout] = useState<'pinterest2' | 'pinterest1' | 'list'>('pinterest2');
+
+  const lastPostsTabTapTsRef = useRef<number>(0);
 
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
   const [viewerPosts, setViewerPosts] = useState<typeof posts>([]);
   const [showNewHighlight, setShowNewHighlight] = useState(false);
   const [showCollabRequests, setShowCollabRequests] = useState(false);
-  const [showPostsStats, setShowPostsStats] = useState(false);
+  const [showPostsStats, setShowPostsStats] = useState(true);
   const [bioExpanded, setBioExpanded] = useState(false);
   const [needsMoreButton, setNeedsMoreButton] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
@@ -107,6 +125,10 @@ const Profile = () => {
 
   const cyclePostsLayout = useCallback(() => {
     setPostsLayout((prev) => (prev === 'pinterest2' ? 'pinterest1' : prev === 'pinterest1' ? 'list' : 'pinterest2'));
+  }, []);
+
+  const togglePostsLayoutHidden = useCallback(() => {
+    setPostsLayout((prev) => (prev === 'list' ? 'pinterest2' : 'list'));
   }, []);
 
   const collectionThemes = useMemo(
@@ -250,12 +272,9 @@ const Profile = () => {
 
   return (
     <AppLayout>
-      <div className="min-h-screen pb-20 bg-background relative">
-        {/* Animated Background - Behind all content */}
-        <div className="absolute inset-0 bg-gradient-to-br from-purple-900/20 via-pink-900/20 to-orange-900/20 animate-gradient-shift pointer-events-none" />
-        
-        {/* Content Container - Above background */}
-        <div className="relative z-10">
+      <div className="min-h-screen pb-20 relative">
+        {/* Main Container */}
+        <div className="max-w-md mx-auto">
 
         {/* ═══════════════════════════════════════
                   COVER IMAGE
@@ -267,7 +286,7 @@ const Profile = () => {
               alt="Cover"
               className="w-full h-full object-cover" /> :
 
-            <div className="w-full h-full bg-gradient-to-br from-primary via-accent to-primary/60" />
+            <div className="w-full h-full bg-white/5 dark:bg-white/0" />
             }
           {/* Dark overlay for readability */}
           <div className="absolute inset-0 bg-black/20" />
@@ -390,18 +409,18 @@ const Profile = () => {
 
           {/* ROW 2: Name & Username */}
           <div className="text-center mb-2">
-            <h1 className="text-xl font-extrabold text-foreground leading-tight">
+            <h1 className="text-xl font-extrabold text-foreground leading-tight break-words whitespace-normal">
               {profile?.name || t('user')}
             </h1>
-            <p className="text-sm text-muted-foreground mt-1">
+            <p className="text-sm text-muted-foreground mt-1 break-words whitespace-normal">
               @{profile?.username || user?.email?.split('@')[0] || 'username'}
             </p>
           </div>
 
-          {/* ROW 3: Kuzatilmoqda — centered */}
-          {showPostsStats &&
-            <div className="flex justify-center mb-2">
-              <div className="flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-6 py-2 shadow-lg">
+          {/* ROW 3: Kuzatilmoqda | (spacer) | Oila a'zolari */}
+          {showPostsStats && (
+            <div className="flex items-end justify-between gap-1 mb-2">
+              <div className="flex-1 flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-2 py-2 shadow-lg min-w-0">
                 <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
                   {t('following')}
                 </span>
@@ -409,9 +428,19 @@ const Profile = () => {
                   {formatCount(followingCount)}
                 </span>
               </div>
-            </div>
-            }
 
+              <div className="flex-shrink-0 w-20" aria-hidden="true" />
+
+              <div className="flex-1 flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-2 py-2 shadow-lg min-w-0">
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
+                  Oila a'zolari
+                </span>
+                <span className="text-xl font-extrabold text-foreground leading-none">
+                  {formatCount(familyMemberCount)}
+                </span>
+              </div>
+            </div>
+          )}
           {/* Bio */}
           {profile?.bio &&
             <div className="mb-2 px-4">
@@ -503,7 +532,25 @@ const Profile = () => {
         <div className="px-4">
           <div className="flex border-b border-border mb-2">
             <button
-                onClick={() => {setActiveTab('posts');setSelectedCollectionId(null);}}
+                onClick={() => {
+                  const now = Date.now();
+                  if (activeTab === 'posts') {
+                    togglePostsLayoutHidden();
+                    return;
+                  }
+
+                  // Not selected: 1st tap selects, double-tap toggles layout
+                  if (now - lastPostsTabTapTsRef.current < 350) {
+                    setActiveTab('posts');
+                    setSelectedCollectionId(null);
+                    togglePostsLayoutHidden();
+                  } else {
+                    setActiveTab('posts');
+                    setSelectedCollectionId(null);
+                  }
+
+                  lastPostsTabTapTsRef.current = now;
+                }}
                 className={cn(
                   'flex-1 py-2 flex items-center justify-center border-b-2 transition-colors',
                   activeTab === 'posts' ?
@@ -535,17 +582,6 @@ const Profile = () => {
 
               <AtSign className="h-5 w-5" />
             </button>
-            <button
-                onClick={() => setActiveTab('tree')}
-                className={cn(
-                  'flex-1 py-2 flex items-center justify-center border-b-2 transition-colors gap-1',
-                  activeTab === 'tree' ?
-                  'border-primary text-primary' :
-                  'border-transparent text-muted-foreground'
-                )}>
-              <TreeDeciduous className="h-5 w-5" />
-              <span className="text-xs font-bold">{familyMemberCount}</span>
-            </button>
             {pendingCollabs.length > 0 &&
               <button
                 onClick={() => setShowCollabRequests(true)}
@@ -561,7 +597,7 @@ const Profile = () => {
               </button>
               }
 
-            {activeTab === 'posts' && (
+            {activeTab === 'posts' && false && (
               <button
                 type="button"
                 onClick={cyclePostsLayout}
@@ -737,18 +773,6 @@ const Profile = () => {
             }
           </div>
           }
-
-        {/* ═══════════════════════════════════════
-                  TREE TAB
-               ═══════════════════════════════════════ */}
-        {activeTab === 'tree' &&
-          <div className="text-center py-8 px-4">
-            <TreeDeciduous className="h-16 w-16 mx-auto mb-3 text-primary/40" />
-            <p className="text-2xl font-extrabold text-foreground">{familyMemberCount}</p>
-            <p className="text-sm text-muted-foreground mt-1">Oila daraxti a'zolari</p>
-            <p className="text-xs text-muted-foreground mt-2">Shaxsiy daraxtingizdagi yaratilgan profillar soni</p>
-          </div>
-        }
 
         {/* ═══════════════════════════════════════
                   MODALS

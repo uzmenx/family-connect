@@ -14,6 +14,7 @@ import { useLanguage } from "@/contexts/LanguageContext";
 import { useStories } from "@/hooks/useStories";
 import { usePostsCache } from "@/hooks/usePostsCache";
 import { useSmoothScroll } from "@/hooks/useSmoothScroll";
+import { useAutoPreviewVideo } from "@/hooks/useAutoPreviewVideo";
 import { useTreeFeed } from "@/hooks/useTreeFeed";
 import { TreePostCard } from "@/components/feed/TreePostCard";
 import { useNotifications } from "@/hooks/useNotifications";
@@ -33,20 +34,19 @@ const Home = () => {
   const { treePosts, refetch: refetchTrees } = useTreeFeed();
   const { unreadCount } = useNotifications();
   const [gridLayout, setGridLayout] = useState<GridLayout>(1);
+
   const [searchOpen, setSearchOpen] = useState(false);
   const [notificationsOpen, setNotificationsOpen] = useState(false);
-  const loadMoreSentinelRef = useRef<HTMLDivElement>(null);
-  const scrollContainerRef = useSmoothScroll(true, true); // Enable snap and swipe gestures
-
-  // Unified fullscreen state
   const [viewerOpen, setViewerOpen] = useState(false);
+
   const [viewerTab, setViewerTab] = useState<'posts' | 'shorts'>('posts');
   const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
   const [cachedShorts, setCachedShorts] = useState<Short[]>([]);
-
-  // Story viewer state
   const [storyViewerOpen, setStoryViewerOpen] = useState(false);
   const [storyGroupIndex, setStoryGroupIndex] = useState(0);
+
+  const loadMoreSentinelRef = useRef<HTMLDivElement>(null);
+  const scrollContainerRef = useSmoothScroll(true, true); // Enable snap and swipe gestures
 
   const openPostViewer = (index: number) => {
     setViewerTab('posts');
@@ -111,6 +111,7 @@ const Home = () => {
 
           <h1 className="text-xl font-bold tracking-tight">{t('feed')}</h1>
           <div className="flex items-center gap-1">
+
             <Button variant="ghost" size="icon" onClick={() => setSearchOpen(true)} className="h-9 w-9 rounded-xl">
               <Search className="h-5 w-5" />
             </Button>
@@ -235,13 +236,24 @@ const Home = () => {
 const MasonryItem = ({ post }: {post: Post;}) => {
   const mediaUrl = post.media_urls?.[0] || post.image_url;
   const isVideo = mediaUrl && (mediaUrl.includes(".mp4") || mediaUrl.includes(".mov") || mediaUrl.includes(".webm"));
+  const videoRef = useRef<HTMLVideoElement>(null);
+  useAutoPreviewVideo(videoRef, { enabled: !!isVideo, delayMs: 3000, threshold: 0.6 });
 
   return (
     <div className="relative overflow-hidden rounded-[20px] bg-muted/80 shadow-xl shadow-black/20 border border-white/10">
       {mediaUrl ?
       <>
           {isVideo ?
-        <video src={mediaUrl} className="w-full h-auto block" style={{ maxHeight: "80vh" }} /> :
+        <video
+          ref={videoRef}
+          src={mediaUrl}
+          className="w-full h-auto block"
+          style={{ maxHeight: "80vh" }}
+          muted
+          playsInline
+          loop
+          preload="metadata"
+        /> :
 
         <img src={mediaUrl} alt="Post" className="w-full h-auto block" style={{ maxHeight: "80vh" }} />
         }

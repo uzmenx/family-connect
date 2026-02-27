@@ -65,6 +65,7 @@ export const UnifiedFullScreenViewer = ({
   const touchStartY = useRef(0);
   const touchStartX = useRef(0);
   const touchStartTime = useRef(0);
+  const touchMoved = useRef(false);
 
   const lastShortsTouchTapTs = useRef(0);
   const mouseDownRef = useRef(false);
@@ -107,6 +108,21 @@ export const UnifiedFullScreenViewer = ({
       '*'
     );
   }, []);
+
+  const ensureAmbientPlayback = useCallback(() => {
+    const ambient = ambientVideoRef.current;
+    if (ambient && ambient.paused) {
+      const p = ambient.play();
+      if (p && typeof (p as any).catch === 'function') (p as any).catch(() => {});
+    }
+
+    const main = videoRef.current;
+    if (main && !main.paused && main.readyState >= 2) return;
+    if (main && isPlaying && main.paused) {
+      const p = main.play();
+      if (p && typeof (p as any).catch === 'function') (p as any).catch(() => {});
+    }
+  }, [isPlaying]);
 
   useEffect(() => {
     setCurrentMediaIndex(0);
@@ -225,8 +241,9 @@ export const UnifiedFullScreenViewer = ({
   }, [activeTab]);
 
   useEffect(() => {
+    const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
-    return () => {document.body.style.overflow = '';};
+    return () => {document.body.style.overflow = prevOverflow;};
   }, []);
 
   const smoothNavigate = useCallback((direction: 'up' | 'down') => {
@@ -277,9 +294,17 @@ export const UnifiedFullScreenViewer = ({
   }, [smoothNavigate, isTransitioning]);
 
   const handleTouchStart = (e: React.TouchEvent) => {
+    ensureAmbientPlayback();
+    touchMoved.current = false;
     touchStartY.current = e.touches[0].clientY;
     touchStartX.current = e.touches[0].clientX;
     touchStartTime.current = Date.now();
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    const diffY = Math.abs(touchStartY.current - e.touches[0].clientY);
+    const diffX = Math.abs(touchStartX.current - e.touches[0].clientX);
+    if (diffY > 8 || diffX > 8) touchMoved.current = true;
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
@@ -288,10 +313,10 @@ export const UnifiedFullScreenViewer = ({
     const elapsed = Date.now() - touchStartTime.current;
     const velocityY = Math.abs(diffY) / Math.max(elapsed, 1);
     // Lower threshold for faster swipes — feels more responsive
-    const threshold = velocityY > 0.3 ? 20 : 50;
+    const threshold = velocityY > 0.25 ? 16 : 34;
 
     // Tap detection for play/pause
-    if (Math.abs(diffY) < 10 && Math.abs(diffX) < 10 && elapsed < 300) {
+    if (!touchMoved.current && Math.abs(diffY) < 8 && Math.abs(diffX) < 8 && elapsed < 300) {
       if (activeTab === 'shorts') {
         lastShortsTouchTapTs.current = Date.now();
         handleShortsTap();
@@ -317,6 +342,7 @@ export const UnifiedFullScreenViewer = ({
   }, [sendYouTubeCommand]);
 
   const handleMouseDown = (e: React.MouseEvent) => {
+    ensureAmbientPlayback();
     mouseDownRef.current = true;
     mouseStartY.current = e.clientY;
     mouseStartX.current = e.clientX;
@@ -346,6 +372,7 @@ export const UnifiedFullScreenViewer = ({
   const handleMediaClick = () => {
     if (activeTab === 'shorts') return;
     if (!isVideo(currentMediaUrl)) return;
+    if (touchMoved.current) return;
     setIsPlaying((p) => !p);
   };
 
@@ -659,13 +686,14 @@ export const UnifiedFullScreenViewer = ({
         className="fixed inset-0 z-[60] flex flex-col overflow-hidden touch-none"
         style={bgStyle}
         onTouchStart={handleTouchStart}
+        onTouchMove={handleTouchMove}
         onTouchEnd={handleTouchEnd}
         onMouseDown={handleMouseDown}
         onMouseUp={handleMouseUp}>
 
         {ambientUrl && (
-          <div className="absolute inset-0 z-0 overflow-hidden">
-            <div className="absolute inset-0 scale-[1.25]">
+          <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
+            <div className="absolute inset-0">
               {activeTab === 'posts' && isVideo(ambientUrl) ? (
                 <video
                   key={ambientUrl}
@@ -673,14 +701,17 @@ export const UnifiedFullScreenViewer = ({
                   src={ambientUrl}
                   className="absolute inset-0 w-full h-full object-cover"
                   style={{
-                    filter: 'blur(52px) saturate(165%) brightness(0.82) contrast(1.08)',
-                    transform: 'scale(1.18)',
-                    opacity: 0.95
+                    filter: 'blur(16px) saturate(145%) brightness(0.92) contrast(1.05)',
+                    transform: 'scale(1.08)',
+                    opacity: 0.72
                   }}
                   muted
                   playsInline
                   autoPlay
                   loop
+                  preload="metadata"
+                  controls={false}
+                  disablePictureInPicture
                 />
               ) : (
                 <img
@@ -689,15 +720,22 @@ export const UnifiedFullScreenViewer = ({
                   alt=""
                   className="absolute inset-0 w-full h-full object-cover"
                   style={{
-                    filter: 'blur(52px) saturate(165%) brightness(0.82) contrast(1.08)',
-                    transform: 'scale(1.18)',
-                    opacity: 0.95
+                    filter: 'blur(16px) saturate(145%) brightness(0.92) contrast(1.05)',
+                    transform: 'scale(1.08)',
+                    opacity: 0.72
                   }}
                 />
               )}
-              <div className="absolute inset-0 bg-black/35" />
-              <div className="absolute inset-0 bg-gradient-to-b from-black/60 via-black/15 to-black/65" />
-              <div className="absolute inset-0" style={{ boxShadow: 'inset 0 0 170px rgba(0,0,0,0.85)' }} />
+
+              <div className="absolute inset-0 bg-black/28" />
+              <div className="absolute inset-0 bg-gradient-to-b from-black/45 via-transparent to-black/55" />
+              <div
+                className="absolute inset-[-10%]"
+                style={{
+                  background:
+                    'radial-gradient(ellipse at center, rgba(0,0,0,0.06) 0%, rgba(0,0,0,0.38) 58%, rgba(0,0,0,0.72) 100%)'
+                }}
+              />
             </div>
           </div>
         )}

@@ -26,6 +26,10 @@ export const MediaCarousel = ({ mediaUrls, className }: MediaCarouselProps) => {
 
   const videoRef = useRef<HTMLVideoElement>(null);
 
+  const touchStartX = useRef(0);
+  const touchStartY = useRef(0);
+  const touchMoved = useRef(false);
+
 
 
   const isVideo = (url: string) => {
@@ -158,50 +162,50 @@ export const MediaCarousel = ({ mediaUrls, className }: MediaCarouselProps) => {
 
   };
 
+  const handleTouchStart = (e: React.TouchEvent) => {
+    touchMoved.current = false;
+    touchStartX.current = e.touches[0].clientX;
+    touchStartY.current = e.touches[0].clientY;
+  };
+
+  const handleTouchMove = (e: React.TouchEvent) => {
+    const dx = Math.abs(e.touches[0].clientX - touchStartX.current);
+    const dy = Math.abs(e.touches[0].clientY - touchStartY.current);
+    if (dx > 8 || dy > 8) touchMoved.current = true;
+  };
+
 
 
   return (
-
-    <div ref={containerRef} className={cn("relative", className)}>
-
-      <div className="relative w-full overflow-hidden bg-white/10 backdrop-blur-[10px] border border-white/20 flex items-center justify-center" style={{ maxHeight: '80vh', minHeight: '200px' }}>
-
+    <div
+      ref={containerRef}
+      className={cn("relative", className)}
+      style={{ touchAction: 'pan-y' }}
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+    >
+      <div className="relative w-full overflow-hidden bg-white/10 backdrop-blur-[10px] border border-white/20 flex items-center justify-center" style={{ maxHeight: '80vh', minHeight: '200px', touchAction: 'pan-y' }}>
         {isVideo(mediaUrls[currentIndex]) ?
-
-        <video
-
-          ref={videoRef}
-
-          src={mediaUrls[currentIndex]}
-
-          className="w-full h-auto object-contain cursor-pointer"
-
-          style={{ maxHeight: '80vh', maxWidth: '100%' }}
-
-          loop
-
-          playsInline
-
-          onClick={handleVideoClick} /> :
-
-
-
-
-
-        <img
-
-          src={mediaUrls[currentIndex]}
-
-          alt={`Media ${currentIndex + 1}`}
-
-          className="w-full h-auto object-contain"
-
-          style={{ maxHeight: '80vh', maxWidth: '100%' }} />
-
-
-
+          <video
+            ref={videoRef}
+            src={mediaUrls[currentIndex]}
+            className="w-full h-auto object-contain cursor-pointer"
+            style={{ maxHeight: '80vh', maxWidth: '100%' }}
+            loop
+            playsInline
+            onClick={() => {
+              if (touchMoved.current) return;
+              handleVideoClick();
+            }}
+          />
+          :
+          <img
+            src={mediaUrls[currentIndex]}
+            alt={`Media ${currentIndex + 1}`}
+            className="w-full h-auto object-contain"
+            style={{ maxHeight: '80vh', maxWidth: '100%' }}
+          />
         }
-
       </div>
 
 

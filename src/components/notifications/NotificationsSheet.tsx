@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { Drawer, DrawerContent } from '@/components/ui/drawer';
 import { NotificationsTab } from '@/components/notifications/NotificationsTab';
 import { useNotifications } from '@/hooks/useNotifications';
@@ -8,7 +9,13 @@ interface NotificationsSheetProps {
 }
 
 export const NotificationsSheet = ({ open, onOpenChange }: NotificationsSheetProps) => {
-  const { unreadCount } = useNotifications();
+  const { unreadCount, markAllAsRead } = useNotifications();
+
+  useEffect(() => {
+    if (!open) return;
+    if (unreadCount <= 0) return;
+    void markAllAsRead();
+  }, [open, unreadCount, markAllAsRead]);
 
   return (
     <Drawer open={open} onOpenChange={onOpenChange}>

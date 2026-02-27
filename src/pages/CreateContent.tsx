@@ -16,6 +16,7 @@ import { StoryRingPreview } from '@/components/stories/StoryRingPreview';
 import { useMentionsCollabs } from '@/hooks/useMentionsCollabs';
 import { UserSearchPicker } from '@/components/post/UserSearchPicker';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { startBackgroundPublish } from '@/lib/backgroundPublish';
 
 type Step = 'media' | 'publish';
 
@@ -72,74 +73,29 @@ const CreateContent = () => {
       toast.error("Post yoki Story-dan kamida birini tanlang");
       return;
     }
-    setIsUploading(true);
-    setUploadProgress(5);
     try {
-      const total = editedFiles.length + 1;
-      let done = 0;
-      const tick = () => { done++; setUploadProgress(Math.min(95, Math.round((done / total) * 90) + 5)); };
+      startBackgroundPublish({
+        id: `${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        userId: user.id,
+        files: editedFiles.map((m) => m.file),
+        caption,
+        sharePost,
+        shareStory,
+        ringId: selectedRingId,
+        mentionIds,
+        collabIds,
+      });
 
-      let postUrls: string[] = [];
-      if (sharePost) {
-        const uploads = await Promise.all(
-          editedFiles.map(async (m) => { const url = await uploadMedia(m.file, 'posts', user.id); tick(); return url; })
-        );
-        postUrls = uploads.filter(Boolean);
-      }
-
-      let storyUrl: string | null = null;
-      if (shareStory) { storyUrl = await uploadMedia(editedFiles[0].file, 'stories', user.id); tick(); }
-
-      if (sharePost && postUrls.length > 0) {
-        const { data: post, error } = await supabase.from('posts').insert({
-          user_id: user.id, content: caption || null, media_urls: postUrls,
-        }).select().single();
-        if (error) throw error;
-        if (post) {
-          const captionMentions = (caption.match(/@(\w+)/g) || []).map(m => m.slice(1));
-          let allMentionIds = [...mentionIds];
-          if (captionMentions.length > 0) {
-            const { data: mp } = await supabase.from('profiles').select('id, username').in('username', captionMentions);
-            if (mp) { for (const p of mp) { if (p.id !== user.id && !allMentionIds.includes(p.id)) allMentionIds.push(p.id); } }
-          }
-          if (allMentionIds.length > 0) await addMentions(post.id, allMentionIds);
-          if (collabIds.length > 0) await addCollabs(post.id, collabIds);
-        }
-      }
-
-      if (shareStory && storyUrl) {
-        const mediaType = editedFiles[0].file.type.startsWith('video/') ? 'video' : 'image';
-        const { error } = await supabase.from('stories').insert({
-          user_id: user.id, media_url: storyUrl, media_type: mediaType, caption: caption || null, ring_id: selectedRingId,
-        });
-        if (error) throw error;
-      }
-
-      setUploadProgress(100);
-      setShowSuccess(true);
-      toast.success(sharePost && shareStory ? 'Post & Story joylandi!' : sharePost ? 'Post joylandi!' : 'Story joylandi!');
-      setTimeout(() => navigate('/'), 1500);
+      toast.success('Yuklanmoqda…');
+      navigate('/');
     } catch (err: any) {
       console.error('Publish error:', err);
       toast.error(err.message || "Yuklashda xatolik yuz berdi");
-      setUploadProgress(0);
-    } finally {
-      setIsUploading(false);
     }
   };
 
   if (showSuccess) {
-    return (
-      <div className="fixed inset-0 z-[100] bg-background flex flex-col items-center justify-center gap-3 animate-fade-in">
-        <div className="w-16 h-16 rounded-full bg-primary/15 flex items-center justify-center animate-scale-in">
-          <Check className="h-8 w-8 text-primary" />
-        </div>
-        <p className="text-base font-semibold">
-          {sharePost && shareStory ? 'Post & Story joylandi!' : sharePost ? 'Post joylandi!' : 'Story joylandi!'}
-        </p>
-        <p className="text-xs text-muted-foreground">Bosh sahifaga qaytilmoqda…</p>
-      </div>
-    );
+    return null;
   }
 
   if (step === 'media') {
@@ -154,7 +110,7 @@ const CreateContent = () => {
   // Publish form - minimalist modern design
   return (
     <div className="fixed inset-0 z-[60] bg-background flex flex-col">
-      {isUploading && (
+      {isUploading && false && (
         <div className="absolute top-0 left-0 right-0 z-50">
           <Progress value={uploadProgress} className="h-0.5 rounded-none" />
         </div>
@@ -170,9 +126,9 @@ const CreateContent = () => {
           size="sm"
           className="h-8 px-4 rounded-full text-xs font-semibold"
           onClick={handlePublish}
-          disabled={isUploading || editedFiles.length === 0}
+          disabled={editedFiles.length === 0}
         >
-          {isUploading ? `${uploadProgress}%` : 'Ulashish'}
+          Ulashish
         </Button>
       </header>
 

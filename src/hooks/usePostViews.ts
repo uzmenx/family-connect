@@ -1,8 +1,9 @@
-import { useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
 export const usePostViews = (postId: string, initialCount?: number) => {
   const [viewsCount, setViewsCount] = useState<number>(initialCount ?? 0);
+  const [viewedUsers, setViewedUsers] = useState<Array<{id: string;name: string | null;username: string | null;avatar_url: string | null;}>>([]);
   const [isTracking, setIsTracking] = useState(false);
   const hasTrackedRef = useRef(false);
 
@@ -55,12 +56,35 @@ export const usePostViews = (postId: string, initialCount?: number) => {
     }
   };
 
+  const fetchViewedUsers = useCallback(async () => {
+    if (!postId) return;
+    const { data: views } = await supabase
+      .from('post_views')
+      .select('user_id')
+      .eq('post_id', postId)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (views && views.length > 0) {
+      const userIds = views.map((v: any) => v.user_id);
+      const { data: profiles } = await supabase
+        .from('profiles')
+        .select('id, name, username, avatar_url')
+        .in('id', userIds);
+      setViewedUsers(profiles || []);
+    } else {
+      setViewedUsers([]);
+    }
+  }, [postId]);
+
   return {
     viewsCount,
     setViewsCount,
     trackView,
     isTracking,
     fetchViewsCount,
+    viewedUsers,
+    fetchViewedUsers,
   };
 };
 

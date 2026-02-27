@@ -32,13 +32,29 @@ import { getStoryRingGradient } from '@/components/stories/storyRings';
 import { StoryViewer } from '@/components/stories/StoryViewer';
 import type { StoryGroup, Story } from '@/hooks/useStories';
 import { Post } from '@/types';
+import { useAutoPreviewVideo } from '@/hooks/useAutoPreviewVideo';
 
 const UserProfileMasonryItem = ({ post }: { post: Post }) => {
-  const thumb = ((post.media_urls && post.media_urls.length > 0 ? post.media_urls[0] : (post.image_url || '')) || '') as string;
+  const mediaUrl = ((post.media_urls && post.media_urls.length > 0 ? post.media_urls[0] : (post.image_url || '')) || '') as string;
+  const isVideo = !!mediaUrl && (mediaUrl.includes('.mp4') || mediaUrl.includes('.mov') || mediaUrl.includes('.webm'));
+  const videoRef = useRef<HTMLVideoElement>(null);
+  useAutoPreviewVideo(videoRef, { enabled: isVideo, delayMs: 3000, threshold: 0.6 });
   return (
-    <div className="relative aspect-[3/4] rounded-xl overflow-hidden bg-muted">
-      {thumb ? (
-        <img src={thumb} alt="" className="w-full h-full object-cover" />
+    <div className="relative aspect-[3/4] rounded-[20px] overflow-hidden bg-muted/80 shadow-xl shadow-black/20 border border-white/10">
+      {mediaUrl ? (
+        isVideo ? (
+          <video
+            ref={videoRef}
+            src={mediaUrl}
+            className="w-full h-full object-cover"
+            muted
+            playsInline
+            loop
+            preload="metadata"
+          />
+        ) : (
+          <img src={mediaUrl} alt="" className="w-full h-full object-cover" />
+        )
       ) : (
         <div className="w-full h-full bg-muted" />
       )}
@@ -68,6 +84,7 @@ const UserProfilePage = () => {
   const { followersCount, followingCount } = useFollow(userId);
   const [activeTab, setActiveTab] = useState<'posts' | 'saved' | 'mentions'>('posts');
   const [postsLayout, setPostsLayout] = useState<'pinterest2' | 'pinterest1' | 'list'>('pinterest2');
+  const lastPostsTabTapTsRef = useRef<number>(0);
   const [viewerOpen, setViewerOpen] = useState(false);
   const [viewerInitialIndex, setViewerInitialIndex] = useState(0);
   const [showPostsStats, setShowPostsStats] = useState(false);
@@ -85,6 +102,10 @@ const UserProfilePage = () => {
 
   const cyclePostsLayout = useCallback(() => {
     setPostsLayout((prev) => (prev === 'pinterest2' ? 'pinterest1' : prev === 'pinterest1' ? 'list' : 'pinterest2'));
+  }, []);
+
+  const togglePostsLayoutHidden = useCallback(() => {
+    setPostsLayout((prev) => (prev === 'list' ? 'pinterest2' : 'list'));
   }, []);
 
   // Family tree states
@@ -470,7 +491,22 @@ const UserProfilePage = () => {
         <div className="px-4">
           <div className="flex border-b border-border mb-2">
             <button
-              onClick={() => setActiveTab('posts')}
+              onClick={() => {
+                const now = Date.now();
+                if (activeTab === 'posts') {
+                  togglePostsLayoutHidden();
+                  return;
+                }
+
+                if (now - lastPostsTabTapTsRef.current < 350) {
+                  setActiveTab('posts');
+                  togglePostsLayoutHidden();
+                } else {
+                  setActiveTab('posts');
+                }
+
+                lastPostsTabTapTsRef.current = now;
+              }}
               className={cn(
                 'flex-1 py-2 flex items-center justify-center border-b-2 transition-colors',
                 activeTab === 'posts'
@@ -503,7 +539,7 @@ const UserProfilePage = () => {
               <AtSign className="h-5 w-5" />
             </button>
 
-            {activeTab === 'posts' && (
+            {activeTab === 'posts' && false && (
               <button
                 type="button"
                 onClick={cyclePostsLayout}

@@ -5,6 +5,7 @@ import { usePostLikes } from '@/hooks/usePostLikes';
 import { useSavedPosts } from '@/hooks/useSavedPosts';
 import { usePostViews } from '@/hooks/usePostViews';
 import { LikersDialog } from './LikersDialog';
+import { ViewersDialog } from './ViewersDialog';
 import { CommentsSheet } from './CommentsSheet';
 import { ShareDialog } from './ShareDialog';
 import { cn } from '@/lib/utils';
@@ -30,10 +31,11 @@ export const PostActions = ({
   onOpenVideoPlayer
 }: PostActionsProps) => {
   const { isLiked, likesCount, likedUsers, toggleLike, fetchLikedUsers, isLoading } = usePostLikes(postId);
-  const { viewsCount: viewsFromHook } = usePostViews(postId, initialViewsCount);
+  const { viewsCount: viewsFromHook, viewedUsers, fetchViewedUsers } = usePostViews(postId, initialViewsCount);
   const viewsCount = viewsCountProp ?? viewsFromHook;
   const { isPostSaved, toggleSavePost } = useSavedPosts();
   const [showLikers, setShowLikers] = useState(false);
+  const [showViewers, setShowViewers] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -77,6 +79,14 @@ export const PostActions = ({
   const handleShareClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     setShowShare(true);
+  };
+
+  const handleViewsCountClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    // We need likers list too, to show a small heart badge in viewers dialog
+    fetchLikedUsers();
+    fetchViewedUsers();
+    setShowViewers(true);
   };
 
   const displayLikesCount = likesCount || initialLikesCount;
@@ -139,10 +149,14 @@ export const PostActions = ({
           </button>
 
           {/* View count */}
-          <span className="flex items-center gap-2 text-white/90 text-sm font-bold">
+          <button
+            type="button"
+            className="flex items-center gap-2 text-white/90 text-sm font-bold hover:text-white hover:underline transition-colors"
+            onClick={handleViewsCountClick}
+          >
             <Eye className="h-5 w-5" />
             {formatCount(viewsCount)}
-          </span>
+          </button>
         </div>
         
         {/* Right side: Bookmark */}
@@ -176,6 +190,13 @@ export const PostActions = ({
         onOpenChange={setShowLikers}
         users={likedUsers}
         likesCount={displayLikesCount} />
+
+      <ViewersDialog
+        open={showViewers}
+        onOpenChange={setShowViewers}
+        users={viewedUsers}
+        viewsCount={viewsCount}
+        likedUserIds={likedUsers.map((u) => u.id)} />
 
       
       <CommentsSheet

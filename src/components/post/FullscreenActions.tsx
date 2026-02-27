@@ -6,6 +6,7 @@ import { usePostLikes } from '@/hooks/usePostLikes';
 import { useSavedPosts } from '@/hooks/useSavedPosts';
 import { usePostViews } from '@/hooks/usePostViews';
 import { LikersDialog } from './LikersDialog';
+import { ViewersDialog } from './ViewersDialog';
 import { CommentsSheet } from './CommentsSheet';
 import { ShareDialog } from './ShareDialog';
 import { formatCount } from '@/lib/formatCount';
@@ -28,9 +29,10 @@ export const FullscreenActions = ({
   onOpenVideoPlayer
 }: FullscreenActionsProps) => {
   const { isLiked, likesCount, likedUsers, toggleLike, fetchLikedUsers, isLoading } = usePostLikes(postId);
-  const { viewsCount, trackView } = usePostViews(postId, initialViewsCount);
+  const { viewsCount, trackView, viewedUsers, fetchViewedUsers } = usePostViews(postId, initialViewsCount);
   const { isPostSaved, toggleSavePost } = useSavedPosts();
   const [showLikers, setShowLikers] = useState(false);
+  const [showViewers, setShowViewers] = useState(false);
   const [showComments, setShowComments] = useState(false);
   const [showShare, setShowShare] = useState(false);
   const [isAnimating, setIsAnimating] = useState(false);
@@ -63,6 +65,14 @@ export const FullscreenActions = ({
     setShowLikers(true);
   };
 
+  const handleViewsCountClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    // We need likers list too, to show a small heart badge in viewers dialog
+    fetchLikedUsers();
+    fetchViewedUsers();
+    setShowViewers(true);
+  };
+
   const handleCommentsClick = (e: React.MouseEvent) => {
     e.stopPropagation();
     setShowComments(true);
@@ -90,37 +100,29 @@ export const FullscreenActions = ({
     isActive = false,
     activeClass = "",
     animate = false
-
-
-
-
-
-
-
-  }: {icon: React.ElementType;count?: number;onClick: (e: React.MouseEvent) => void;isActive?: boolean;activeClass?: string;animate?: boolean;}) =>
-  <button
-    onClick={onClick}
-    className="flex flex-col items-center gap-1 transition-transform hover:scale-110">
+  }: { icon: React.ElementType; count?: number; onClick: (e: React.MouseEvent) => void; isActive?: boolean; activeClass?: string; animate?: boolean; }) =>
+    <button
+      onClick={onClick}
+      className="flex flex-col items-center gap-1 transition-transform hover:scale-110">
 
       <div className={cn("p-2 rounded-full bg-black/20 backdrop-blur-sm my-0 px-[8.1px] mx-[0.1px]",
 
-    isActive && "bg-black/40"
-    )}>
+        isActive && "bg-black/40"
+      )}>
         <Icon
-        className={cn(
-          "h-6 w-6 text-white transition-all",
-          isActive && activeClass,
-          animate && "scale-125"
-        )} />
+          className={cn(
+            "h-6 w-6 text-white transition-all",
+            isActive && activeClass,
+            animate && "scale-125"
+          )} />
 
       </div>
       {count !== undefined &&
-    <span className="text-xs text-white font-medium">
+        <span className="text-xs text-white font-medium">
           {formatCount(count)}
         </span>
-    }
+      }
     </button>;
-
 
   return (
     <>
@@ -130,7 +132,6 @@ export const FullscreenActions = ({
           icon={Send}
           onClick={handleShareClick} />
 
-        
         {/* Like */}
         <button
           onClick={handleLikeClick}
@@ -159,7 +160,7 @@ export const FullscreenActions = ({
             {formatCount(displayLikesCount)}
           </button>
         </button>
-        
+
         {/* Comments */}
         <ActionButton
           icon={MessageCircle}
@@ -167,13 +168,17 @@ export const FullscreenActions = ({
           onClick={handleCommentsClick} />
 
         {/* View count */}
-        <div className="flex flex-col items-center gap-1">
+        <button
+          type="button"
+          className="flex flex-col items-center gap-1 transition-transform hover:scale-110"
+          onClick={handleViewsCountClick}
+        >
           <div className="p-2 rounded-full bg-black/20 backdrop-blur-sm">
             <Eye className="h-6 w-6 text-white" />
           </div>
-          <span className="text-xs text-white font-medium">{formatCount(viewsCount)}</span>
-        </div>
-        
+          <span className="text-xs text-white font-medium hover:underline">{formatCount(viewsCount)}</span>
+        </button>
+
         {/* Bookmark */}
         <ActionButton
           icon={Bookmark}
@@ -181,15 +186,14 @@ export const FullscreenActions = ({
           isActive={isSaved}
           activeClass="fill-white" />
 
-
         {/* Video Player - only for videos */}
         {videoUrl && onOpenVideoPlayer &&
-        <ActionButton
-          icon={Film}
-          onClick={(e) => {
-            e.stopPropagation();
-            onOpenVideoPlayer(videoUrl);
-          }} />
+          <ActionButton
+            icon={Film}
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenVideoPlayer(videoUrl);
+            }} />
 
         }
       </div>
@@ -201,7 +205,13 @@ export const FullscreenActions = ({
         users={likedUsers}
         likesCount={displayLikesCount} />
 
-      
+      <ViewersDialog
+        open={showViewers}
+        onOpenChange={setShowViewers}
+        users={viewedUsers}
+        viewsCount={viewsCount}
+        likedUserIds={likedUsers.map((u) => u.id)} />
+
       <CommentsSheet
         open={showComments}
         onOpenChange={setShowComments}

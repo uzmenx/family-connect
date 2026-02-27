@@ -1,4 +1,3 @@
-import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Card, CardContent } from '@/components/ui/card';
@@ -8,13 +7,15 @@ import { useAuth } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { InvitationCard } from '@/components/family/InvitationCard';
 import { NotificationsTab } from '@/components/notifications/NotificationsTab';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useNotifications } from '@/hooks/useNotifications';
 
 const Notifications = () => {
   const { user } = useAuth();
   const { t } = useLanguage();
   const { invitations, respondToInvitation } = useFamilyTree();
   const [loadingInvitation, setLoadingInvitation] = useState<string | null>(null);
+  const { unreadCount, markAllAsRead } = useNotifications();
 
   // Filter invitations received by current user
   const receivedInvitations = invitations.filter(inv => inv.receiver_id === user?.id);
@@ -30,6 +31,11 @@ const Notifications = () => {
     await respondToInvitation(invitationId, false);
     setLoadingInvitation(null);
   };
+
+  useEffect(() => {
+    if (unreadCount <= 0) return;
+    void markAllAsRead();
+  }, [unreadCount, markAllAsRead]);
 
   return (
     <AppLayout>
