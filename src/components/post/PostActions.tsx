@@ -94,9 +94,9 @@ export const PostActions = ({
   return (
     <>
       {/* Glass morphism action bar */}
-      <div className="flex items-center justify-between px-4 py-3 rounded-2xl 
-        bg-white/10 backdrop-blur-[10px] border border-white/20 shadow-lg
-        hover:bg-white/15 transition-all duration-300">
+      <div className="flex items-center justify-between px-4 rounded-2xl bg-white/10 backdrop-blur-[10px] border border-white/20 shadow-lg hover:bg-white/15 transition-all duration-300 py-[4px]">
+
+
         
         {/* Left side: Like, Comment, Share */}
         <div className="flex items-center gap-6">
@@ -126,8 +126,8 @@ export const PostActions = ({
             <button
               className="text-sm font-bold text-white/90 hover:text-white hover:underline transition-colors"
               onClick={handleLikesCountClick}
-              type="button"
-            >
+              type="button">
+
               {formatCount(displayLikesCount)}
             </button>
           </div>
@@ -152,8 +152,8 @@ export const PostActions = ({
           <button
             type="button"
             className="flex items-center gap-2 text-white/90 text-sm font-bold hover:text-white hover:underline transition-colors"
-            onClick={handleViewsCountClick}
-          >
+            onClick={handleViewsCountClick}>
+
             <Eye className="h-5 w-5" />
             {formatCount(viewsCount)}
           </button>
