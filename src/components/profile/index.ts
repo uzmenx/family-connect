@@ -7,3 +7,5 @@ export { HighlightViewer } from './HighlightViewer';
 export { HighlightEditor } from './HighlightEditor';
 export { CollectionsFilter } from './CollectionsFilter';
 export { FollowListSheet } from './FollowListSheet';
+export { UnfollowHistorySheet } from './UnfollowHistorySheet';
+export { FamilyMembersSheet } from './FamilyMembersSheet';

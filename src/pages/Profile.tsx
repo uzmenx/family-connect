@@ -8,8 +8,8 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { AtSign, Bell, Bookmark, Check, ChevronDown, ChevronUp, Edit, Grid3X3, Settings, Trash2, Users, Grid2X2, LayoutList, Columns2 } from 'lucide-react';
-import { FollowListSheet, SocialLinksList } from '@/components/profile';
+import { AtSign, Bell, Bookmark, Check, ChevronDown, ChevronUp, Edit, Grid3X3, Settings, Trash2, Users, Grid2X2, LayoutList, Columns2, Clock } from 'lucide-react';
+import { FollowListSheet, SocialLinksList, UnfollowHistorySheet } from '@/components/profile';
 
 import { useUserPosts } from '@/hooks/useUserPosts';
 import { useSavedPosts } from '@/hooks/useSavedPosts';
@@ -128,6 +128,13 @@ const Profile = () => {
 
   const [followSheetOpen, setFollowSheetOpen] = useState(false);
   const [followSheetMode, setFollowSheetMode] = useState<'followers' | 'following'>('followers');
+
+  const [unfollowHistoryOpen, setUnfollowHistoryOpen] = useState(false);
+
+  useEffect(() => {
+    if (showPostsStats) return;
+    setUnfollowHistoryOpen(false);
+  }, [showPostsStats]);
 
   const cyclePostsLayout = useCallback(() => {
     setPostsLayout((prev) => (prev === 'pinterest2' ? 'pinterest1' : prev === 'pinterest1' ? 'list' : 'pinterest2'));
@@ -285,7 +292,7 @@ const Profile = () => {
         {/* ═══════════════════════════════════════
                   COVER IMAGE
                ═══════════════════════════════════════ */}
-        <div className="relative h-36 overflow-hidden">
+        <div className="relative h-36 overflow-hidden rounded-b-2xl">
           {(profile as any)?.cover_url ?
             <img
               src={(profile as any).cover_url}
@@ -449,7 +456,14 @@ const Profile = () => {
                 </span>
               </button>
 
-              <div className="flex-shrink-0 w-20" aria-hidden="true" />
+              <button
+                type="button"
+                onClick={() => setUnfollowHistoryOpen((v) => !v)}
+                className="flex-shrink-0 w-20 h-[52px] flex items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl shadow-lg"
+                aria-label="Unfollow history"
+              >
+                <Clock className="h-5 w-5 text-muted-foreground" />
+              </button>
 
               <div className="flex-1 flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-1.5 py-1 shadow-lg min-w-0">
                 <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
@@ -647,6 +661,8 @@ const Profile = () => {
           userId={user?.id}
           mode={followSheetMode}
         />
+
+        <UnfollowHistorySheet open={unfollowHistoryOpen} onOpenChange={setUnfollowHistoryOpen} />
 
         {/* ═══════════════════════════════════════
                   POSTS TAB

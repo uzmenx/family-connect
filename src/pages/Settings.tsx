@@ -77,11 +77,25 @@ const Settings = () => {
   return (
     <AppLayout showNav={false}>
       <div className="p-4">
-        <div className="flex items-center gap-4 mb-6">
-          <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <h1 className="text-xl font-bold">{t('settings')}</h1>
+        <div className="flex items-center justify-between gap-4 mb-6">
+          <div className="flex items-center gap-4 min-w-0">
+            <Button variant="ghost" size="icon" onClick={() => navigate(-1)}>
+              <ArrowLeft className="h-5 w-5" />
+            </Button>
+            <h1 className="text-xl font-bold truncate">{t('settings')}</h1>
+          </div>
+
+          {user?.email && (
+            <div
+              className={cn(
+                'flex items-center gap-1.5 max-w-[52%] px-2 py-1 rounded-full',
+                'border border-border/40 bg-background/70 backdrop-blur-sm'
+              )}
+            >
+              <Mail className="h-3.5 w-3.5 text-muted-foreground" />
+              <span className="text-[11px] text-muted-foreground truncate">{user.email}</span>
+            </div>
+          )}
         </div>
 
         <div className="space-y-3">
@@ -163,37 +177,6 @@ const Settings = () => {
             </CardContent>
           </Card>
 
-          {/* Account */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Mail className="h-4 w-4" />
-                {t('account')}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-1">
-                <Label className="text-xs text-muted-foreground">{t('email')}</Label>
-                <p className="text-sm font-medium">{user?.email}</p>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Security */}
-          <Card>
-            <CardHeader className="pb-3">
-              <CardTitle className="text-base flex items-center gap-2">
-                <Shield className="h-4 w-4" />
-                {t('security')}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-xs text-muted-foreground">
-                {t('securityDesc')}
-              </p>
-            </CardContent>
-          </Card>
-
           {/* Privacy / Visibility */}
           <Card>
             <CardHeader className="pb-3">
@@ -203,6 +186,11 @@ const Settings = () => {
               </CardTitle>
             </CardHeader>
             <CardContent className="space-y-3">
+              <div className="flex items-start gap-2">
+                <Shield className="h-4 w-4 mt-0.5 text-muted-foreground" />
+                <p className="text-xs text-muted-foreground">{t('securityDesc')}</p>
+              </div>
+
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium">Hikoya lentani yashirish</p>

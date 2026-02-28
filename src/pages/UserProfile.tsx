@@ -5,7 +5,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Grid3X3, Bookmark, Users, AtSign, ChevronDown, ChevronUp, Grid2X2, LayoutList, Columns2, ShieldBan, ShieldCheck } from 'lucide-react';
-import { FollowListSheet, SocialLinksList } from '@/components/profile';
+import { FamilyMembersSheet, FollowListSheet, SocialLinksList } from '@/components/profile';
 import { SocialLink } from '@/components/profile/SocialLinksEditor';
 import { useStoryHighlights } from '@/hooks/useStoryHighlights';
 import { usePostCollections } from '@/hooks/usePostCollections';
@@ -95,6 +95,8 @@ const UserProfilePage = () => {
 
   const [followSheetOpen, setFollowSheetOpen] = useState(false);
   const [followSheetMode, setFollowSheetMode] = useState<'followers' | 'following'>('followers');
+  const [familyMembersOpen, setFamilyMembersOpen] = useState(false);
+  const [familyMemberCount, setFamilyMemberCount] = useState(0);
   
   // Bio expand/collapse states
   const [bioExpanded, setBioExpanded] = useState(false);
@@ -117,6 +119,15 @@ const UserProfilePage = () => {
   const { members, addMember, sendInvitation } = useFamilyTree();
   const [selectMemberOpen, setSelectMemberOpen] = useState(false);
   const [addRelativeOpen, setAddRelativeOpen] = useState(false);
+
+  useEffect(() => {
+    if (!userId) return;
+    supabase
+      .from('family_tree_members')
+      .select('id', { count: 'exact', head: true })
+      .eq('owner_id', userId)
+      .then(({ count }) => setFamilyMemberCount(count || 0));
+  }, [userId]);
 
   // Redirect to own profile if viewing self
   useEffect(() => {
@@ -297,8 +308,37 @@ const UserProfilePage = () => {
           <ArrowLeft className="h-5 w-5 text-white" />
         </Button>
 
+        {/* Block button (top-right) */}
+        {userId && (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => {
+              if (isBlocked(userId)) {
+                unblockUser(userId);
+                toast({ title: 'Blok olib tashlandi' });
+              } else {
+                blockUser(userId);
+                toast({ title: 'Foydalanuvchi bloklandi' });
+              }
+            }}
+            className={cn(
+              'absolute top-4 right-4 z-10 h-9 w-9 rounded-full',
+              isBlocked(userId) ? 'text-destructive' : 'text-white'
+            )}
+            style={{
+              backgroundColor: 'rgba(255,255,255,0.15)',
+              backdropFilter: 'blur(8px)',
+            }}
+            aria-label={isBlocked(userId) ? 'Unblock' : 'Block'}
+            type="button"
+          >
+            {isBlocked(userId) ? <ShieldCheck className="h-5 w-5" /> : <ShieldBan className="h-5 w-5" />}
+          </Button>
+        )}
+
         {/* Cover Image */}
-        <div className="relative h-36 overflow-hidden">
+        <div className="relative h-36 overflow-hidden rounded-b-2xl">
           {profile.cover_url ? (
             <img src={profile.cover_url} alt="Cover" className="w-full h-full object-cover" />
           ) : (
@@ -394,22 +434,37 @@ const UserProfilePage = () => {
             </p>
           </div>
 
-          {/* ROW 3: Kuzatilmoqda — centered */}
+          {/* ROW 3: Kuzatilmoqda | (spacer) | Oila a'zolari */}
           {showPostsStats && (
-            <div className="flex justify-center mb-1">
+            <div className="flex items-end justify-between gap-1 mb-1">
               <button
                 type="button"
                 onClick={() => {
                   setFollowSheetMode('following');
                   setFollowSheetOpen(true);
                 }}
-                className="flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-6 py-1.5 shadow-lg"
+                className="flex-1 flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-2 py-1.5 shadow-lg min-w-0"
               >
                 <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
                   Kuzatilmoqda
                 </span>
                 <span className="text-xl font-extrabold text-foreground leading-none">
                   {formatCount(followingCount)}
+                </span>
+              </button>
+
+              <div className="flex-shrink-0 w-20" aria-hidden="true" />
+
+              <button
+                type="button"
+                onClick={() => setFamilyMembersOpen(true)}
+                className="flex-1 flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-1.5 py-1 shadow-lg min-w-0"
+              >
+                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
+                  Oila a'zolari
+                </span>
+                <span className="text-xl font-extrabold text-foreground leading-none">
+                  {formatCount(familyMemberCount)}
                 </span>
               </button>
             </div>
@@ -421,6 +476,8 @@ const UserProfilePage = () => {
             userId={userId}
             mode={followSheetMode}
           />
+
+          <FamilyMembersSheet open={familyMembersOpen} onOpenChange={setFamilyMembersOpen} ownerId={userId} />
 
           {/* Bio */}
           {profile.bio && (
@@ -485,33 +542,7 @@ const UserProfilePage = () => {
               </Button>
               <FollowButton targetUserId={userId} />
               <MessageButton userId={userId} />
-              <Button
-                variant="outline"
-                size="sm"
-                className={cn(
-                  "h-9 text-sm border-white/20",
-                  isBlocked(userId)
-                    ? "bg-destructive/20 text-destructive hover:bg-destructive/30"
-                    : "bg-white/10 dark:bg-white/5 hover:bg-white/20 text-foreground"
-                )}
-                onClick={() => {
-                  if (isBlocked(userId)) {
-                    unblockUser(userId);
-                    toast({ title: "Blok olib tashlandi" });
-                  } else {
-                    blockUser(userId);
-                    toast({ title: "Foydalanuvchi bloklandi" });
-                  }
-                }}
-              >
-                {isBlocked(userId) ? <ShieldCheck className="h-4 w-4" /> : <ShieldBan className="h-4 w-4" />}
-              </Button>
             </div>
-          )}
-
-          {/* Social Links */}
-          {profile.social_links && profile.social_links.length > 0 && (
-            <SocialLinksList links={profile.social_links} className="justify-center mb-3" />
           )}
         </div>
 
