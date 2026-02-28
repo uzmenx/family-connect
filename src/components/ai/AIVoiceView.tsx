@@ -10,111 +10,37 @@ interface VoiceMessage {
   isUser: boolean;
 }
 
-const SILENCE_THRESHOLD = 10; // average volume below this = silence
-const SILENCE_DURATION = 2000; // ms of silence before auto-stop
+const SILENCE_THRESHOLD = 8;
+const SILENCE_DURATION = 1500; // 1.5s silence = auto stop
+const MIN_RECORDING_TIME = 800; // minimum recording before auto-stop
 
 const AIVoiceView = () => {
   const [isRecording, setIsRecording] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [history, setHistory] = useState<VoiceMessage[]>([]);
   const [volume, setVolume] = useState(0);
+  const [textInput, setTextInput] = useState('');
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const chunksRef = useRef<Blob[]>([]);
   const animFrameRef = useRef<number | null>(null);
   const analyserRef = useRef<AnalyserNode | null>(null);
   const streamRef = useRef<MediaStream | null>(null);
-  const silenceTimerRef = useRef<NodeJS.Timeout | null>(null);
+  const silenceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isSpeakingRef = useRef(false);
+  const recordStartRef = useRef<number>(0);
+  const transcriptRef = useRef('');
+  const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const updateVolume = useCallback(() => {
-    if (!analyserRef.current) return;
-    const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
-    analyserRef.current.getByteFrequencyData(dataArray);
-    const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length / 255;
-    const scaledAvg = avg * 100;
-    
-    setVolume(prev => prev * 0.7 + avg * 0.3);
+  // Speech recognition
+  const recognitionRef = useRef<any>(null);
 
-    // Auto-stop on silence detection
-    if (scaledAvg > SILENCE_THRESHOLD) {
-      isSpeakingRef.current = true;
-      if (silenceTimerRef.current) {
-        clearTimeout(silenceTimerRef.current);
-        silenceTimerRef.current = null;
-      }
-    } else if (isSpeakingRef.current && !silenceTimerRef.current) {
-      // User was speaking but now silent — start countdown
-      silenceTimerRef.current = setTimeout(() => {
-        stopRecordingAndProcess();
-      }, SILENCE_DURATION);
-    }
-
-    animFrameRef.current = requestAnimationFrame(updateVolume);
+  const scrollToBottom = useCallback(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, []);
 
-  const stopRecordingAndProcess = useCallback(() => {
-    if (mediaRecorderRef.current?.state === 'recording') {
-      mediaRecorderRef.current.stop();
-    }
-    if (silenceTimerRef.current) {
-      clearTimeout(silenceTimerRef.current);
-      silenceTimerRef.current = null;
-    }
-    isSpeakingRef.current = false;
-  }, []);
+  useEffect(() => { scrollToBottom(); }, [history, scrollToBottom]);
 
-  const startRecording = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      streamRef.current = stream;
-
-      const audioCtx = new AudioContext();
-      const source = audioCtx.createMediaStreamSource(stream);
-      const analyser = audioCtx.createAnalyser();
-      analyser.fftSize = 256;
-      source.connect(analyser);
-      analyserRef.current = analyser;
-
-      const recorder = new MediaRecorder(stream);
-      mediaRecorderRef.current = recorder;
-      chunksRef.current = [];
-
-      recorder.ondataavailable = (e) => chunksRef.current.push(e.data);
-      recorder.onstop = () => {
-        setIsRecording(false);
-        if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-        setVolume(0);
-        stream.getTracks().forEach(t => t.stop());
-        
-        // Since we can't transcribe audio client-side, prompt user to type
-        // In a real app, you'd send audio to a transcription service
-        toast.info("Ovoz yozildi. Iltimos, matningizni yozing.");
-      };
-
-      recorder.start();
-      setIsRecording(true);
-      isSpeakingRef.current = false;
-      updateVolume();
-    } catch (err) {
-      console.error('Mic error:', err);
-      toast.error("Mikrofonga ruxsat berilmadi");
-    }
-  };
-
-  const stopRecording = () => {
-    stopRecordingAndProcess();
-  };
-
-  // Cleanup on unmount
-  useEffect(() => {
-    return () => {
-      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
-      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
-      streamRef.current?.getTracks().forEach(t => t.stop());
-    };
-  }, []);
-
-  const sendTextQuery = async (text: string) => {
+  const sendTextQuery = useCallback(async (text: string) => {
     if (!text.trim() || isProcessing) return;
     setHistory(prev => [...prev, { text, isUser: true }]);
     setIsProcessing(true);
@@ -159,15 +85,14 @@ const AIVoiceView = () => {
             const parsed = JSON.parse(json);
             const c = parsed.choices?.[0]?.delta?.content;
             if (c) result += c;
-          } catch { /* partial json, skip */ }
+          } catch { /* skip */ }
         }
       }
 
       if (result) {
         setHistory(prev => [...prev, { text: result, isUser: false }]);
-        // Speech synthesis
         if ('speechSynthesis' in window) {
-          speechSynthesis.cancel(); // Cancel any ongoing speech
+          speechSynthesis.cancel();
           const utterance = new SpeechSynthesisUtterance(result);
           utterance.lang = 'uz-UZ';
           utterance.rate = 1;
@@ -180,15 +105,124 @@ const AIVoiceView = () => {
     } finally {
       setIsProcessing(false);
     }
+  }, [history, isProcessing]);
+
+  const stopRecordingAndProcess = useCallback(() => {
+    if (mediaRecorderRef.current?.state === 'recording') {
+      mediaRecorderRef.current.stop();
+    }
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+    if (recognitionRef.current) {
+      try { recognitionRef.current.stop(); } catch {}
+    }
+    isSpeakingRef.current = false;
+  }, []);
+
+  const updateVolume = useCallback(() => {
+    if (!analyserRef.current) return;
+    const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
+    analyserRef.current.getByteFrequencyData(dataArray);
+    const avg = dataArray.reduce((a, b) => a + b, 0) / dataArray.length / 255;
+    const scaledAvg = avg * 100;
+
+    setVolume(prev => prev * 0.6 + avg * 0.4);
+
+    const elapsed = Date.now() - recordStartRef.current;
+
+    if (scaledAvg > SILENCE_THRESHOLD) {
+      isSpeakingRef.current = true;
+      if (silenceTimerRef.current) {
+        clearTimeout(silenceTimerRef.current);
+        silenceTimerRef.current = null;
+      }
+    } else if (isSpeakingRef.current && !silenceTimerRef.current && elapsed > MIN_RECORDING_TIME) {
+      silenceTimerRef.current = setTimeout(() => {
+        stopRecordingAndProcess();
+      }, SILENCE_DURATION);
+    }
+
+    animFrameRef.current = requestAnimationFrame(updateVolume);
+  }, [stopRecordingAndProcess]);
+
+  const startRecording = async () => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      streamRef.current = stream;
+
+      const audioCtx = new AudioContext();
+      const source = audioCtx.createMediaStreamSource(stream);
+      const analyser = audioCtx.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+      analyserRef.current = analyser;
+
+      // Start speech recognition if available
+      transcriptRef.current = '';
+      const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+      if (SpeechRecognition) {
+        const recognition = new SpeechRecognition();
+        recognition.lang = 'uz-UZ';
+        recognition.interimResults = true;
+        recognition.continuous = true;
+        recognition.onresult = (event: any) => {
+          let transcript = '';
+          for (let i = 0; i < event.results.length; i++) {
+            transcript += event.results[i][0].transcript;
+          }
+          transcriptRef.current = transcript;
+        };
+        recognition.onerror = () => {};
+        recognition.start();
+        recognitionRef.current = recognition;
+      }
+
+      const recorder = new MediaRecorder(stream);
+      mediaRecorderRef.current = recorder;
+      chunksRef.current = [];
+      recordStartRef.current = Date.now();
+
+      recorder.ondataavailable = (e) => chunksRef.current.push(e.data);
+      recorder.onstop = () => {
+        setIsRecording(false);
+        if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+        setVolume(0);
+        stream.getTracks().forEach(t => t.stop());
+
+        const transcript = transcriptRef.current.trim();
+        if (transcript) {
+          sendTextQuery(transcript);
+        } else {
+          toast.info("Ovoz aniqlanmadi. Matningizni yozing.");
+        }
+      };
+
+      recorder.start();
+      setIsRecording(true);
+      isSpeakingRef.current = false;
+      updateVolume();
+    } catch (err) {
+      console.error('Mic error:', err);
+      toast.error("Mikrofonga ruxsat berilmadi");
+    }
   };
 
-  const [textInput, setTextInput] = useState('');
+  useEffect(() => {
+    return () => {
+      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+      if (animFrameRef.current) cancelAnimationFrame(animFrameRef.current);
+      streamRef.current?.getTracks().forEach(t => t.stop());
+      if (recognitionRef.current) { try { recognitionRef.current.stop(); } catch {} }
+    };
+  }, []);
 
   return (
     <div className="h-full flex flex-col items-center justify-between pb-6 px-6">
       {/* Orb Visualizer */}
       <div className="flex-1 flex flex-col items-center justify-center w-full relative gap-5">
-        <div onClick={isRecording ? stopRecording : startRecording}
+        <div onClick={isRecording ? stopRecordingAndProcess : startRecording}
           className={cn(
             'relative w-40 h-40 rounded-full cursor-pointer transition-all duration-500 z-10 flex items-center justify-center',
             isRecording ? 'scale-125' : 'scale-100 hover:scale-105'
@@ -245,6 +279,7 @@ const AIVoiceView = () => {
               Orb ni bosib suhbat boshlang yoki pastdan yozing
             </div>
           )}
+          <div ref={messagesEndRef} />
         </div>
         <div className="absolute bottom-0 left-0 right-0 h-5 bg-gradient-to-t from-card/80 to-transparent z-10" />
       </div>

@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Grid3X3, Bookmark, Users, AtSign, ChevronDown, ChevronUp, Grid2X2, LayoutList, Columns2 } from 'lucide-react';
+import { ArrowLeft, Grid3X3, Bookmark, Users, AtSign, ChevronDown, ChevronUp, Grid2X2, LayoutList, Columns2, ShieldBan, ShieldCheck } from 'lucide-react';
 import { FollowListSheet, SocialLinksList } from '@/components/profile';
 import { SocialLink } from '@/components/profile/SocialLinksEditor';
 import { useStoryHighlights } from '@/hooks/useStoryHighlights';
@@ -27,6 +27,7 @@ import { useFamilyTree } from '@/hooks/useFamilyTree';
 import { SelectMemberDialog } from '@/components/family/SelectMemberDialog';
 import { AddRelativeDialog } from '@/components/family/AddRelativeDialog';
 import { useToast } from '@/hooks/use-toast';
+import { useBlockedUsers } from '@/hooks/useBlockedUsers';
 import { useActiveStories } from '@/hooks/useActiveStories';
 import { getStoryRingGradient } from '@/components/stories/storyRings';
 import { StoryViewer } from '@/components/stories/StoryViewer';
@@ -77,6 +78,7 @@ const UserProfilePage = () => {
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
   const { toast } = useToast();
+  const { isBlocked, blockUser, unblockUser } = useBlockedUsers();
   const { getStoryInfo } = useActiveStories();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -483,6 +485,27 @@ const UserProfilePage = () => {
               </Button>
               <FollowButton targetUserId={userId} />
               <MessageButton userId={userId} />
+              <Button
+                variant="outline"
+                size="sm"
+                className={cn(
+                  "h-9 text-sm border-white/20",
+                  isBlocked(userId)
+                    ? "bg-destructive/20 text-destructive hover:bg-destructive/30"
+                    : "bg-white/10 dark:bg-white/5 hover:bg-white/20 text-foreground"
+                )}
+                onClick={() => {
+                  if (isBlocked(userId)) {
+                    unblockUser(userId);
+                    toast({ title: "Blok olib tashlandi" });
+                  } else {
+                    blockUser(userId);
+                    toast({ title: "Foydalanuvchi bloklandi" });
+                  }
+                }}
+              >
+                {isBlocked(userId) ? <ShieldCheck className="h-4 w-4" /> : <ShieldBan className="h-4 w-4" />}
+              </Button>
             </div>
           )}
 
