@@ -253,8 +253,8 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose }: FullScreenVie
           background: `linear-gradient(135deg, ${dominantColor} 0%, ${secondaryColor} 50%, ${dominantColor} 100%)`
         }}
         onTouchStart={handleTouchStart}
-        onTouchEnd={handleTouchEnd}
-      >
+        onTouchEnd={handleTouchEnd}>
+
 
         {/* Blurred background overlay for extra depth */}
         <div
@@ -262,17 +262,17 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose }: FullScreenVie
           style={{
             background: `radial-gradient(ellipse at center, transparent 0%, ${dominantColor} 70%)`,
             backdropFilter: 'blur(20px)'
-          }}
-        />
+          }} />
+
 
         {/* Header */}
         <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between p-4 bg-transparent">
           <button
             onClick={onClose}
-            className="p-3.5 rounded-full bg-white/10 backdrop-blur-md border border-white/10 opacity-100 mx-px text-center"
+            className="p-3.5 rounded-full bg-white/10 backdrop-blur-md border border-white/10 opacity-100 mx-px text-center px-[8px] py-[8px]"
             aria-label="Close"
-            type="button"
-          >
+            type="button">
+
             <X className="h-6 w-6 text-white" />
           </button>
 
@@ -287,85 +287,85 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose }: FullScreenVie
             slideDirection === 'up' && "animate-slide-out-down",
             !slideDirection && "animate-slide-in"
           )}
-          onClick={handleMediaClick}
-        >
+          onClick={handleMediaClick}>
+
 
           {isVideo(currentMediaUrl) ?
-            <>
+          <>
               <video
-                ref={videoRef}
-                src={currentMediaUrl}
-                className="max-w-full max-h-full object-contain"
-                loop
-                playsInline
-                autoPlay
-              />
+              ref={videoRef}
+              src={currentMediaUrl}
+              className="max-w-full max-h-full object-contain"
+              loop
+              playsInline
+              autoPlay />
+
 
               {/* Play/Pause overlay */}
               <button
-                onClick={(e) => { e.stopPropagation(); togglePlay(); }}
-                className="absolute inset-0 flex items-center justify-center"
-              >
+              onClick={(e) => {e.stopPropagation();togglePlay();}}
+              className="absolute inset-0 flex items-center justify-center">
+
                 <div className={cn(
-                  "p-4 rounded-full bg-black/30 backdrop-blur-sm transition-opacity",
-                  isPlaying ? "opacity-0" : "opacity-100"
-                )}>
+                "p-4 rounded-full bg-black/30 backdrop-blur-sm transition-opacity",
+                isPlaying ? "opacity-0" : "opacity-100"
+              )}>
                   {isPlaying ?
-                    <Pause className="h-8 w-8 text-white" /> :
-                    <Play className="h-8 w-8 text-white" />
-                  }
+                <Pause className="h-8 w-8 text-white" /> :
+                <Play className="h-8 w-8 text-white" />
+                }
                 </div>
               </button>
             </> :
 
-            <img
-              src={currentMediaUrl}
-              alt="Post media"
-              className="max-w-full max-h-full object-contain"
-            />
+          <img
+            src={currentMediaUrl}
+            alt="Post media"
+            className="max-w-full max-h-full object-contain" />
+
           }
 
           {/* Double-tap heart animation overlay */}
           {showDoubleTapHeart &&
-            <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
+          <div className="absolute inset-0 flex items-center justify-center pointer-events-none z-20">
               <Heart className="h-24 w-24 text-white fill-white drop-shadow-lg animate-heartBurst" />
             </div>
           }
 
           {/* Media indicators */}
           {mediaUrls.length > 1 &&
-            <>
+          <>
               {/* Dots */}
               <div className="absolute bottom-24 left-1/2 -translate-x-1/2 flex gap-1.5">
                 {mediaUrls.map((_, index) =>
-                  <button
-                    key={index}
-                    onClick={(e) => { e.stopPropagation(); setCurrentMediaIndex(index); }}
-                    className={cn(
-                      "w-2 h-2 rounded-full transition-colors",
-                      currentMediaIndex === index ? "bg-white" : "bg-white/40"
-                    )}
-                  />
-                )}
+              <button
+                key={index}
+                onClick={(e) => {e.stopPropagation();setCurrentMediaIndex(index);}}
+                className={cn(
+                  "w-2 h-2 rounded-full transition-colors",
+                  currentMediaIndex === index ? "bg-white" : "bg-white/40"
+                )} />
+
+              )}
               </div>
 
               {/* Navigation arrows */}
               {currentMediaIndex > 0 &&
-                <button
-                  onClick={(e) => { e.stopPropagation(); goToPrevMedia(); }}
-                  className="absolute left-2 top-1/2 -translate-y-1/2 p-2 bg-black/30 backdrop-blur-sm px-px py-[5px] border-0 rounded-2xl opacity-85 text-left text-sm mx-0 my-0"
-                >
+            <button
+              onClick={(e) => {e.stopPropagation();goToPrevMedia();}}
+              className="absolute left-2 top-1/2 -translate-y-1/2 p-2 bg-black/30 backdrop-blur-sm px-px py-[5px] border-0 rounded-2xl opacity-85 text-left text-sm mx-0 my-0">
+
                   <ChevronLeft className="h-5 text-white w-[9px]" />
                 </button>
-              }
+            }
               {currentMediaIndex < mediaUrls.length - 1 &&
-                <button
-                  onClick={(e) => { e.stopPropagation(); goToNextMedia(); }}
-                  className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-black/30 backdrop-blur-sm opacity-85 px-px py-[5px] rounded-sm"
-                >
+            <button
+              onClick={(e) => {e.stopPropagation();goToNextMedia();}}
+              className="absolute right-2 top-1/2 -translate-y-1/2 p-2 bg-black/30 backdrop-blur-sm opacity-85 px-px py-[5px] rounded-sm">
+
                   <ChevronRight className="h-5 text-white w-[10px] shadow-2xs opacity-100 px-px py-[5px]" />
                 </button>
-              }
+            }
             </>
           }
         </div>
@@ -383,8 +383,8 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose }: FullScreenVie
               setShowVideoPlayer(true);
               if (videoRef.current) videoRef.current.pause();
               setIsPlaying(false);
-            }}
-          />
+            }} />
+
         </div>
 
         {/* Author info */}
@@ -401,16 +401,16 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose }: FullScreenVie
       {typeof document !== 'undefined' && showVideoPlayer && createPortal(
         <div
           className="fixed inset-0 z-[80] w-full h-full min-h-[100dvh] overflow-hidden bg-black"
-          style={{ height: '100dvh', maxHeight: '100dvh' }}
-        >
+          style={{ height: '100dvh', maxHeight: '100dvh' }}>
+
           <SamsungUltraVideoPlayer
             src={videoPlayerSrc}
             title={currentPost?.content?.slice(0, 50) || 'Video'}
-            onClose={() => setShowVideoPlayer(false)}
-          />
+            onClose={() => setShowVideoPlayer(false)} />
+
         </div>,
         document.body
       )}
-    </>
-  );
+    </>);
+
 };
