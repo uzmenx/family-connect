@@ -269,7 +269,7 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose }: FullScreenVie
         <div className="absolute top-0 left-0 right-0 z-10 flex items-center justify-between p-4 bg-transparent">
           <button
             onClick={onClose}
-            className="p-3.5 rounded-full bg-white/10 backdrop-blur-md border border-white/10 opacity-100 mx-px text-center px-[8px] py-[8px]"
+            className="p-3.5 rounded-full bg-white/10 backdrop-blur-md border border-white/10 opacity-100 mx-px text-center px-[4px] py-[4px]"
             aria-label="Close"
             type="button">
 
