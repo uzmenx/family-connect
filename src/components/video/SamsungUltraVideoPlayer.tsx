@@ -402,7 +402,7 @@ export const SamsungUltraVideoPlayer = ({
 
   const progress = useMemo(
 
-    () => (duration > 0 && Number.isFinite(duration) ? (currentTime / duration) * 100 : 0),
+    () => duration > 0 && Number.isFinite(duration) ? currentTime / duration * 100 : 0,
 
     [currentTime, duration]
 
@@ -550,7 +550,7 @@ export const SamsungUltraVideoPlayer = ({
 
         const bufferedEnd = video.buffered.end(video.buffered.length - 1);
 
-        setBuffered((bufferedEnd / d) * 100);
+        setBuffered(bufferedEnd / d * 100);
 
       }
 
@@ -1812,21 +1812,21 @@ export const SamsungUltraVideoPlayer = ({
 
             
 
-            <button
+            
 
-              onClick={() => setIsDarkTheme((prev) => !prev)}
 
-              className="p-2.5 rounded-full bg-white/10 backdrop-blur-md active:scale-95 transition-all">
 
-              {isDarkTheme ?
 
-                <Sun className="text-white" size={18} /> :
 
-                <Moon className="text-white" size={18} />
 
-              }
 
-            </button>
+
+
+
+
+
+
+
 
           </div>
 
@@ -1946,11 +1946,11 @@ export const SamsungUltraVideoPlayer = ({
 
               {seekPreview !== null &&
 
-                <div
+              <div
 
-                  className="absolute -top-10 -translate-x-1/2 px-2.5 py-1.5 bg-black/80 rounded-lg text-white text-xs font-semibold pointer-events-none"
+                className="absolute -top-10 -translate-x-1/2 px-2.5 py-1.5 bg-black/80 rounded-lg text-white text-xs font-semibold pointer-events-none"
 
-                  style={{ left: `${(seekPreview / safeDuration) * 100}%` }}>
+                style={{ left: `${seekPreview / safeDuration * 100}%` }}>
 
                   {formatTime(seekPreview)}
 
