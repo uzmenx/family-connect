@@ -29,7 +29,7 @@ Deno.serve(async (req: Request) => {
         messages: [
           {
             role: "user",
-            content: prompt,
+            content: `Generate a high quality image: ${prompt}`,
           },
         ],
         modalities: ["image", "text"],
@@ -55,12 +55,21 @@ Deno.serve(async (req: Request) => {
     }
 
     const data = await response.json();
-    console.log("AI response keys:", JSON.stringify(Object.keys(data)));
+    console.log("AI response structure:", JSON.stringify({
+      keys: Object.keys(data),
+      hasChoices: !!data?.choices,
+      choicesLen: data?.choices?.length,
+      msgKeys: data?.choices?.[0]?.message ? Object.keys(data.choices[0].message) : 'none',
+      hasImages: !!data?.choices?.[0]?.message?.images,
+      imagesLen: data?.choices?.[0]?.message?.images?.length,
+    }));
 
     // Method 1: Check choices[].message.images[] (Lovable gateway format)
     const messageImages = data?.choices?.[0]?.message?.images;
     if (Array.isArray(messageImages) && messageImages.length > 0) {
-      const imgUrl = messageImages[0]?.image_url?.url;
+      // Try both formats: {image_url: {url}} and {url}
+      const firstImg = messageImages[0];
+      const imgUrl = firstImg?.image_url?.url || firstImg?.url;
       if (imgUrl) {
         return new Response(JSON.stringify({ content: imgUrl }), {
           headers: { ...corsHeaders, "Content-Type": "application/json" },
