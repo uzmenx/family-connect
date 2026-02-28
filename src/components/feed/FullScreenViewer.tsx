@@ -273,7 +273,7 @@ export const FullScreenViewer = ({ posts, initialIndex, onClose }: FullScreenVie
             aria-label="Close"
             type="button">
 
-            <X className="h-6 w-6 text-white" />
+            <X className="text-white w-[20px] h-[20px]" />
           </button>
 
           {/* Post counter */}
