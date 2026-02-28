@@ -14,6 +14,27 @@ export type Database = {
   }
   public: {
     Tables: {
+      blocked_users: {
+        Row: {
+          blocked_id: string
+          blocker_id: string
+          created_at: string
+          id: string
+        }
+        Insert: {
+          blocked_id: string
+          blocker_id: string
+          created_at?: string
+          id?: string
+        }
+        Update: {
+          blocked_id?: string
+          blocker_id?: string
+          created_at?: string
+          id?: string
+        }
+        Relationships: []
+      }
       calls: {
         Row: {
           caller_id: string
@@ -174,6 +195,56 @@ export type Database = {
           verified?: boolean
         }
         Relationships: []
+      }
+      family_events: {
+        Row: {
+          created_at: string
+          description: string | null
+          event_date: string
+          event_type: string
+          id: string
+          member_id: string | null
+          notify: boolean
+          owner_id: string
+          recurring: boolean
+          title: string
+          updated_at: string
+        }
+        Insert: {
+          created_at?: string
+          description?: string | null
+          event_date: string
+          event_type?: string
+          id?: string
+          member_id?: string | null
+          notify?: boolean
+          owner_id: string
+          recurring?: boolean
+          title: string
+          updated_at?: string
+        }
+        Update: {
+          created_at?: string
+          description?: string | null
+          event_date?: string
+          event_type?: string
+          id?: string
+          member_id?: string | null
+          notify?: boolean
+          owner_id?: string
+          recurring?: boolean
+          title?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "family_events_member_id_fkey"
+            columns: ["member_id"]
+            isOneToOne: false
+            referencedRelation: "family_tree_members"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       family_invitations: {
         Row: {
@@ -413,6 +484,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      media_hashes: {
+        Row: {
+          created_at: string
+          file_hash: string
+          file_size: number | null
+          file_url: string
+          id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          file_hash: string
+          file_size?: number | null
+          file_url: string
+          id?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          file_hash?: string
+          file_size?: number | null
+          file_url?: string
+          id?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       messages: {
         Row: {
@@ -1148,6 +1246,27 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      unfollow_history: {
+        Row: {
+          created_at: string
+          id: string
+          unfollowed_user_id: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          unfollowed_user_id: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          unfollowed_user_id?: string
+          user_id?: string
+        }
+        Relationships: []
       }
     }
     Views: {

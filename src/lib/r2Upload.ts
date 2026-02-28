@@ -93,7 +93,7 @@ export async function uploadToR2(
 }
 
 /**
- * Upload media: compresses images, uploads videos raw
+ * Upload media: compresses images, uploads videos/audio raw
  */
 export async function uploadMedia(
   file: File,
@@ -108,5 +108,6 @@ export async function uploadMedia(
     return uploadToR2(compressed, userFolder);
   }
 
+  // Videos, audio (mp3, wav, ogg, m4a), and other files uploaded raw
   return uploadToR2(file, userFolder);
 }

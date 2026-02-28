@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { useUnfollowHistory } from './useUnfollowHistory';
 
 export const useFollow = (targetUserId: string | undefined) => {
   const { user } = useAuth();
@@ -8,6 +9,7 @@ export const useFollow = (targetUserId: string | undefined) => {
   const [isLoading, setIsLoading] = useState(false);
   const [followersCount, setFollowersCount] = useState(0);
   const [followingCount, setFollowingCount] = useState(0);
+  const { recordUnfollow } = useUnfollowHistory();
 
   // Check if current user follows target user
   const checkFollowStatus = useCallback(async () => {
@@ -68,6 +70,9 @@ export const useFollow = (targetUserId: string | undefined) => {
           .delete()
           .eq('follower_id', user.id)
           .eq('following_id', targetUserId);
+
+        // Record unfollow history
+        await recordUnfollow(targetUserId);
 
         setIsFollowing(false);
         setFollowersCount(prev => Math.max(0, prev - 1));
