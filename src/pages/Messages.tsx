@@ -7,6 +7,8 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { useActiveStories } from "@/hooks/useActiveStories";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useBlockedUsers } from '@/hooks/useBlockedUsers';
+
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { StarUsername } from '@/components/user/StarUsername';
@@ -59,6 +61,7 @@ const Messages = () => {
   const { groups, channels, isLoading: groupsLoading, createGroupChat, refetch: refetchGroups } = useGroupChats();
   const { unreadCount: notifUnreadCount } = useNotifications();
   const { getStoryInfo } = useActiveStories();
+  const { isEitherBlocked } = useBlockedUsers();
 
   const [storyViewerOpen, setStoryViewerOpen] = useState(false);
   const [storyViewerGroups, setStoryViewerGroups] = useState<StoryGroup[]>([]);
@@ -145,6 +148,10 @@ const Messages = () => {
   };
 
   const handleUserClick = (userId: string) => {
+    if (isEitherBlocked(userId)) {
+      toast.error('Bu foydalanuvchi bilan chat cheklangan');
+      return;
+    }
     navigate(`/chat/${userId}`);
   };
 

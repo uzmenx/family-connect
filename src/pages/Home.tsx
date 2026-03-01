@@ -18,6 +18,7 @@ import { useAutoPreviewVideo } from "@/hooks/useAutoPreviewVideo";
 import { useTreeFeed } from "@/hooks/useTreeFeed";
 import { TreePostCard } from "@/components/feed/TreePostCard";
 import { useNotifications } from "@/hooks/useNotifications";
+import { useBlockedUsers } from '@/hooks/useBlockedUsers';
 import { Grid2X2, LayoutList, Bell, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { SearchSheet } from "@/components/search/SearchSheet";
@@ -29,13 +30,20 @@ type GridLayout = 1 | 2;
 const Home = () => {
   const { user } = useAuth();
   const { t } = useLanguage();
+
   const { storyGroups, refetch: refetchStories } = useStories();
   const { posts, isLoading, isRefreshing, isLoadingMore, hasMore, fetchPosts, loadMore } = usePostsCache();
   const { treePosts, refetch: refetchTrees } = useTreeFeed();
   const { unreadCount } = useNotifications();
+  const { anyBlockedIds } = useBlockedUsers();
   const [gridLayout, setGridLayout] = useState<GridLayout>(1);
 
+  const blockedSet = anyBlockedIds();
+  const visiblePosts = posts.filter(p => !blockedSet.has(p.user_id));
+  const visibleTreePosts = treePosts.filter(tp => !blockedSet.has(tp.user_id));
+
   const [searchOpen, setSearchOpen] = useState(false);
+  const [searchInitialQuery, setSearchInitialQuery] = useState('');
   const [notificationsOpen, setNotificationsOpen] = useState(false);
   const [viewerOpen, setViewerOpen] = useState(false);
 
@@ -144,6 +152,7 @@ const Home = () => {
         <YouTubeShortsSection
           onShortClick={openShortsViewer}
           onShortsChange={handleShortsChange}
+          onSearchSubmit={(q) => setSearchInitialQuery(q)}
           onSearchClick={() => setSearchOpen(true)}
         />
 
@@ -152,7 +161,7 @@ const Home = () => {
           <div className="text-center py-12">
               <p className="text-muted-foreground">{t('loading')}</p>
             </div> :
-          posts.length === 0 ?
+          visiblePosts.length === 0 ?
           <div className="text-center py-12">
               <p className="text-muted-foreground">{t('noPostsYet')}</p>
               <p className="text-sm text-muted-foreground mt-2">{t('createFirstPost')}</p>
@@ -160,26 +169,26 @@ const Home = () => {
           gridLayout === 1 ?
           <div ref={scrollContainerRef} className="smooth-scroll-container space-y-3 pb-20 px-[5px]">
               {/* Tree posts from community */}
-              {treePosts.map((tp, i) => (
+              {visibleTreePosts.map((tp, i) => (
                 <div key={`tree-${tp.id}`} className="smooth-scroll-item scroll-transition">
                   <TreePostCard post={tp} author={tp.author} index={i} />
                 </div>
               ))}
-              {posts.map((post, index) =>
+              {visiblePosts.map((post, index) =>
             <div key={post.id} className="smooth-scroll-item scroll-transition">
               <PostCard post={post} onMediaClick={() => openPostViewer(index)} index={index} />
             </div>
             )}
               <div ref={loadMoreSentinelRef} className="h-4 min-h-4" aria-hidden />
               {isLoadingMore && <div className="text-center py-4 text-muted-foreground text-sm">{t('loading')}</div>}
-              {!hasMore && posts.length > 0 && <EndOfFeed />}
+              {!hasMore && visiblePosts.length > 0 && <EndOfFeed />}
             </div> :
 
           <div ref={scrollContainerRef} className="smooth-scroll-container pb-20 px-px">
               <div className="flex gap-1 p-1">
                 <div className="flex-1 flex flex-col gap-1">
-                  {posts.filter((_, i) => i % 2 === 0).map((post) => {
-                  const idx = posts.findIndex((p) => p.id === post.id);
+                  {visiblePosts.filter((_, i) => i % 2 === 0).map((post) => {
+                  const idx = visiblePosts.findIndex((p) => p.id === post.id);
                   return (
                     <motion.div key={post.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.35, delay: idx % 2 * 0.05 }} onClick={() => openPostViewer(idx)} className="cursor-pointer smooth-scroll-item scroll-transition">
@@ -189,8 +198,8 @@ const Home = () => {
                 })}
                 </div>
                 <div className="flex-1 flex flex-col gap-1">
-                  {posts.filter((_, i) => i % 2 === 1).map((post) => {
-                  const idx = posts.findIndex((p) => p.id === post.id);
+                  {visiblePosts.filter((_, i) => i % 2 === 1).map((post) => {
+                  const idx = visiblePosts.findIndex((p) => p.id === post.id);
                   return (
                     <motion.div key={post.id} initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
                     transition={{ duration: 0.35, delay: idx % 2 * 0.05 }} onClick={() => openPostViewer(idx)} className="cursor-pointer smooth-scroll-item scroll-transition">
@@ -202,14 +211,14 @@ const Home = () => {
               </div>
               <div ref={loadMoreSentinelRef} className="h-4 min-h-4" aria-hidden />
               {isLoadingMore && <div className="text-center py-4 text-muted-foreground text-sm">{t('loading')}</div>}
-              {!hasMore && posts.length > 0 && <EndOfFeed />}
+              {!hasMore && visiblePosts.length > 0 && <EndOfFeed />}
             </div>
           }
         </PullToRefresh>
 
         {viewerOpen &&
         <UnifiedFullScreenViewer
-          posts={posts}
+          posts={visiblePosts}
           shorts={cachedShorts}
           initialTab={viewerTab}
           initialIndex={viewerInitialIndex}
@@ -227,7 +236,14 @@ const Home = () => {
         }
 
         <NotificationsSheet open={notificationsOpen} onOpenChange={setNotificationsOpen} />
-        <SearchSheet open={searchOpen} onOpenChange={setSearchOpen} />
+        <SearchSheet
+          open={searchOpen}
+          onOpenChange={(open) => {
+            setSearchOpen(open);
+            if (!open) setSearchInitialQuery('');
+          }}
+          initialQuery={searchInitialQuery}
+        />
       </div>
     </AppLayout>);
 

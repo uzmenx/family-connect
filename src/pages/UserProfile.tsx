@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Sparkles, Grid3X3, Bookmark, Users, AtSign, ChevronDown, ChevronUp, Grid2X2, LayoutList, Columns2, ShieldBan, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Sparkles, Grid3X3, Bookmark, Users, AtSign, ChevronDown, ChevronUp, Grid2X2, LayoutList, Columns2, ShieldBan, ShieldCheck, MoreVertical, Link2 } from 'lucide-react';
 import { FamilyMembersSheet, FollowListSheet, SocialLinksList } from '@/components/profile';
 import { SocialLink } from '@/components/profile/SocialLinksEditor';
 import { useStoryHighlights } from '@/hooks/useStoryHighlights';
@@ -35,6 +35,7 @@ import { StoryViewer } from '@/components/stories/StoryViewer';
 import type { StoryGroup, Story } from '@/hooks/useStories';
 import { Post } from '@/types';
 import { useAutoPreviewVideo } from '@/hooks/useAutoPreviewVideo';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 
 const UserProfileMasonryItem = ({ post }: { post: Post }) => {
   const mediaUrl = ((post.media_urls && post.media_urls.length > 0 ? post.media_urls[0] : (post.image_url || '')) || '') as string;
@@ -79,7 +80,7 @@ const UserProfilePage = () => {
   const navigate = useNavigate();
   const { user: currentUser } = useAuth();
   const { toast } = useToast();
-  const { isBlocked, blockUser, unblockUser } = useBlockedUsers();
+  const { isBlocked, isBlockedBy, isEitherBlocked, blockUser, unblockUser } = useBlockedUsers();
   const { getStoryInfo } = useActiveStories();
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -136,6 +137,8 @@ const UserProfilePage = () => {
       navigate('/profile', { replace: true });
     }
   }, [currentUser?.id, userId, navigate]);
+
+  const isProfileBlocked = !!(userId && isEitherBlocked(userId));
 
   // Bio overflow detection
   useEffect(() => {
@@ -309,33 +312,63 @@ const UserProfilePage = () => {
           <ArrowLeft className="h-5 w-5 text-white" />
         </Button>
 
-        {/* Block button (top-right) */}
+        {/* Actions menu (top-right) */}
         {userId && (
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => {
-              if (isBlocked(userId)) {
-                unblockUser(userId);
-                toast({ title: 'Blok olib tashlandi' });
-              } else {
-                blockUser(userId);
-                toast({ title: 'Foydalanuvchi bloklandi' });
-              }
-            }}
-            className={cn(
-              'absolute top-4 right-4 z-10 h-9 w-9 rounded-full',
-              isBlocked(userId) ? 'text-destructive' : 'text-white'
-            )}
-            style={{
-              backgroundColor: 'rgba(255,255,255,0.15)',
-              backdropFilter: 'blur(8px)',
-            }}
-            aria-label={isBlocked(userId) ? 'Unblock' : 'Block'}
-            type="button"
-          >
-            {isBlocked(userId) ? <ShieldCheck className="h-5 w-5" /> : <ShieldBan className="h-5 w-5" />}
-          </Button>
+          <div className="absolute top-4 right-4 z-10">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-9 w-9 rounded-full text-white"
+                  style={{
+                    backgroundColor: 'rgba(255,255,255,0.15)',
+                    backdropFilter: 'blur(8px)',
+                  }}
+                  aria-label="More"
+                  type="button"
+                >
+                  <MoreVertical className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                <DropdownMenuItem
+                  className="gap-3 cursor-pointer"
+                  onClick={async () => {
+                    try {
+                      const url = `${window.location.origin}/user/${userId}`;
+                      await navigator.clipboard.writeText(url);
+                      toast({ title: 'Havola nusxalandi' });
+                    } catch {
+                      toast({ title: 'Nusxalashda xatolik', variant: 'destructive' });
+                    }
+                  }}
+                >
+                  <Link2 className="h-4 w-4" />
+                  <span>Profil linki</span>
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  className={cn(
+                    'gap-3 cursor-pointer',
+                    isBlocked(userId) ? 'text-primary' : 'text-destructive'
+                  )}
+                  onClick={async () => {
+                    if (isBlocked(userId)) {
+                      await unblockUser(userId);
+                      toast({ title: 'Blok olib tashlandi' });
+                    } else {
+                      await blockUser(userId);
+                      toast({ title: 'Foydalanuvchi bloklandi' });
+                    }
+                  }}
+                >
+                  {isBlocked(userId) ? <ShieldCheck className="h-4 w-4" /> : <ShieldBan className="h-4 w-4" />}
+                  <span>{isBlocked(userId) ? 'Blokdan chiqarish' : 'Bloklash'}</span>
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         )}
 
         {/* Cover Image */}
@@ -446,8 +479,20 @@ const UserProfilePage = () => {
               </div>
             </div>
 
-            <MessageButton userId={userId} className="h-8 text-xs px-2.5" />
+            {!isProfileBlocked && <MessageButton userId={userId} className="h-8 text-xs px-2.5" />}
           </div>
+
+          {isProfileBlocked && (
+            <div className="mb-2 rounded-2xl border border-border/40 bg-background/60 backdrop-blur-md px-3 py-2">
+              <p className="text-xs text-muted-foreground">
+                {userId && isBlocked(userId)
+                  ? 'Siz bu foydalanuvchini bloklagansiz.'
+                  : userId && isBlockedBy(userId)
+                    ? 'Siz bu foydalanuvchi tomonidan bloklangansiz.'
+                    : 'Bu foydalanuvchi bilan aloqa cheklangan.'}
+              </p>
+            </div>
+          )}
 
           {/* ROW 3: Kuzatilmoqda | (spacer) | Oila a'zolari */}
           {showPostsStats && (
@@ -567,6 +612,19 @@ const UserProfilePage = () => {
             isOwner={false}
           />
         )}
+
+        {isProfileBlocked ? (
+          <div className="px-4 py-10">
+            <p className="text-center text-sm text-muted-foreground">
+              {userId && isBlocked(userId)
+                ? 'Siz bu foydalanuvchini bloklagansiz.'
+                : userId && isBlockedBy(userId)
+                  ? 'Siz bu foydalanuvchi tomonidan bloklangansiz.'
+                  : 'Bu foydalanuvchi bilan aloqa cheklangan.'}
+            </p>
+          </div>
+        ) : (
+          <>
 
         {/* ═══════════════════════════════════════
             TABS
@@ -747,7 +805,7 @@ const UserProfilePage = () => {
         {/* Full screen viewer */}
         {viewerOpen && (
           <FullScreenViewer
-            posts={posts}
+            posts={(selectedCollectionId ? collectionPosts : posts)}
             initialIndex={viewerInitialIndex}
             onClose={() => setViewerOpen(false)}
           />
@@ -798,6 +856,8 @@ const UserProfilePage = () => {
           }}
           relatives={[]}
         />
+          </>
+        )}
       </div>
     </AppLayout>
   );

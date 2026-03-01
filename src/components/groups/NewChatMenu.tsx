@@ -5,7 +5,7 @@ import {
   DropdownMenuTrigger } from
 '@/components/ui/dropdown-menu';
 import { Button } from '@/components/ui/button';
-import { Edit, Users, Megaphone } from 'lucide-react';
+import { MessagesSquare, Users, Megaphone } from 'lucide-react';
 
 interface NewChatMenuProps {
   onNewGroup: () => void;
@@ -17,7 +17,7 @@ export const NewChatMenu = ({ onNewGroup, onNewChannel }: NewChatMenuProps) => {
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
         <Button variant="ghost" size="icon">
-          <Edit className="h-5 w-[25px]" />
+          <MessagesSquare className="h-5 w-5" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-48">

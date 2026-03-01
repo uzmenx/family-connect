@@ -12,6 +12,7 @@ export interface Short {
 interface YouTubeShortsProps {
   onShortClick?: (shorts: Short[], index: number) => void;
   onSearchClick?: () => void;
+  onSearchSubmit?: (query: string) => void;
   onShortsChange?: (shorts: Short[]) => void;
 }
 
@@ -57,11 +58,12 @@ function getRandomQuery(): string {
   return SEARCH_QUERIES[Math.floor(Math.random() * SEARCH_QUERIES.length)];
 }
 
-export function YouTubeShortsSection({ onShortClick, onSearchClick, onShortsChange }: YouTubeShortsProps) {
+export function YouTubeShortsSection({ onShortClick, onSearchClick, onSearchSubmit, onShortsChange }: YouTubeShortsProps) {
   const [shorts, setShorts] = useState<Short[]>([]);
   const [nextToken, setNextToken] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoadingMore, setIsLoadingMore] = useState(false);
+  const [searchText, setSearchText] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
   const loaderRef = useRef<HTMLDivElement>(null);
   const fetchingRef = useRef(false);
@@ -247,11 +249,15 @@ export function YouTubeShortsSection({ onShortClick, onSearchClick, onShortsChan
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground" />
             <Input
               placeholder="Qidirish..."
-              readOnly
-              onClick={() => onSearchClick?.()}
-              onFocus={(e) => {
-                e.currentTarget.blur();
-                onSearchClick?.();
+              value={searchText}
+              onChange={(e) => setSearchText(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  const q = searchText.trim();
+                  if (!q) return;
+                  onSearchSubmit?.(q);
+                  onSearchClick?.();
+                }
               }}
               className="h-7 rounded-full pl-8 pr-3 bg-background/30 border-white/10 backdrop-blur-xl text-xs focus-visible:ring-1 focus-visible:ring-primary/40"
             />

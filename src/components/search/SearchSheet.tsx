@@ -11,6 +11,7 @@ import { StarUsername } from '@/components/user/StarUsername';
 interface SearchSheetProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  initialQuery?: string;
 }
 
 interface UserResult {
@@ -29,7 +30,7 @@ interface PostResult {
   profile?: UserResult;
 }
 
-export const SearchSheet = ({ open, onOpenChange }: SearchSheetProps) => {
+export const SearchSheet = ({ open, onOpenChange, initialQuery }: SearchSheetProps) => {
   const navigate = useNavigate();
   const [query, setQuery] = useState('');
   const [tab, setTab] = useState<'users' | 'posts'>('users');
@@ -95,6 +96,12 @@ export const SearchSheet = ({ open, onOpenChange }: SearchSheetProps) => {
       setPosts([]);
     }
   }, [open]);
+
+  useEffect(() => {
+    if (open && initialQuery) {
+      setQuery(initialQuery);
+    }
+  }, [open, initialQuery]);
 
   const goToUser = (userId: string) => {
     onOpenChange(false);

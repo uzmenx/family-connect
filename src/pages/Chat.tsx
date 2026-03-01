@@ -28,6 +28,7 @@ import type { Short } from '@/components/shorts/YouTubeShortsSection';
 import ChatWallpaperPicker from '@/components/chat/ChatWallpaperPicker';
 import { useLocalStorage } from '@/hooks/useLocalStorage';
 import { toast } from 'sonner';
+import { useBlockedUsers } from '@/hooks/useBlockedUsers';
 
 interface UserProfile {
   id: string;
@@ -57,6 +58,9 @@ const Chat = () => {
   const [chatWallpaper, setChatWallpaper] = useLocalStorage('chat_wallpaper', 'none');
   const [showWallpaperPicker, setShowWallpaperPicker] = useState(false);
   const [showScrollDown, setShowScrollDown] = useState(false);
+
+  const { isBlocked, isBlockedBy, isEitherBlocked } = useBlockedUsers();
+  const isChatBlocked = !!(userId && isEitherBlocked(userId));
 
   const { messages, isLoading, otherUserTyping, sendMessage, setTyping, refetch } = useMessages(conversationId);
   
@@ -313,6 +317,10 @@ const Chat = () => {
   };
 
   const handleSendMessage = async (content: string, mediaUrl?: string, mediaType?: string) => {
+    if (isChatBlocked) {
+      toast.error('Xabar yuborish mumkin emas');
+      return;
+    }
     let finalContent = content;
     
     // Add reply prefix if replying
@@ -792,11 +800,23 @@ const Chat = () => {
               />
             </div>
           )}
-          <ChatInput
-            conversationId={conversationId}
-            onSendMessage={handleSendMessage}
-            onTyping={setTyping}
-          />
+          {isChatBlocked ? (
+            <div className="px-3 py-3 bg-background/50 backdrop-blur-xl border-t border-border/20">
+              <p className="text-xs text-muted-foreground text-center">
+                {userId && isBlocked(userId)
+                  ? 'Siz bu foydalanuvchini bloklagansiz.'
+                  : userId && isBlockedBy(userId)
+                    ? 'Siz bloklangansiz.'
+                    : 'Xabar yozish cheklangan.'}
+              </p>
+            </div>
+          ) : (
+            <ChatInput
+              conversationId={conversationId}
+              onSendMessage={handleSendMessage}
+              onTyping={setTyping}
+            />
+          )}
         </div>
       </div>
 
