@@ -11,6 +11,7 @@ import { FamilyMember } from '@/types/family';
 import { TreeOverlay } from '@/hooks/useTreePosts';
 import { formatCount } from '@/lib/formatCount';
 import { motion } from 'framer-motion';
+import { StarUsername } from '@/components/user/StarUsername';
 
 interface TreePostCardProps {
   post: {
@@ -83,7 +84,7 @@ export const TreePostCard = ({ post, author, index = 0 }: TreePostCardProps) => 
                 </Avatar>
                 <div>
                   <p className="text-sm font-semibold text-foreground">{author?.name || 'Foydalanuvchi'}</p>
-                  <p className="text-xs text-muted-foreground">@{author?.username || 'user'}</p>
+                  <StarUsername username={author?.username || 'user'} />
                 </div>
               </div>
               <div className="flex items-center gap-1.5 px-2 py-1 rounded-full bg-primary/10">

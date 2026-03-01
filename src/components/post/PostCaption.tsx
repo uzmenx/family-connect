@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
+import { StarUsername } from '@/components/user/StarUsername';
 
 interface PostCaptionProps {
   username?: string;
@@ -123,7 +124,7 @@ export const PostCaption = ({ username, content, className, variant = 'default',
               onClick={(e) => { e.stopPropagation(); navigate(`/user/${m.id}`); }}
               className="text-xs text-primary font-medium hover:underline"
             >
-              @{m.username || m.name || 'user'}
+              <StarUsername username={m.username || m.name || 'user'} textClassName="text-xs text-primary font-medium" />
             </button>
           ))}
         </div>

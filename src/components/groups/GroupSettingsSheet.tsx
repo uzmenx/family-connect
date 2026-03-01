@@ -1,18 +1,19 @@
 import { useState, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
-import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Textarea } from '@/components/ui/textarea';
+import { Sheet, SheetContent, SheetHeader, SheetTitle } from "@/components/ui/sheet";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Input } from "@/components/ui/input";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from '@/components/ui/label';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Textarea } from '@/components/ui/textarea';
+import { StarUsername } from '@/components/user/StarUsername';
 import { toast } from 'sonner';
 import { Camera, Users, Megaphone, Crown, UserMinus, UserPlus, Link, Copy, Check, Trash2, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
-import { Checkbox } from '@/components/ui/checkbox';
 
 interface GroupMember {
   id: string;
@@ -295,7 +296,9 @@ export const GroupSettingsSheet = ({ open, onOpenChange, groupInfo, onGroupUpdat
                         </Avatar>
                         <div className="flex-1 min-w-0">
                           <p className="font-medium text-sm truncate">{member.profile?.name || 'Foydalanuvchi'}</p>
-                          <p className="text-xs text-muted-foreground truncate">@{member.profile?.username || 'username'}</p>
+                          <div className="truncate">
+                            <StarUsername username={member.profile?.username || 'username'} />
+                          </div>
                         </div>
                         {isOwner && (
                           <Button variant="ghost" size="icon" className="text-destructive h-8 w-8 rounded-lg"
@@ -415,7 +418,9 @@ const AddMemberInlineDialog = ({ open, onOpenChange, onComplete, existingMemberI
                   </Avatar>
                   <div className="flex-1 min-w-0">
                     <p className="font-medium text-sm truncate">{u.name || 'Foydalanuvchi'}</p>
-                    <p className="text-xs text-muted-foreground truncate">@{u.username || 'username'}</p>
+                    <div className="truncate">
+                      <StarUsername username={u.username || 'username'} />
+                    </div>
                   </div>
                   <Checkbox checked={selectedIds.has(u.id)} onCheckedChange={() => toggleUser(u.id)} />
                 </div>

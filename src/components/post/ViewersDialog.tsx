@@ -2,6 +2,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/u
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Heart } from 'lucide-react';
+import { StarUsername } from '@/components/user/StarUsername';
 
 interface ViewUser {
   id: string;
@@ -58,7 +59,9 @@ export const ViewersDialog = ({ open, onOpenChange, users, viewsCount, likedUser
                   </div>
                   <div className="min-w-0">
                     <p className="font-medium text-sm truncate">{user.name || 'Foydalanuvchi'}</p>
-                    <p className="text-xs text-muted-foreground truncate">@{user.username || 'user'}</p>
+                    <div className="truncate">
+                      <StarUsername username={user.username || 'user'} />
+                    </div>
                   </div>
                 </div>
               ))}

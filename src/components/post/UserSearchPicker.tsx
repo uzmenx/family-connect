@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Search, X, User, Check } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { StarUsername } from '@/components/user/StarUsername';
 
 interface UserResult {
   id: string;
@@ -105,7 +106,9 @@ export const UserSearchPicker = ({
         </Avatar>
         <div className="flex-1 text-left min-w-0">
           <p className="text-sm font-medium truncate">{u.name || 'Foydalanuvchi'}</p>
-          <p className="text-xs text-muted-foreground truncate">@{u.username || 'user'}</p>
+          <div className="truncate">
+            <StarUsername username={u.username || 'user'} />
+          </div>
         </div>
         {isSelected && (
           <div className="w-6 h-6 rounded-full bg-primary flex items-center justify-center">

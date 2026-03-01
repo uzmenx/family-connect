@@ -12,6 +12,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useAuth } from '@/contexts/AuthContext';
 import { FamilyMember } from '@/types/family';
 import { cn } from '@/lib/utils';
+import { StarUsername } from '@/components/user/StarUsername';
 
 interface SendInvitationModalProps {
   isOpen: boolean;
@@ -254,7 +255,9 @@ export const SendInvitationModal = ({
                     )}
                   </div>
                   {profile.username && (
-                    <p className="text-sm text-muted-foreground truncate">@{profile.username}</p>
+                    <div className="truncate">
+                      <StarUsername username={profile.username} textClassName="text-sm" />
+                    </div>
                   )}
                 </div>
               </div>

@@ -8,6 +8,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
 import { Search, Users, MessageSquare, UserPlus } from 'lucide-react';
+import { StarUsername } from '@/components/user/StarUsername';
 
 interface UserProfile {
   id: string;
@@ -126,7 +127,9 @@ export const SendInvitationDialog = ({
               <div className="text-left flex-1 min-w-0">
                 <p className="font-medium truncate">{profile.name || 'Foydalanuvchi'}</p>
                 {profile.username && (
-                  <p className="text-sm text-muted-foreground truncate">@{profile.username}</p>
+                  <div className="truncate">
+                    <StarUsername username={profile.username} textClassName="text-sm" />
+                  </div>
                 )}
               </div>
             </button>

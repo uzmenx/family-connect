@@ -26,6 +26,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { StoryGroup, Story, useStories } from '@/hooks/useStories';
 import { useAuth } from '@/contexts/AuthContext';
 import { useConversations } from '@/hooks/useConversations';
+import { StarUsername } from '@/components/user/StarUsername';
 import { supabase } from '@/integrations/supabase/client';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
@@ -678,9 +679,9 @@ export const StoryViewer = ({
                         <p className="font-medium text-sm truncate">
                           {viewer.profile?.name || viewer.profile?.username || 'Foydalanuvchi'}
                         </p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          @{viewer.profile?.username || 'user'}
-                        </p>
+                        <div className="truncate">
+                          <StarUsername username={viewer.profile?.username || 'user'} />
+                        </div>
                       </div>
                       {likers.some(l => l.user_id === viewer.viewer_id) && (
                         <Heart className="h-4 w-4 text-red-500 fill-current" />
@@ -718,9 +719,9 @@ export const StoryViewer = ({
                         <p className="font-medium text-sm truncate">
                           {like.profile?.name || like.profile?.username || 'Foydalanuvchi'}
                         </p>
-                        <p className="text-xs text-muted-foreground truncate">
-                          @{like.profile?.username || 'user'}
-                        </p>
+                        <div className="truncate">
+                          <StarUsername username={like.profile?.username || 'user'} />
+                        </div>
                       </div>
                       <Heart className="h-4 w-4 text-red-500 fill-current" />
                     </div>

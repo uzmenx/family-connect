@@ -4,7 +4,7 @@ import { useAuth } from '@/contexts/AuthContext';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Grid3X3, Bookmark, Users, AtSign, ChevronDown, ChevronUp, Grid2X2, LayoutList, Columns2, ShieldBan, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, Sparkles, Grid3X3, Bookmark, Users, AtSign, ChevronDown, ChevronUp, Grid2X2, LayoutList, Columns2, ShieldBan, ShieldCheck } from 'lucide-react';
 import { FamilyMembersSheet, FollowListSheet, SocialLinksList } from '@/components/profile';
 import { SocialLink } from '@/components/profile/SocialLinksEditor';
 import { useStoryHighlights } from '@/hooks/useStoryHighlights';
@@ -20,6 +20,7 @@ import { PullToRefresh } from '@/components/feed/PullToRefresh';
 import { EndOfFeed } from '@/components/feed/EndOfFeed';
 import { FollowButton } from '@/components/user/FollowButton';
 import { MessageButton } from '@/components/chat/MessageButton';
+import { StarUsername } from '@/components/user/StarUsername';
 import { cn } from '@/lib/utils';
 import { supabase } from '@/integrations/supabase/client';
 import { formatCount } from '@/lib/formatCount';
@@ -141,7 +142,7 @@ const UserProfilePage = () => {
     if (bioRef.current && profile?.bio) {
       // Check if bio text overflows 3 lines
       const lineHeight = parseInt(window.getComputedStyle(bioRef.current).lineHeight) || 20;
-      const maxHeight = lineHeight * 3;
+      const maxHeight = lineHeight * 2;
       setNeedsMoreButton(bioRef.current.scrollHeight > maxHeight);
     }
   }, [profile?.bio]);
@@ -338,7 +339,7 @@ const UserProfilePage = () => {
         )}
 
         {/* Cover Image */}
-        <div className="relative h-36 overflow-hidden rounded-b-2xl">
+        <div className="relative h-28 overflow-hidden rounded-b-2xl">
           {profile.cover_url ? (
             <img src={profile.cover_url} alt="Cover" className="w-full h-full object-cover" />
           ) : (
@@ -349,7 +350,7 @@ const UserProfilePage = () => {
         </div>
         
         {/* Profile Info */}
-        <div className="px-4 -mt-10 relative z-10">
+        <div className="px-3 -mt-8 relative z-10">
           {/* ROW 1: Followers | Avatar | Postlar */}
           <div className="flex items-end justify-between gap-1 mb-1">
 
@@ -360,12 +361,12 @@ const UserProfilePage = () => {
                 setFollowSheetMode('followers');
                 setFollowSheetOpen(true);
               }}
-              className="flex-1 flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-2 py-1.5 shadow-lg min-w-0"
+              className="flex-1 flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-1.5 py-1 shadow-lg min-w-0"
             >
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
+              <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">
                 Kuzatuvchilar
               </span>
-              <span className="text-xl font-extrabold text-foreground leading-none">
+              <span className="text-lg font-extrabold text-foreground leading-none">
                 {formatCount(followersCount)}
               </span>
             </button>
@@ -377,7 +378,7 @@ const UserProfilePage = () => {
                 if (info) {
                   return (
                     <div
-                      className="h-20 w-20 rounded-full p-[3px] cursor-pointer shadow-2xl"
+                      className="h-16 w-16 rounded-full p-[2px] cursor-pointer shadow-2xl"
                       style={{
                         background: info.has_unviewed ? getStoryRingGradient(info.ring_id as any) : 'var(--muted-foreground)',
                       }}
@@ -396,7 +397,7 @@ const UserProfilePage = () => {
                 }
 
                 return (
-                  <Avatar className="h-20 w-20 border-4 border-background shadow-2xl ring-2 ring-primary/30">
+                  <Avatar className="h-16 w-16 border-4 border-background shadow-2xl ring-2 ring-primary/30">
                     <AvatarImage src={profile.avatar_url || undefined} />
                     <AvatarFallback className="text-2xl bg-gradient-to-br from-primary to-accent text-white font-bold">
                       {getInitials(profile.name)}
@@ -407,11 +408,11 @@ const UserProfilePage = () => {
             </div>
 
             {/* RIGHT: Postlar */}
-            <div className="flex-1 flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-2 py-1.5 shadow-lg min-w-0 relative">
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
+            <div className="flex-1 flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-1.5 py-1 shadow-lg min-w-0 relative">
+              <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">
                 Postlar
               </span>
-              <span className="text-xl font-extrabold text-foreground leading-none">
+              <span className="text-lg font-extrabold text-foreground leading-none">
                 {formatCount(postsCount)}
               </span>
               <button
@@ -424,49 +425,67 @@ const UserProfilePage = () => {
             </div>
           </div>
 
-          {/* ROW 2: Name & Username */}
-          <div className="text-center mb-2">
-            <h1 className="text-xl font-extrabold text-foreground leading-tight">
-              {profile.name || 'Foydalanuvchi'}
-            </h1>
-            <p className="text-sm text-muted-foreground mt-1">
-              @{profile.username || 'username'}
-            </p>
+          {/* ROW 2: Qarindoshim | Name & Username | Xabar */}
+          <div className="flex items-center justify-between gap-2 mb-1.5">
+            <Button
+              variant="outline"
+              size="sm"
+              className="bg-white/10 dark:bg-white/5 border-white/20 hover:bg-white/20 text-foreground h-8 text-xs px-2.5"
+              onClick={() => setSelectMemberOpen(true)}
+            >
+              <Users className="h-3.5 w-3.5 mr-2" />
+              Qarindosh
+            </Button>
+
+            <div className="min-w-0 flex-1 text-center">
+              <h1 className="text-lg font-extrabold text-foreground leading-tight truncate">
+                {profile.name || 'Foydalanuvchi'}
+              </h1>
+              <div className="mt-0.5 truncate">
+                <StarUsername username={profile.username ? profile.username : 'username'} />
+              </div>
+            </div>
+
+            <MessageButton userId={userId} className="h-8 text-xs px-2.5" />
           </div>
 
           {/* ROW 3: Kuzatilmoqda | (spacer) | Oila a'zolari */}
           {showPostsStats && (
-            <div className="flex items-end justify-between gap-1 mb-1">
-              <button
-                type="button"
-                onClick={() => {
-                  setFollowSheetMode('following');
-                  setFollowSheetOpen(true);
-                }}
-                className="flex-1 flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-2 py-1.5 shadow-lg min-w-0"
-              >
-                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
-                  Kuzatilmoqda
-                </span>
-                <span className="text-xl font-extrabold text-foreground leading-none">
-                  {formatCount(followingCount)}
-                </span>
-              </button>
+            <div className="flex justify-center mb-1">
+              <div className="flex items-end justify-center gap-1.5 w-full max-w-[480px]">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFollowSheetMode('following');
+                    setFollowSheetOpen(true);
+                  }}
+                  className="flex-1 flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-1.5 py-1 shadow-lg min-w-0"
+                >
+                  <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">
+                    Kuzatilmoqda
+                  </span>
+                  <span className="text-lg font-extrabold text-foreground leading-none">
+                    {formatCount(followingCount)}
+                  </span>
+                </button>
 
-              <div className="flex-shrink-0 w-20" aria-hidden="true" />
+                <div className="flex-shrink-0">
+                  <FollowButton targetUserId={userId} size="sm" className="h-[44px] text-xs px-4" />
+                </div>
 
-              <button
-                type="button"
-                onClick={() => setFamilyMembersOpen(true)}
-                className="flex-1 flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-1.5 py-1 shadow-lg min-w-0"
-              >
-                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
-                  Oila a'zolari
-                </span>
-                <span className="text-xl font-extrabold text-foreground leading-none">
-                  {formatCount(familyMemberCount)}
-                </span>
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setFamilyMembersOpen(true)}
+                  className="flex-1 flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-1.5 py-1 shadow-lg min-w-0"
+                >
+                  <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">
+                    Oila a'zolari
+                  </span>
+                  <span className="text-lg font-extrabold text-foreground leading-none">
+                    {formatCount(familyMemberCount)}
+                  </span>
+                </button>
+              </div>
             </div>
           )}
 
@@ -481,19 +500,19 @@ const UserProfilePage = () => {
 
           {/* Bio */}
           {profile.bio && (
-            <div className="mb-2 px-4">
-              <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl p-2 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+            <div className="mb-1.5 px-3">
+              <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl p-1.5 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
                 <div className="relative">
                   <div 
                     ref={bioRef}
-                    className={`text-sm text-muted-foreground leading-relaxed transition-all duration-300 cursor-pointer ${
-                      !bioExpanded && needsMoreButton ? 'line-clamp-3' : ''
+                    className={`text-xs text-muted-foreground leading-relaxed transition-all duration-300 cursor-pointer ${
+                      !bioExpanded && needsMoreButton ? 'line-clamp-2' : ''
                     }`}
                     style={{
                       overflow: 'hidden',
                       display: '-webkit-box',
                       WebkitBoxOrient: 'vertical',
-                      WebkitLineClamp: bioExpanded ? 'unset' : '3'
+                      WebkitLineClamp: bioExpanded ? 'unset' : '2'
                     }}
                     onClick={() => needsMoreButton && setBioExpanded(!bioExpanded)}
                   >
@@ -523,27 +542,13 @@ const UserProfilePage = () => {
 
           {/* Social Links */}
           {profile.social_links && (
-            <div className="flex justify-center mb-2">
+            <div className="flex justify-center mb-1.5">
               <SocialLinksList links={profile.social_links} className="justify-center" />
             </div>
           )}
 
           {/* Action Buttons */}
-          {userId && (
-            <div className="flex justify-center gap-2 mb-4">
-              <Button
-                variant="outline"
-                size="sm"
-                className="bg-white/10 dark:bg-white/5 border-white/20 hover:bg-white/20 text-foreground h-9 text-sm"
-                onClick={() => setSelectMemberOpen(true)}
-              >
-                <Users className="h-4 w-4 mr-2" />
-                Qarindoshim
-              </Button>
-              <FollowButton targetUserId={userId} />
-              <MessageButton userId={userId} />
-            </div>
-          )}
+          <div className="mb-2" />
         </div>
 
         {/* Story Highlights */}
@@ -592,7 +597,7 @@ const UserProfilePage = () => {
                   : 'border-transparent text-muted-foreground'
               )}
             >
-              <Grid3X3 className="h-5 w-5" />
+              <Sparkles className="h-5 w-5" />
             </button>
             <button
               onClick={() => setActiveTab('saved')}

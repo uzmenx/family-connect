@@ -1,6 +1,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { StarUsername } from '@/components/user/StarUsername';
 
 interface LikeUser {
   id: string;
@@ -51,7 +52,9 @@ export const LikersDialog = ({ open, onOpenChange, users, likesCount }: LikersDi
                   </div>
                   <div className="min-w-0">
                     <p className="font-medium text-sm truncate">{user.name || 'Foydalanuvchi'}</p>
-                    <p className="text-xs text-muted-foreground truncate">@{user.username || 'user'}</p>
+                    <div className="truncate">
+                      <StarUsername username={user.username || 'user'} />
+                    </div>
                   </div>
                 </div>
               ))}

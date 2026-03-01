@@ -7,6 +7,7 @@ import { FamilyMember, FAMILY_LIMITS } from '@/hooks/useFamilyTree';
 import { cn } from '@/lib/utils';
 import { Send, Trash2, User, MessageCircle, Link as LinkIcon, Heart, Plus, Baby, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { StarUsername } from '@/components/user/StarUsername';
 
 // Relation labels mapping
 const relationLabels: Record<string, string> = {
@@ -196,9 +197,9 @@ export const MemberCardDialog = ({
               {getRelationLabel(member.relation_type)}
             </Badge>
             {member.linked_profile?.username && (
-              <p className="text-sm text-muted-foreground mt-1">
-                @{member.linked_profile.username}
-              </p>
+              <div className="mt-1">
+                <StarUsername username={member.linked_profile.username} textClassName="text-sm" />
+              </div>
             )}
           </div>
 

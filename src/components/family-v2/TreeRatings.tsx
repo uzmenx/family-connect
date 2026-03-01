@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { formatCount } from '@/lib/formatCount';
+import { StarUsername } from '@/components/user/StarUsername';
 
 interface RatingEntry {
   user_id: string;
@@ -165,7 +166,7 @@ export const TreeRatings = () => {
                     </Avatar>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium truncate">{entry.name || 'Foydalanuvchi'}</p>
-                      <p className="text-xs text-muted-foreground">@{entry.username || 'user'}</p>
+                      <StarUsername username={entry.username || 'user'} />
                     </div>
                     <div className="flex items-center gap-1">
                       {tab === 'likes' ? <Heart className="h-3.5 w-3.5 text-destructive" /> : <Users className="h-3.5 w-3.5 text-primary" />}

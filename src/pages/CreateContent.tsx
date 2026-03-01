@@ -2,9 +2,11 @@ import { useState, useRef, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { StarUsername } from '@/components/user/StarUsername';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Progress } from '@/components/ui/progress';
+import { Textarea } from '@/components/ui/textarea';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { uploadMedia } from '@/lib/r2Upload';
@@ -15,7 +17,6 @@ import { STORY_RINGS, type StoryRingId } from '@/components/stories/storyRings';
 import { StoryRingPreview } from '@/components/stories/StoryRingPreview';
 import { useMentionsCollabs } from '@/hooks/useMentionsCollabs';
 import { UserSearchPicker } from '@/components/post/UserSearchPicker';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { startBackgroundPublish } from '@/lib/backgroundPublish';
 
 type Step = 'media' | 'publish';
@@ -223,7 +224,11 @@ const CreateContent = () => {
                     <AvatarImage src={u.avatar_url || undefined} />
                     <AvatarFallback className="text-[8px]">U</AvatarFallback>
                   </Avatar>
-                  <span className="text-[10px] font-medium">@{u.username || u.name}</span>
+                  <StarUsername
+                    username={u.username || u.name || 'user'}
+                    textClassName="text-[10px] font-medium text-foreground"
+                    iconClassName="h-3 w-3"
+                  />
                   <button onClick={() => setMentionIds(prev => prev.filter(id => id !== u.id))}>
                     <X className="h-2.5 w-2.5 text-muted-foreground" />
                   </button>

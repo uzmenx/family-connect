@@ -8,7 +8,8 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Button } from '@/components/ui/button';
 
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { AtSign, Bell, Bookmark, Check, ChevronDown, ChevronUp, Edit, Grid3X3, Settings, Trash2, Users, Grid2X2, LayoutList, Columns2, Clock } from 'lucide-react';
+import { ArrowLeft, Settings, Edit, Bell, Grid3X3, Bookmark, Users, AtSign, ChevronDown, ChevronUp, BadgeCheck, BadgeX, Clock, LayoutList, Grid2X2, Columns2, Sparkles, Trash2, Check } from 'lucide-react';
+
 import { FollowListSheet, SocialLinksList, UnfollowHistorySheet } from '@/components/profile';
 
 import { useUserPosts } from '@/hooks/useUserPosts';
@@ -37,6 +38,7 @@ import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { StarUsername } from '@/components/user/StarUsername';
 import { cn } from '@/lib/utils';
 import { formatCount } from '@/lib/formatCount';
 import { getStoryRingGradient } from '@/components/stories/storyRings';
@@ -252,12 +254,13 @@ const Profile = () => {
 
   useEffect(() => {
     if (bioRef.current && profile?.bio) {
-      // Check if bio text overflows 3 lines
+      // Check if bio text overflows 2 lines
       const lineHeight = parseInt(window.getComputedStyle(bioRef.current).lineHeight) || 20;
-      const maxHeight = lineHeight * 3;
+      const maxHeight = lineHeight * 2;
       setNeedsMoreButton(bioRef.current.scrollHeight > maxHeight);
     }
   }, [profile?.bio]);
+
   const scrollContainerRef = useSmoothScroll(true, true);
 
   // Load family tree member count
@@ -292,7 +295,7 @@ const Profile = () => {
         {/* ═══════════════════════════════════════
                   COVER IMAGE
                ═══════════════════════════════════════ */}
-        <div className="relative h-36 overflow-hidden rounded-b-2xl">
+        <div className="relative h-28 overflow-hidden rounded-b-2xl">
           {(profile as any)?.cover_url ?
             <img
               src={(profile as any).cover_url}
@@ -344,7 +347,7 @@ const Profile = () => {
         {/* ═══════════════════════════════════════
                   PROFILE HEADER BLOCK
                ═══════════════════════════════════════ */}
-        <div className="px-4 -mt-10 relative z-10">
+        <div className="px-3 -mt-8 relative z-10">
 
           {/* ROW 1: Followers | Avatar | Postlar */}
           <div className="flex items-end justify-between gap-1 mb-1">
@@ -356,12 +359,12 @@ const Profile = () => {
                 setFollowSheetMode('followers');
                 setFollowSheetOpen(true);
               }}
-              className="flex-1 flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-2 py-1.5 shadow-lg min-w-0"
+              className="flex-1 flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-1.5 py-1 shadow-lg min-w-0"
             >
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
+              <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">
                 {t('followers')}
               </span>
-              <span className="text-xl font-extrabold text-foreground leading-none">
+              <span className="text-lg font-extrabold text-foreground leading-none">
                 {formatCount(followersCount)}
               </span>
             </button>
@@ -373,7 +376,7 @@ const Profile = () => {
                 if (myStoryInfo) {
                   return (
                     <div
-                      className="h-20 w-20 rounded-full p-[3px] cursor-pointer shadow-2xl"
+                      className="h-16 w-16 rounded-full p-[2px] cursor-pointer shadow-2xl"
                       style={{
                         background: myStoryInfo.has_unviewed
                           ? getStoryRingGradient(myStoryInfo.ring_id)
@@ -399,7 +402,7 @@ const Profile = () => {
                   );
                 }
                 return (
-                  <Avatar className="h-20 w-20 border-4 border-background shadow-2xl ring-2 ring-primary/30">
+                  <Avatar className="h-16 w-16 border-4 border-background shadow-2xl ring-2 ring-primary/30">
                     <AvatarImage src={profile?.avatar_url || undefined} />
                     <AvatarFallback className="text-2xl bg-gradient-to-br from-primary to-accent text-white font-bold">
                       {getInitials(profile?.name)}
@@ -410,11 +413,11 @@ const Profile = () => {
             </div>
 
             {/* RIGHT: Postlar */}
-            <div className="flex-1 flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-2 py-1.5 shadow-lg min-w-0 relative">
-              <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
+            <div className="flex-1 flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-1.5 py-1 shadow-lg min-w-0 relative">
+              <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">
                 {t('posts')}
               </span>
-              <span className="text-xl font-extrabold text-foreground leading-none">
+              <span className="text-lg font-extrabold text-foreground leading-none">
                 {formatCount(postsCount)}
               </span>
               <button
@@ -428,68 +431,70 @@ const Profile = () => {
           </div>
 
           {/* ROW 2: Name & Username */}
-          <div className="text-center mb-2">
-            <h1 className="text-xl font-extrabold text-foreground leading-tight break-words whitespace-normal">
+          <div className="text-center mb-1.5">
+            <h1 className="text-lg font-extrabold text-foreground leading-tight break-words whitespace-normal">
               {profile?.name || t('user')}
             </h1>
-            <p className="text-sm text-muted-foreground mt-1 break-words whitespace-normal">
-              @{profile?.username || user?.email?.split('@')[0] || 'username'}
-            </p>
+            <div className="mt-0.5 break-words whitespace-normal">
+              <StarUsername username={profile?.username || user?.email?.split('@')[0] || 'username'} />
+            </div>
           </div>
 
           {/* ROW 3: Kuzatilmoqda | (spacer) | Oila a'zolari */}
           {showPostsStats && (
-            <div className="flex items-end justify-between gap-1 mb-1">
-              <button
-                type="button"
-                onClick={() => {
-                  setFollowSheetMode('following');
-                  setFollowSheetOpen(true);
-                }}
-                className="flex-1 flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-2 py-1.5 shadow-lg min-w-0"
-              >
-                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
-                  {t('following')}
-                </span>
-                <span className="text-xl font-extrabold text-foreground leading-none">
-                  {formatCount(followingCount)}
-                </span>
-              </button>
+            <div className="flex justify-center mb-1">
+              <div className="flex items-end justify-center gap-1.5 w-full max-w-[480px]">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setFollowSheetMode('following');
+                    setFollowSheetOpen(true);
+                  }}
+                  className="flex-1 flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-1.5 py-1 shadow-lg min-w-0"
+                >
+                  <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">
+                    {t('following')}
+                  </span>
+                  <span className="text-lg font-extrabold text-foreground leading-none">
+                    {formatCount(followingCount)}
+                  </span>
+                </button>
 
-              <button
-                type="button"
-                onClick={() => setUnfollowHistoryOpen((v) => !v)}
-                className="flex-shrink-0 w-20 h-[52px] flex items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl shadow-lg"
-                aria-label="Unfollow history"
-              >
-                <Clock className="h-5 w-5 text-muted-foreground" />
-              </button>
+                <button
+                  type="button"
+                  onClick={() => setUnfollowHistoryOpen((v) => !v)}
+                  className="flex-shrink-0 w-16 h-[44px] flex items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl shadow-lg"
+                  aria-label="Unfollow history"
+                >
+                  <Clock className="h-5 w-5 text-muted-foreground" />
+                </button>
 
-              <div className="flex-1 flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-1.5 py-1 shadow-lg min-w-0">
-                <span className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest mb-1">
-                  Oila a'zolari
-                </span>
-                <span className="text-xl font-extrabold text-foreground leading-none">
-                  {formatCount(familyMemberCount)}
-                </span>
+                <div className="flex-1 flex flex-col items-center justify-center bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl px-1.5 py-1 shadow-lg min-w-0">
+                  <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-widest mb-0.5">
+                    Oila a'zolari
+                  </span>
+                  <span className="text-lg font-extrabold text-foreground leading-none">
+                    {formatCount(familyMemberCount)}
+                  </span>
+                </div>
               </div>
             </div>
           )}
           {/* Bio */}
           {profile?.bio &&
-            <div className="mb-2 px-4">
-              <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl p-2 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
+            <div className="mb-1.5 px-3">
+              <div className="bg-white/10 dark:bg-white/5 backdrop-blur-md border border-white/20 rounded-2xl p-1.5 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-[1.02]">
                 <div className="relative">
                   <div
                     ref={bioRef}
-                    className={`text-sm text-muted-foreground leading-relaxed transition-all duration-300 cursor-pointer ${
-                    !bioExpanded && needsMoreButton ? 'line-clamp-3' : ''}`
+                    className={`text-xs text-muted-foreground leading-relaxed transition-all duration-300 cursor-pointer ${
+                    !bioExpanded && needsMoreButton ? 'line-clamp-2' : ''}`
                     }
                     style={{
                       overflow: 'hidden',
                       display: '-webkit-box',
                       WebkitBoxOrient: 'vertical',
-                      WebkitLineClamp: bioExpanded ? 'unset' : '3'
+                      WebkitLineClamp: bioExpanded ? 'unset' : '2'
                     }}
                     onClick={() => needsMoreButton && setBioExpanded(!bioExpanded)}>
 
@@ -519,7 +524,7 @@ const Profile = () => {
 
           {/* Social Links */}
           {(profile as any)?.social_links &&
-            <div className="flex justify-center mb-2">
+            <div className="flex justify-center mb-1.5">
               <SocialLinksList links={(profile as any).social_links} className="justify-center" />
             </div>
             }
@@ -592,7 +597,7 @@ const Profile = () => {
                   'border-transparent text-muted-foreground'
                 )}>
 
-              <Grid3X3 className="h-5 w-5" />
+              <Sparkles className="h-5 w-5" />
             </button>
             <button
                 onClick={() => setActiveTab('saved')}

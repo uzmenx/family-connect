@@ -8,6 +8,7 @@ import { Search, Check } from 'lucide-react';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/contexts/AuthContext';
+import { StarUsername } from '@/components/user/StarUsername';
 
 interface FollowUser {
   id: string;
@@ -177,9 +178,9 @@ export const AddMembersDialog = ({
                     <p className="font-medium truncate">
                       {user.name || 'Foydalanuvchi'}
                     </p>
-                    <p className="text-sm text-muted-foreground truncate">
-                      @{user.username || 'username'}
-                    </p>
+                    <div className="truncate">
+                      <StarUsername username={user.username || 'username'} textClassName="text-sm" />
+                    </div>
                   </div>
                   <Checkbox
                     checked={selectedIds.has(user.id)}

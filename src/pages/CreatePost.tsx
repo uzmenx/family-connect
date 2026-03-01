@@ -12,7 +12,8 @@ import { uploadMedia } from '@/lib/r2Upload';
 import { usePostCollections } from '@/hooks/usePostCollections';
 import { useMentionsCollabs } from '@/hooks/useMentionsCollabs';
 import { UserSearchPicker } from '@/components/post/UserSearchPicker';
-import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { StarUsername } from "@/components/user/StarUsername";
 import { cn } from '@/lib/utils';
 
 interface MediaFile {
@@ -253,7 +254,7 @@ const CreatePost = () => {
                       <AvatarImage src={u.avatar_url || undefined} />
                       <AvatarFallback className="text-[10px]">U</AvatarFallback>
                     </Avatar>
-                    <span className="text-xs font-medium">@{u.username || u.name}</span>
+                    <StarUsername username={u.username || u.name || 'user'} textClassName="text-xs font-medium text-foreground" />
                     <button onClick={() => setMentionIds(prev => prev.filter(id => id !== u.id))}>
                       <X className="h-3 w-3 text-muted-foreground" />
                     </button>

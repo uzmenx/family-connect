@@ -19,12 +19,7 @@ export const MessageButton = ({ userId, className }: MessageButtonProps) => {
     <Button 
       variant="outline" 
       onClick={handleClick}
-      className={`${className} bg-white/10 dark:bg-white/5 border-white/20 hover:bg-white/20 text-foreground h-9 text-sm`}
-      style={{
-        backgroundColor: 'rgba(255,255,255,0.08)',
-        border: '1px solid rgba(255,255,255,0.2)',
-        color: 'white'
-      }}
+      className={`bg-white/10 dark:bg-white/5 border-white/20 hover:bg-white/20 text-foreground ${className ?? ''}`}
     >
       <MessageCircle className="h-4 w-4 mr-2" />
       Xabar

@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { cn } from '@/lib/utils';
+import { StarUsername } from '@/components/user/StarUsername';
 
 interface UserInfoProps {
   userId: string;
@@ -39,7 +40,7 @@ export const UserInfo = ({
         <p className="font-semibold text-sm text-foreground hover:underline my-0">
           {name || 'Foydalanuvchi'}
         </p>
-        <p className="text-xs text-muted-foreground">@{username || 'user'}</p>
+        <StarUsername username={username || 'user'} />
       </div>);
 
   }
@@ -55,7 +56,7 @@ export const UserInfo = ({
       <p className="font-semibold text-sm hover:underline">
         {name || 'Foydalanuvchi'}
       </p>
-      <p className="text-xs text-muted-foreground">@{username || 'user'}</p>
+      <StarUsername username={username || 'user'} />
     </div>);
 
 };

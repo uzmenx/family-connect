@@ -7,8 +7,10 @@ import { useNotifications } from "@/hooks/useNotifications";
 import { useActiveStories } from "@/hooks/useActiveStories";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLanguage } from "@/contexts/LanguageContext";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Button } from '@/components/ui/button';
+import { StarUsername } from '@/components/user/StarUsername';
+
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Search, MessageCircle, Users, Megaphone, Bell, Sparkles, Edit2, Trash2, X, CheckSquare, Music, ChevronDown } from "lucide-react";
@@ -733,8 +735,11 @@ const Messages = () => {
                     </Avatar>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold truncate">{follower.name || t('user')}</h3>
-                      <p className="text-sm text-muted-foreground truncate">@{follower.username || "username"}</p>
+                      <div className="truncate">
+                        <StarUsername username={follower.username || 'username'} textClassName="text-sm" />
+                      </div>
                     </div>
+
                      <Button variant="outline" size="sm">
                        {t('messageBtn')}
                      </Button>
@@ -764,8 +769,11 @@ const Messages = () => {
                     </Avatar>
                     <div className="flex-1 min-w-0">
                       <h3 className="font-semibold truncate">{followingUser.name || t('user')}</h3>
-                      <p className="text-sm text-muted-foreground truncate">@{followingUser.username || "username"}</p>
+                      <div className="truncate">
+                        <StarUsername username={followingUser.username || 'username'} textClassName="text-sm" />
+                      </div>
                     </div>
+
                      <Button variant="outline" size="sm">
                        {t('messageBtn')}
                      </Button>

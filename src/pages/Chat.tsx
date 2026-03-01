@@ -9,6 +9,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { Post } from '@/types';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
+import { StarUsername } from '@/components/user/StarUsername';
 import { ArrowLeft, Phone, Video, MoreVertical, Check, CheckCheck, Clock, Download, Trash, Copy, Forward, Reply, Mic, MicOff, Volume2, VolumeX, Loader2, ChevronDown } from 'lucide-react';
 import { format, isToday, isYesterday, isSameDay } from 'date-fns';
 import { uz } from 'date-fns/locale';
@@ -665,7 +666,7 @@ const Chat = () => {
                   <AvatarFallback className="text-xl">{getInitials(otherUser.name)}</AvatarFallback>
                 </Avatar>
                 <h3 className="font-semibold text-sm">{otherUser.name || t('user')}</h3>
-                <p className="text-xs text-muted-foreground">@{otherUser.username || 'username'}</p>
+                <StarUsername username={otherUser.username || 'username'} />
                 <p className="text-xs text-muted-foreground mt-3">{t('startChat')}</p>
               </div>
             </div>

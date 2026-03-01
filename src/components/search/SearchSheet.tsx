@@ -6,6 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Search, X, Users, FileText } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
+import { StarUsername } from '@/components/user/StarUsername';
 
 interface SearchSheetProps {
   open: boolean;
@@ -157,7 +158,7 @@ export const SearchSheet = ({ open, onOpenChange }: SearchSheetProps) => {
                   </Avatar>
                   <div className="text-left">
                     <p className="text-sm font-semibold">{u.name || u.username}</p>
-                    {u.username && <p className="text-xs text-muted-foreground">@{u.username}</p>}
+                    {u.username && <StarUsername username={u.username} />}
                   </div>
                 </button>
               ))}
@@ -185,7 +186,7 @@ export const SearchSheet = ({ open, onOpenChange }: SearchSheetProps) => {
                         <AvatarImage src={p.profile?.avatar_url || undefined} />
                         <AvatarFallback className="text-[8px]">U</AvatarFallback>
                       </Avatar>
-                      <span className="text-xs text-muted-foreground">@{p.profile?.username || '...'}</span>
+                      <StarUsername username={p.profile?.username || '...'} />
                     </div>
                     {p.content && (
                       <p className="text-xs mt-0.5 truncate">{p.content}</p>
